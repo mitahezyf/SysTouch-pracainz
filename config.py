@@ -1,0 +1,1 @@
+CLICK_TRESHOLD = 0.5
