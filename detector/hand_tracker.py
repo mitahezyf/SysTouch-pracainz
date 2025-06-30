@@ -1,8 +1,10 @@
 import cv2
 import mediapipe as mp
 
+#klasa wykrywajaca dlonie
 class HandTracker:
     def __init__(self):
+        #inicjalizacja kamery i mediapipe
         self.cap = cv2.VideoCapture(0)
         self.hands = mp.solutions.hands.Hands(
             max_num_hands=2,
@@ -25,10 +27,10 @@ class HandTracker:
         if results.multi_hand_landmarks and results.multi_handedness:
             for hand_landmarks, handedness in zip(results.multi_hand_landmarks, results.multi_handedness):
                 self.drawer.draw_landmarks(frame, hand_landmarks, self.connections)
-                label = handedness.classification[0].label  # "Left" or "Right"
+                label = handedness.classification[0].label  # "Left" albo "Right"
                 landmarks_with_handedness.append((hand_landmarks, label))
 
         return frame, landmarks_with_handedness
-
+    #zwolnienie kamery
     def release(self):
         self.cap.release()

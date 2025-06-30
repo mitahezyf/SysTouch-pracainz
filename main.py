@@ -4,8 +4,12 @@ from detector.hand_tracker import HandTracker
 from detector.gesture_detector import detect_gesture
 from actions.gesture_actions import execute_action
 
+import time
+
 mouse_down = False
 tracker = HandTracker()
+
+prev_frame_time = time.time()
 
 while True:
     frame, landmarks_data = tracker.get_hand_landmarks()
@@ -40,6 +44,15 @@ while True:
         cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
         cv2.putText(frame, label_text, (x_min, y_min - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+    #licznik FPS
+    new_frame_time = time.time()
+    fps = 1 / (new_frame_time - prev_frame_time + 1e-6)
+    frametime_ms = (new_frame_time - prev_frame_time) * 1000
+    prev_frame_time = new_frame_time
+
+    cv2.putText(frame, f'FPS: {int(fps)}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (100, 255, 100), 2)
+    cv2.putText(frame, f'Delay: {int(frametime_ms)} ms', (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (100, 255, 255), 2)
 
     cv2.imshow("wykrywacz", frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
