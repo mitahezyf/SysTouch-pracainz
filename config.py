@@ -17,3 +17,5 @@ HOLD_THRESHOLD = 1.0
 
 #procentowy prog akceptacji gestu
 GESTURE_CONFIDENCE_THRESHOLD = 0.9
+
+FLEX_THRESHOLD = 0.001
