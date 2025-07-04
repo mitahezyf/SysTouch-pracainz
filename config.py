@@ -1,2 +1,19 @@
-#prob wykrycia gestu klikniecia
-CLICK_TRESHOLD = 0.5
+#kamera
+CAMERA_INDEX = 0
+FRAME_WIDTH = 1280
+FRAME_HEIGHT = 720
+
+#debug
+DEBUG_MODE = True
+SHOW_FPS = True
+SHOW_DELAY = True
+
+#progi gestow
+CLICK_THRESHOLD = 0.5
+SCROLL_THRESHOLD = 5
+SCROLL_SENSITIVITY = 1.2
+MOUSE_MOVING_SMOOTHING = 0.7
+HOLD_THRESHOLD = 1.0
+
+#procentowy prog akceptacji gestu
+GESTURE_CONFIDENCE_THRESHOLD = 0.9

@@ -1,54 +1,60 @@
-from utils.geometry import distance
-from config import CLICK_TRESHOLD
+import importlib
+import os
+import inspect
+from pathlib import Path
 
-# klasa do reprezentacji gestu
-class Gesture:
-    def __init__(self, name, confidence, landmarks):
-        self.name = name
-        self.confidence = confidence
-        self.landmarks = landmarks
+#sciezka do folderu gestures
+GESTURE_DIR = Path(__file__).parent.parent / "gestures"
 
+#wczytanie funkcji zaczynajacych sie od detect_
+def load_gesture_detectors():
+    detectors = []
 
-# funkcja do rozpoznawania pozycji punktow do sterowania kursorem
-def is_mouse_control_pose(landmarks):
-    index = landmarks.landmark[8]
-    middle = landmarks.landmark[12]
-    ring = landmarks.landmark[16]
-    pinky = landmarks.landmark[20]
+    for file in os.listdir(GESTURE_DIR):
+        if file.endswith(".py") and not file.startswith("__"):
+            module_name = f"gestures.{file[:-3]}"
+            module = importlib.import_module(module_name)
 
-    # palec wskazujacy i srodkowy – wyprostowane
-    index_extended = index.y < landmarks.landmark[5].y
-    middle_extended = middle.y < landmarks.landmark[9].y
+            for name, obj in inspect.getmembers(module, inspect.isfunction):
+                if name.startswith("detect_"):
+                    detectors.append(obj)
 
-    # palec serdeczny i maly – zgiete
-    ring_bent = ring.y > landmarks.landmark[13].y
-    pinky_bent = pinky.y > landmarks.landmark[17].y
+    return detectors
 
-    return index_extended and middle_extended and ring_bent and pinky_bent
+#tylko przy starcie, laduje gesty
+gesture_detectors = load_gesture_detectors()
 
-
-#glowna funkcja do rozpoznawania gestu z punktow dloni
+#glowna funkcja wykrywania gestu
 def detect_gesture(landmarks):
-    thumb_tip = landmarks.landmark[4]
-    index_tip = landmarks.landmark[8]
-
-    dist = distance(thumb_tip, index_tip)
-    click_confidence = max(0.0, 1.0 - (dist / CLICK_TRESHOLD))
-
-    # -------------------------------------------------------------------------
-    # PRIORYTET GESTU 1: STEROWANIE MYSZKA
-    # -------------------------------------------------------------------------
-    if is_mouse_control_pose(landmarks):
-        return Gesture("move_mouse", 1.0, landmarks)
-
-    # -------------------------------------------------------------------------
-    # PRIORYTET GESTU 2: CLICK
-    # -------------------------------------------------------------------------
-    if click_confidence > 0.9:
-        return Gesture("click", click_confidence, landmarks)
-
+    for detector in gesture_detectors:
+        gesture = detector(landmarks)
+        if gesture:
+            return gesture
     return None
 
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# from gestures.click_gesture import detect_click_gesture
+#
+# def detect_gesture(landmarks):
+#     for detector in [detect_click_gesture]:
+#         gesture = detector(landmarks)
+#         if gesture:
+#             return gesture
+#         return None
