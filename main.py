@@ -9,7 +9,7 @@ from utils.visualizer import Visualizer
 
 #inicjalizacja kamery
 cap = cv2.VideoCapture(0)
-#inicjalizacja sledzenia dloni
+#inicjalizacja sledzenia dloni`
 tracker = HandTracker()
 #inicjalizacja obliczen wydajnosci
 performance = PerformanceTracker()
