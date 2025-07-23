@@ -1,3 +1,4 @@
+#todo optymalizacja
 from utils.landmarks import FINGER_TIPS, FINGER_PIPS, FINGER_MCPS
 from config import FLEX_THRESHOLD
 
