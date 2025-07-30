@@ -1,6 +1,7 @@
-from utils.landmarks import FINGER_TIPS
-from utils.geometry import distance
-from config import CLICK_THRESHOLD
+from app.config import CLICK_THRESHOLD
+from app.utils.geometry import distance
+from app.utils.landmarks import FINGER_TIPS
+
 
 def detect_click_gesture(landmarks):
     thumb_tip = landmarks[FINGER_TIPS["thumb"]]

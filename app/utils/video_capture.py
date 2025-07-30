@@ -1,9 +1,14 @@
-import cv2
 from threading import Thread
 
-from config import CAMERA_INDEX, CAPTURE_WIDTH, CAPTURE_HEIGHT, TARGET_CAMERA_FPS
+import cv2
 
-#klasa do obslugi przechwytywania obrazu z kamery
+from app.config import CAMERA_INDEX
+from app.config import CAPTURE_HEIGHT
+from app.config import CAPTURE_WIDTH
+from app.config import TARGET_CAMERA_FPS
+
+
+# klasa do obslugi przechwytywania obrazu z kamery
 class ThreadedCapture:
     def __init__(self):
         self.cap = cv2.VideoCapture(CAMERA_INDEX)
@@ -14,20 +19,20 @@ class ThreadedCapture:
         self.ret, self.frame = self.cap.read()
         self.running = True
 
-        #start nowego watku do pobierania klatek
-        self.thread = Thread(target = self.update, daemon = True)
+        # start nowego watku do pobierania klatek
+        self.thread = Thread(target=self.update, daemon=True)
         self.thread.start()
 
-    #aktualizacja ramki - frame
+    # aktualizacja ramki - frame
     def update(self):
         while self.running:
             self.ret, self.frame = self.cap.read()
 
-    #zwraca ostatni frame i status
+    # zwraca ostatni frame i status
     def read(self):
         return self.ret, self.frame
 
-    #zatrzymuje watek i zwalnia kamere
+    # zatrzymuje watek i zwalnia kamere
     def stop(self):
         self.running = False
         self.thread.join()

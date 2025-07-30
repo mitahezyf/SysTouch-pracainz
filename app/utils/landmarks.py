@@ -1,39 +1,39 @@
-#kciuk
+# kciuk
 THUMB_CMC = 1
 THUMB_MCP = 2
 THUMB_IP = 3
 THUMB_TIP = 4
 
-#wskazujacy
+# wskazujacy
 INDEX_MCP = 5
 INDEX_PIP = 6
 INDEX_DIP = 7
 INDEX_TIP = 8
 
-#srodkowy
+# srodkowy
 MIDDLE_MCP = 9
 MIDDLE_PIP = 10
 MIDDLE_DIP = 11
 MIDDLE_TIP = 12
 
-#serdeczny
+# serdeczny
 RING_MCP = 13
 RING_PIP = 14
 RING_DIP = 15
 RING_TIP = 16
 
-#maly
+# maly
 PINKY_MCP = 17
 PINKY_PIP = 18
 PINKY_DIP = 19
 PINKY_TIP = 20
 
-#nadgarstek
+# nadgarstek
 WRIST = 0
 
-#slownik
+# slownik
 
-#zbiory calych palcow
+# zbiory calych palcow
 FINGERS = {
     "thumb": [THUMB_CMC, THUMB_MCP, THUMB_IP, THUMB_TIP],
     "index": [INDEX_MCP, INDEX_PIP, INDEX_DIP, INDEX_TIP],
@@ -42,7 +42,7 @@ FINGERS = {
     "pinky": [PINKY_MCP, PINKY_PIP, PINKY_DIP, PINKY_TIP],
 }
 
-#opuszki palcow
+# opuszki palcow
 FINGER_TIPS = {
     "thumb": THUMB_TIP,
     "index": INDEX_TIP,
@@ -51,7 +51,7 @@ FINGER_TIPS = {
     "pinky": PINKY_TIP,
 }
 
-#pierwszy staw liczac od opuszka
+# pierwszy staw liczac od opuszka
 FINGER_DIPS = {
     "thumb": THUMB_CMC,
     "index": INDEX_DIP,
@@ -60,7 +60,7 @@ FINGER_DIPS = {
     "pinky": PINKY_DIP,
 }
 
-#druku staw liczac od opuszka
+# druku staw liczac od opuszka
 FINGER_PIPS = {
     "index": INDEX_PIP,
     "middle": MIDDLE_PIP,
@@ -68,7 +68,7 @@ FINGER_PIPS = {
     "pinky": PINKY_PIP,
 }
 
-#miejsce gdzie palec laczy sie z nadgarstkiem
+# miejsce gdzie palec laczy sie z nadgarstkiem
 FINGER_MCPS = {
     "thumb": THUMB_MCP,
     "index": INDEX_MCP,
@@ -77,4 +77,3 @@ FINGER_MCPS = {
     "pinky": PINKY_MCP,
 }
 WHOLE_HAND = list(range(21))
-

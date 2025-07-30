@@ -1,12 +1,13 @@
 import importlib
-import os
 import inspect
+import os
 from pathlib import Path
 
-#sciezka do folderu gestures
+# sciezka do folderu gestures
 GESTURE_DIR = Path(__file__).parent.parent / "gestures"
 
-#wczytanie funkcji zaczynajacych sie od detect_
+
+# wczytanie funkcji zaczynajacych sie od detect_
 def load_gesture_detectors():
     detectors = []
 
@@ -21,33 +22,18 @@ def load_gesture_detectors():
 
     return detectors
 
-#tylko przy starcie, laduje gesty
+
+# tylko przy starcie, laduje gesty
 gesture_detectors = load_gesture_detectors()
 
-#glowna funkcja wykrywania gestu
+
+# glowna funkcja wykrywania gestu
 def detect_gesture(landmarks):
     for detector in gesture_detectors:
         gesture = detector(landmarks)
         if gesture:
             return gesture
     return None
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # from gestures.click_gesture import detect_click_gesture

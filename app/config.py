@@ -1,30 +1,30 @@
-#todo do posprzatania i poukladnaia
-#kamera
+# todo do posprzatania i poukladnaia
+# kamera
 CAMERA_INDEX = 0
 # FRAME_WIDTH = 1280
 # FRAME_HEIGHT = 720
 
-#rozdzielczosc przechwytywania
+# rozdzielczosc przechwytywania
 CAPTURE_WIDTH = 1920
 CAPTURE_HEIGHT = 1080
 
-#rozdzielczosc wyswietlania
+# rozdzielczosc wyswietlania
 DISPLAY_WIDTH = 640
 DISPLAY_HEIGHT = 480
 
-#debug
+# debug
 DEBUG_MODE = True
 SHOW_FPS = True
 SHOW_DELAY = True
 
-#progi gestow
+# progi gestow
 CLICK_THRESHOLD = 0.5
 SCROLL_THRESHOLD = 5
 SCROLL_SENSITIVITY = 30
 MOUSE_MOVING_SMOOTHING = 0.7
-HOLD_THRESHOLD = 1.0
+HOLD_THRESHOLD = 3.0
 
-#procentowy prog akceptacji gestu
+# procentowy prog akceptacji gestu
 GESTURE_CONFIDENCE_THRESHOLD = 0.9
 
 FLEX_THRESHOLD = 0.001
@@ -33,14 +33,17 @@ VOLUME_THRESHOLD = 0.5
 
 TARGET_CAMERA_FPS = 60
 
-#renderowanie klatek
+# renderowanie klatek
 DRAW_EVERY_N_FRAMES = 3
 
 LANDMARK_CIRCLE_RADIUS = 1
 LANDMARK_LINE_THICKNESS = 1
-LANDMARK_COLOR = (0, 255, 0) #zielony
-CONNECTION_COLOR = (0, 0, 255) #niebieski
+LANDMARK_COLOR = (0, 255, 0)  # zielony
+CONNECTION_COLOR = (0, 0, 255)  # niebieski
 
 LABEL_FONT_SCALE = 0.5
 LABEL_THICKNESS = 1
-LABEL_COLOR = (0, 255, 0) #zielony
+LABEL_COLOR = (0, 255, 0)  # zielony
+
+MAX_SCROLL_SPEED = 10
+SCROLL_BASE_INTERVAL = 0.3  # 300ms → przy małym odchyleniu

@@ -1,18 +1,20 @@
-#TODO poprawic optymalizacje poruszania kursorem
-
+# TODO poprawic optymalizacje poruszania kursorem
 import threading
-import pyautogui
 import time
 from collections import deque
-from utils.landmarks import FINGER_TIPS
 
-#bufor wygladzania
+import pyautogui
+
+from app.utils.landmarks import FINGER_TIPS
+
+# bufor wygladzania
 position_buffer = deque(maxlen=5)
 latest_position = None
 lock = threading.Lock()
 running = True
 
-#watek poruszania mysza
+
+# watek poruszania mysza
 def move_worker():
     global latest_position
     while running:
@@ -27,9 +29,11 @@ def move_worker():
 
         time.sleep(0.005)
 
-#poczatek watku
+
+# poczatek watku
 worker_thread = threading.Thread(target=move_worker, daemon=True)
 worker_thread.start()
+
 
 def handle_move_mouse(landmarks, frame_shape):
     global latest_position
@@ -41,6 +45,7 @@ def handle_move_mouse(landmarks, frame_shape):
 
     with lock:
         latest_position = (screen_x, screen_y)
+
 
 def stop_mouse_thread():
     global running

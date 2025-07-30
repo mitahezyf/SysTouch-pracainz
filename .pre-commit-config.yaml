@@ -1,0 +1,84 @@
+repos:
+  ################################################################
+  #  FORMATOWANIE ― Black (automatycznie poprawia pliki)  #
+  ################################################################
+  - repo: https://github.com/psf/black
+    rev: 24.4.2                 # pin do konkretnej wersji
+    hooks:
+      - id: black
+        language_version: python3
+        # obejmuje tylko pliki *.py w katalogu app/
+        files: ^app/.*\.py$
+        exclude: ^app/src/DocTag/_version\.py$
+
+  ###############################################################
+  #  LINTER ― Ruff                                             #
+  ###############################################################
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.4
+    hooks:
+      - id: ruff
+        args: [ "--fix" ]        # automatycznie naprawia drobne błędy
+        files: ^app/.*\.py$
+
+#  ###############################################################
+#  #  TYPE CHECK ― mypy (statyczna kontrola typów)              #
+#  ###############################################################
+#  - repo: https://github.com/pre-commit/mirrors-mypy
+#    rev: v1.8.0
+#    hooks:
+#      - id: mypy
+#        args:
+#          - "--ignore-missing-imports"   # bez fałszywych alarmów dla bibliotek C
+#          - "--strict"
+#        files: ^app/.*\.py$
+
+  ###############################################################
+  #  BIAŁE ZNAKI, KOŃCOWE NOWE LINIE, UTF-8 itp.                 #
+  ###############################################################
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace    # wycina spacje na końcu linii
+      - id: end-of-file-fixer      # wymusza pojedynczy \n na końcu pliku
+      - id: check-yaml             # waliduje składnię YAML
+      - id: check-json             # waliduje JSON
+      - id: check-merge-conflict   # alarmuje, gdy zostawisz <<<<<< od merga
+
+
+  ################################################################
+  #  BEZPIECZEŃSTWO ― Bandit (analiza luk bezpieczeństwa)        #
+  ################################################################
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.8
+    hooks:
+      - id: bandit
+        args: [ "-lll", "--ini", ".bandit" ]
+        files: ^app/.*\.py$
+
+  ################################################################
+  #  ULEPSZENIA KODU ― pyupgrade (nowoczesna składnia Python)    #
+  ################################################################
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.15.0
+    hooks:
+      - id: pyupgrade
+        args: [ "--py38-plus" ]       # dostosowanie składni do Python 3.8+
+        files: ^app/.*\.py$
+
+#  ################################################################
+#  #  MARTWY KOD ― dead (wykrywa nieużywane funkcje, klasy itp.)  #
+#  ################################################################
+#  - repo: https://github.com/asottile/dead
+#    rev: v1.4.0
+#    hooks:
+#      - id: dead
+
+  ################################################################
+  #  IMPORTY ― porządkowanie importów wg PEP8                    #
+  ################################################################
+  - repo: https://github.com/asottile/reorder-python-imports
+    rev: v3.10.0
+    hooks:
+      - id: reorder-python-imports
+        files: ^app/.*\.py$

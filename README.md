@@ -1,7 +1,7 @@
 # Program komputerowy SystemTouch
 ## Wstępnie planowane biblioteki
 - OpenCV — wstępne przetwarzanie obrazu
-- Mediapipe — śledzenie pozycji punktów 
+- Mediapipe — śledzenie pozycji punktów
 - PyAutoGUI/pynput — symulacja zdarzeń klawiatury i myszy
 - TensorFlow/PyTorch — tworzenie własnego modelu rozpoznawania gestów za pomocąuczenia maszynowego
 - PyQt6 — tworzene własnego interfejsu graficznego
