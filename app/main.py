@@ -1,11 +1,11 @@
 import cv2
 
-from app.actions.handlers import gesture_handlers
-from app.actions.hooks import handle_gesture_start_hook
 from app.config import CAPTURE_HEIGHT
 from app.config import CAPTURE_WIDTH
 from app.config import DISPLAY_HEIGHT
 from app.config import DISPLAY_WIDTH
+from app.core.handlers import gesture_handlers
+from app.core.hooks import handle_gesture_start_hook
 from app.detector.gesture_detector import detect_gesture
 from app.detector.hand_tracker import HandTracker
 from app.utils.performance import PerformanceTracker

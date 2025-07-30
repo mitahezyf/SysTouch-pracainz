@@ -2,10 +2,10 @@ import ctypes
 import time
 from collections import deque
 
-from app.actions.hooks import register_gesture_start_hook
 from app.config import MAX_SCROLL_SPEED
 from app.config import SCROLL_BASE_INTERVAL
 from app.config import SCROLL_SENSITIVITY
+from app.core.hooks import register_gesture_start_hook
 from app.utils.landmarks import WRIST
 
 position_buffer = deque(maxlen=3)
