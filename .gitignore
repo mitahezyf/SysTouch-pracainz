@@ -1,0 +1,43 @@
+# ───── VENV ─────
+.venv/
+venv/
+env/
+
+# ───── PYTHON ─────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# ───── SYSTEM FILES ─────
+.DS_Store
+Thumbs.db
+
+# ───── EDITOR / IDE ─────
+.vscode/
+.idea/
+*.iml
+
+# ───── LOGS / CACHES ─────
+*.log
+.cache/
+.pre-commit/
+*.swp
+
+# ───── TESTS / ARTIFACTS ─────
+coverage/
+*.cover
+*.coverage
+*.pytest_cache/
+
+# ───── OUTPUT / GENERATED ─────
+*.png
+*.jpg
+*.jpeg
+*.pdf
+*.svg
+
+# ───── GIT ─────
+# ignore local git hooks configs
+.git/hooks/
