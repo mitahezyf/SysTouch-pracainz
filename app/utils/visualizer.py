@@ -47,6 +47,16 @@ class Visualizer:
             frame, text, (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1
         )
 
+    # aktualny gest i pewnosc
+    def draw_current_gesture(self, frame, gesture_name, confidence):
+        if gesture_name:
+            text = f"Gesture: {gesture_name} ({int(confidence * 100)}%)"
+        else:
+            text = "Gesture: None"
+        cv2.putText(
+            frame, text, (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1
+        )
+
     # rysuje polaczenia i punkty na dloni
     def draw_landmarks(self, frame, hand_landmarks):
         mp_drawing.draw_landmarks(

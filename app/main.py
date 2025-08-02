@@ -87,8 +87,19 @@ while True:
     performance.update()
 
     resized_frame = cv2.resize(display_frame, (DISPLAY_WIDTH, DISPLAY_HEIGHT))
+
     visualizer.draw_fps(resized_frame, performance.fps)
     visualizer.draw_frametime(resized_frame, performance.frametime_ms)
+
+    # pobierz ostatni gest i confidence jesli istnieje
+    gesture_name, confidence = None, 0.0
+    if last_gestures:
+        last_id = next(iter(last_gestures))  # bierze pierwszą rękę
+        gesture = detect_gesture(results.multi_hand_landmarks[0].landmark)
+        if gesture:
+            gesture_name, confidence = gesture
+
+    visualizer.draw_current_gesture(resized_frame, gesture_name, confidence)
 
     cv2.imshow("SysTouch", resized_frame)
 
