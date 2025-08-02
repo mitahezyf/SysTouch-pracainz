@@ -3,6 +3,8 @@ import time
 import pyautogui
 
 from app.config import HOLD_THRESHOLD
+from app.logger import logger
+
 
 click_state = {
     "start_time": None,
@@ -18,6 +20,7 @@ def start_click():
     click_state["holding"] = False
     click_state["mouse_down"] = False
     click_state["click_sent"] = False
+    logger.debug("[click] start_click()")
 
 
 def handle_active():
@@ -30,31 +33,34 @@ def handle_active():
     if duration >= HOLD_THRESHOLD:
         if not click_state["holding"]:
             click_state["holding"] = True
+            logger.debug("[click] HOLD aktywowany")
+
         if not click_state["mouse_down"]:
             pyautogui.mouseDown()
             click_state["mouse_down"] = True
+            logger.debug("[click] mouseDown()")
 
 
 def release_click():
     if click_state["start_time"] is None:
-        print("[release_click] Ignored – no start_time")
+        logger.debug("[click] Ignoruję release – brak start_time")
         return
 
     duration = time.time() - click_state["start_time"]
-    print(
-        f"[release_click] Duration: {duration:.3f}, holding={click_state['holding']}, sent={click_state['click_sent']}"
+    logger.debug(
+        f"[click] release_click(): duration={duration:.3f}, holding={click_state['holding']}, sent={click_state['click_sent']}"
     )
 
     if click_state["holding"]:
         if click_state["mouse_down"]:
-            print("[release_click] mouseUp()")
             pyautogui.mouseUp()
+            logger.debug("[click] mouseUp() (hold)")
     elif not click_state["click_sent"] and duration < HOLD_THRESHOLD:
-        print("[release_click] click()")
         pyautogui.click()
         click_state["click_sent"] = True
+        logger.debug("[click] click() (short tap)")
     else:
-        print("[release_click] Nothing to do")
+        logger.debug("[click] release_click() – brak akcji")
 
     click_state["start_time"] = None
     click_state["holding"] = False

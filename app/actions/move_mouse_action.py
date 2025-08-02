@@ -1,22 +1,24 @@
-# TODO poprawic optymalizacje poruszania kursorem
 import threading
 import time
 from collections import deque
 
 import pyautogui
 
+from app.logger import logger
 from app.utils.landmarks import FINGER_TIPS
 
-# bufor wygladzania
+# bufor wygładzania
 position_buffer = deque(maxlen=5)
 latest_position = None
 lock = threading.Lock()
 running = True
 
 
-# watek poruszania mysza
 def move_worker():
     global latest_position
+    logger.info("[mouse] Wątek poruszania myszą wystartował")
+    first_move_logged = False
+
     while running:
         with lock:
             if latest_position:
@@ -27,10 +29,15 @@ def move_worker():
             avg_y = int(sum(p[1] for p in position_buffer) / len(position_buffer))
             pyautogui.moveTo(avg_x, avg_y, duration=0)
 
+            if not first_move_logged:
+                logger.debug(f"[mouse] pierwszy ruch kursora: ({avg_x}, {avg_y})")
+                first_move_logged = True
+
         time.sleep(0.005)
 
+    logger.info("[mouse] Wątek myszki zakończony")
 
-# poczatek watku
+
 worker_thread = threading.Thread(target=move_worker, daemon=True)
 worker_thread.start()
 

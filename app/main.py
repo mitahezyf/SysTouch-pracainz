@@ -8,12 +8,13 @@ from app.core.handlers import gesture_handlers
 from app.core.hooks import handle_gesture_start_hook
 from app.detector.gesture_detector import detect_gesture
 from app.detector.hand_tracker import HandTracker
+from app.logger import logger
 from app.utils.performance import PerformanceTracker
 from app.utils.video_capture import ThreadedCapture
 from app.utils.visualizer import Visualizer
 
 
-# Inicjalizacja komponentów
+# inicjalizacja komponentow
 cap = ThreadedCapture()
 tracker = HandTracker()
 performance = PerformanceTracker()
@@ -36,6 +37,7 @@ while True:
     ret, frame = cap.read()
     frame = cv2.flip(frame, 1)
     if not ret or frame is None:
+        logger.debug("Brak klatki z kamery – pomijam")
         continue
 
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -56,17 +58,17 @@ while True:
 
             if gesture:
                 gesture_name, confidence = gesture
+                logger.debug(f"[gesture] {hand_id}: {gesture_name} ({confidence:.2f})")
 
-            # zawsze wywołuj hook – nawet jeśli gest == None (np. gest zniknął)
             handle_gesture_start_hook(
                 gesture_name, hand_landmarks.landmark, frame_shape
             )
             last_gestures[hand_id] = gesture_name
 
-            # handler tylko dla rozpoznanego gestu
             if gesture_name:
                 handler = gesture_handlers.get(gesture_name)
                 if handler:
+                    logger.debug(f"Wywołanie handlera dla gestu: {gesture_name}")
                     handler(hand_landmarks.landmark, frame_shape)
 
             label_text = (
@@ -77,13 +79,13 @@ while True:
             visualizer.draw_hand_box(display_frame, hand_landmarks, label=label_text)
 
     for missing_id in detected_hands_ids - current_hands_ids:
+        logger.debug(f"Ręka zniknęła: {missing_id}")
         last_gestures.pop(missing_id, None)
 
     detected_hands_ids = current_hands_ids
 
     performance.update()
 
-    # skalowanie do wyświetlenia + overlay tekstowy
     resized_frame = cv2.resize(display_frame, (DISPLAY_WIDTH, DISPLAY_HEIGHT))
     visualizer.draw_fps(resized_frame, performance.fps)
     visualizer.draw_frametime(resized_frame, performance.frametime_ms)
@@ -91,6 +93,7 @@ while True:
     cv2.imshow("SysTouch", resized_frame)
 
     if cv2.waitKey(1) & 0xFF == 27:
+        logger.info("Zamknięcie aplikacji przez ESC")
         break
 
 cap.stop()

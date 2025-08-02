@@ -1,5 +1,7 @@
 import mediapipe as mp
 
+from app.logger import logger
+
 
 class HandTracker:
     def __init__(
@@ -17,6 +19,10 @@ class HandTracker:
         )
         self.mp_drawing = mp.solutions.drawing_utils
         self.drawing_styles = mp.solutions.drawing_styles
+
+        logger.info(
+            f"HandTracker initialized (max_hands={max_num_hands}, detect_conf={detection_confidence}, track_conf={tracking_confidence})"
+        )
 
     def process(self, frame_rgb):
         return self.hands.process(frame_rgb)

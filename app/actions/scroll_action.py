@@ -1,3 +1,4 @@
+# todo do poprawy hooki i akceleracja scrolla
 import ctypes
 import time
 from collections import deque
@@ -6,6 +7,7 @@ from app.config import MAX_SCROLL_SPEED
 from app.config import SCROLL_BASE_INTERVAL
 from app.config import SCROLL_SENSITIVITY
 from app.core.hooks import register_gesture_start_hook
+from app.logger import logger
 from app.utils.landmarks import WRIST
 
 position_buffer = deque(maxlen=3)
@@ -19,6 +21,7 @@ def scroll_start_hook(landmarks, frame_shape):
     anchor_y = int(wrist.y * screen_h)
     set_scroll_anchor(anchor_y)
     reset_scroll()
+    logger.debug(f"[scroll] start hook: anchor_y={anchor_y}")
 
 
 register_gesture_start_hook("scroll", scroll_start_hook)
@@ -26,6 +29,7 @@ register_gesture_start_hook("scroll", scroll_start_hook)
 
 def scroll_windows(amount):
     # Windows native scroll using user32.mouse_event
+    logger.debug(f"[scroll] wykonanie scrolla: amount={amount}")
     ctypes.windll.user32.mouse_event(0x0800, 0, 0, int(amount * 120), 0)
 
 
@@ -50,6 +54,7 @@ def handle_scroll(landmarks, frame_shape):
 
     if scroll_anchor_y is None:
         scroll_anchor_y = avg_y
+        logger.debug(f"[scroll] brak anchor, ustawiam na: {scroll_anchor_y}")
         return
 
     delta = avg_y - scroll_anchor_y
@@ -57,7 +62,6 @@ def handle_scroll(landmarks, frame_shape):
     if abs(delta) < SCROLL_SENSITIVITY:
         return
 
-    # dynamiczne tempo
     scale = min(abs(delta) / 30, MAX_SCROLL_SPEED)
     direction = -1 if delta > 0 else 1
 
@@ -67,6 +71,9 @@ def handle_scroll(landmarks, frame_shape):
     if now - last_scroll_time >= interval:
         scroll_windows(direction)
         last_scroll_time = now
+        logger.debug(
+            f"[scroll] delta={delta:.1f}, scale={scale:.2f}, direction={direction}, interval={interval:.3f}s"
+        )
 
 
 def reset_scroll():
@@ -74,3 +81,4 @@ def reset_scroll():
     scroll_anchor_y = None
     position_buffer.clear()
     last_scroll_time = 0
+    logger.debug("[scroll] reset_scroll()")
