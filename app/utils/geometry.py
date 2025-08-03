@@ -7,7 +7,7 @@ def distance(p1, p2):
 
 
 def angle_between(p1, p2, p3):
-    """Zwraca kąt w ° między wektorami p2→p1 i p2→p3 (środek w p2)"""
+    # zwraca kat w stopniach miedzy wektorami p2 -> p1 i p2 -> p3 - srodek w p2
     v1 = (p1.x - p2.x, p1.y - p2.y, p1.z - p2.z)
     v2 = (p3.x - p2.x, p3.y - p2.y, p3.z - p2.z)
 

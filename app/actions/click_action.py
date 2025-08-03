@@ -1,3 +1,4 @@
+# todo naprawic blad logiczny w release_click() – short tap nie zawsze wywołuje pyautogui.click()
 import time
 
 import pyautogui
