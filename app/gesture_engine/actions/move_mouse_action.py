@@ -4,8 +4,8 @@ from collections import deque
 
 import pyautogui
 
-from app.logger import logger
-from app.utils.landmarks import FINGER_TIPS
+from app.gesture_engine.logger import logger
+from app.gesture_engine.utils.landmarks import FINGER_TIPS
 
 # bufor wygładzania
 position_buffer = deque(maxlen=5)

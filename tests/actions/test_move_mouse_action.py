@@ -3,7 +3,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from unittest.mock import patch, MagicMock
-import app.actions.move_mouse_action as move_mouse
+import app.gesture_engine.actions.move_mouse_action as move_mouse
 
 
 # handle_move_mouse przelicza pozycje z landmarkow na wspolrzedne ekranu

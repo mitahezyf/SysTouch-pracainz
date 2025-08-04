@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from unittest.mock import patch, MagicMock
 
-from app.utils.visualizer import Visualizer
+from app.gesture_engine.utils.visualizer import Visualizer
 
 # sztuczna ramka do testow - czarne tło
 def dummy_frame():

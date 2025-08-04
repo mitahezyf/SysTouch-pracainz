@@ -2,11 +2,10 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-import math
 import pytest
 from types import SimpleNamespace
 
-from app.utils.geometry import distance, angle_between
+from app.gesture_engine.utils.geometry import distance, angle_between
 
 # prosty obiekt punktu z atrybutami x, y, z
 def make_point(x, y, z=0):

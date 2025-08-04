@@ -4,7 +4,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from unittest.mock import patch
 
-from app.actions.close_program_action import handle_close_program
+from app.gesture_engine.actions.close_program_action import handle_close_program
 
 
 # jezeli aktywne okno istnieje powinno zostac zamkniete

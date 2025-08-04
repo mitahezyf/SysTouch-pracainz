@@ -1,7 +1,7 @@
 # todo usunac powielone wywolanie update_click_state(False) przy zmianie gestu z click
-from app.actions.click_action import handle_click
-from app.actions.click_action import update_click_state
-from app.logger import logger
+from app.gesture_engine.actions.click_action import handle_click
+from app.gesture_engine.actions.click_action import update_click_state
+from app.gesture_engine.logger import logger
 
 last_gesture_name = None
 gesture_start_hooks = {}

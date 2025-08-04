@@ -1,6 +1,6 @@
 import logging
 
-from app.config import DEBUG_MODE
+from app.gesture_engine.config import DEBUG_MODE
 
 logging.basicConfig(
     level=logging.DEBUG if DEBUG_MODE else logging.INFO,

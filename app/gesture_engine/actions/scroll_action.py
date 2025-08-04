@@ -3,12 +3,12 @@ import ctypes
 import time
 from collections import deque
 
-from app.config import MAX_SCROLL_SPEED
-from app.config import SCROLL_BASE_INTERVAL
-from app.config import SCROLL_SENSITIVITY
-from app.core.hooks import register_gesture_start_hook
-from app.logger import logger
-from app.utils.landmarks import WRIST
+from app.gesture_engine.config import MAX_SCROLL_SPEED
+from app.gesture_engine.config import SCROLL_BASE_INTERVAL
+from app.gesture_engine.config import SCROLL_SENSITIVITY
+from app.gesture_engine.core.hooks import register_gesture_start_hook
+from app.gesture_engine.logger import logger
+from app.gesture_engine.utils.landmarks import WRIST
 
 position_buffer = deque(maxlen=3)
 scroll_anchor_y = None

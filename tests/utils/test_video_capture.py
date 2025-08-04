@@ -2,9 +2,8 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-import pytest
 from unittest.mock import MagicMock, patch
-from app.utils.video_capture import ThreadedCapture
+from app.gesture_engine.utils import ThreadedCapture
 
 # czy poprawnie ustawia parametry kamery i startuje watek
 @patch("app.utils.video_capture.cv2.VideoCapture")
@@ -13,7 +12,7 @@ def test_threaded_capture_init(mock_cv2):
     mock_cap.read.return_value = (True, "dummy_frame")
     mock_cv2.return_value = mock_cap
 
-    from app.config import CAPTURE_WIDTH, CAPTURE_HEIGHT, TARGET_CAMERA_FPS
+    from app.gesture_engine.config import CAPTURE_WIDTH, CAPTURE_HEIGHT, TARGET_CAMERA_FPS
 
     capture = ThreadedCapture()
 

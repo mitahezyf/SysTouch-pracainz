@@ -3,7 +3,7 @@ import inspect
 import os
 from pathlib import Path
 
-from app.logger import logger
+from app.gesture_engine.logger import logger
 
 _log_counter = 0  # licznik do throttlingu
 

@@ -5,10 +5,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from unittest.mock import patch
 import pytest
 
-import app.actions.click_action as click_action
+import app.gesture_engine.actions.click_action as click_action
 
 
-# fixture: resetuje stan click_state i handle_click.active przed kazdym testem
+# resetuje stan click_state i handle_click.active przed kazdym testem
 @pytest.fixture(autouse=True)
 def reset_click_state():
     click_action.click_state.update({
@@ -21,7 +21,7 @@ def reset_click_state():
     click_action.handle_click.active = False
 
 
-# test: start_click ustawia wartosci poczatkowe
+# start_click ustawia wartosci poczatkowe
 @patch("app.actions.click_action.logger")
 @patch("app.actions.click_action.time.time", return_value=1234.567)
 def test_start_click(mock_time, _):
@@ -33,7 +33,7 @@ def test_start_click(mock_time, _):
     assert state["click_sent"] is False
 
 
-# test: handle_active aktywuje hold i mouseDown po przekroczeniu progu
+# handle_active aktywuje hold i mouseDown po przekroczeniu progu
 @patch("app.actions.click_action.logger")
 @patch("app.actions.click_action.pyautogui.mouseDown")
 @patch("app.actions.click_action.time.time")
@@ -48,7 +48,7 @@ def test_handle_active_triggers_hold(mock_time, mock_mouse_down, _):
     mock_mouse_down.assert_called_once()
 
 
-# test: release_click wykonuje click() przy krotkim tapie
+# release_click wykonuje click() przy krotkim tapie
 @patch("app.actions.click_action.logger")
 @patch("app.actions.click_action.pyautogui.click")
 @patch("app.actions.click_action.time.time")
@@ -68,7 +68,7 @@ def test_release_click_short_tap(mock_time, mock_click, _):
     mock_click.assert_called_once()
 
 
-# test: release_click wykonuje mouseUp przy holdzie
+# release_click wykonuje mouseUp przy holdzie
 @patch("app.actions.click_action.logger")
 @patch("app.actions.click_action.pyautogui.mouseUp")
 @patch("app.actions.click_action.time.time")
@@ -86,7 +86,7 @@ def test_release_click_hold(mock_time, mock_mouse_up, _):
     assert click_action.click_state["holding"] is False
 
 
-# test: release_click ignoruje jesli brak start_time
+# release_click ignoruje jesli brak start_time
 @patch("app.actions.click_action.logger")
 def test_release_click_no_start_time(mock_logger):
     click_action.click_state["start_time"] = None
@@ -94,7 +94,7 @@ def test_release_click_no_start_time(mock_logger):
     mock_logger.debug.assert_called()
 
 
-# test: update_click_state uruchamia start_click i handle_active
+# update_click_state uruchamia start_click i handle_active
 @patch("app.actions.click_action.handle_active")
 @patch("app.actions.click_action.start_click")
 def test_update_click_state_active(mock_start, mock_handle):
@@ -106,7 +106,7 @@ def test_update_click_state_active(mock_start, mock_handle):
     assert click_action.click_state["was_active"] is True
 
 
-# test: update_click_state nic nie zmienia jesli juz bylo aktywne
+# update_click_state nic nie zmienia jesli juz bylo aktywne
 @patch("app.actions.click_action.handle_active")
 def test_update_click_state_repeat_active(mock_handle):
     click_action.click_state["was_active"] = True
@@ -114,7 +114,7 @@ def test_update_click_state_repeat_active(mock_handle):
     mock_handle.assert_called_once()
 
 
-# test: update_click_state wywoluje release_click przy dezaktywacji
+# update_click_state wywoluje release_click przy dezaktywacji
 @patch("app.actions.click_action.release_click")
 def test_update_click_state_deactivates(mock_release):
     click_action.click_state["was_active"] = True
@@ -123,7 +123,7 @@ def test_update_click_state_deactivates(mock_release):
     assert click_action.click_state["was_active"] is False
 
 
-# test: get_click_state_name zwraca nazwe w zaleznosci od stanu
+# get_click_state_name zwraca nazwe w zaleznosci od stanu
 def test_get_click_state_name():
     click_action.click_state.update({
         "holding": True,
@@ -146,7 +146,7 @@ def test_get_click_state_name():
     assert click_action.get_click_state_name() is None
 
 
-# test: handle_click ustawia aktywnosc i wywoluje update_click_state
+# handle_click ustawia aktywnosc i wywoluje update_click_state
 @patch("app.actions.click_action.update_click_state")
 def test_handle_click_sets_active(mock_update):
     click_action.handle_click(None, None)

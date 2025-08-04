@@ -1,7 +1,7 @@
 import win32con
 import win32gui
 
-from app.logger import logger
+from app.gesture_engine.logger import logger
 
 
 def handle_close_program(landmarks, frame_shape):

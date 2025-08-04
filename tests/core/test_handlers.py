@@ -3,7 +3,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 # importujemy slownik mapujacy gesty na funkcje
-from app.core.handlers import gesture_handlers
+from app.gesture_engine.core import gesture_handlers
 
 
 # czy w slowniku sa wszystkie wymagane gesty

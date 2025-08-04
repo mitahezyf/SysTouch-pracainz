@@ -3,7 +3,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import time
-from app.utils.performance import PerformanceTracker
+from app.gesture_engine.utils import PerformanceTracker
 
 # test początkowego stanu - zanim cokolwiek zostanie zaktualizowane
 def test_initial_state():

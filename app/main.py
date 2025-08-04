@@ -1,17 +1,17 @@
 import cv2
 
-from app.config import CAPTURE_HEIGHT
-from app.config import CAPTURE_WIDTH
-from app.config import DISPLAY_HEIGHT
-from app.config import DISPLAY_WIDTH
-from app.core.handlers import gesture_handlers
-from app.core.hooks import handle_gesture_start_hook
-from app.detector.gesture_detector import detect_gesture
-from app.detector.hand_tracker import HandTracker
-from app.logger import logger
-from app.utils.performance import PerformanceTracker
-from app.utils.video_capture import ThreadedCapture
-from app.utils.visualizer import Visualizer
+from app.gesture_engine.config import CAPTURE_HEIGHT
+from app.gesture_engine.config import CAPTURE_WIDTH
+from app.gesture_engine.config import DISPLAY_HEIGHT
+from app.gesture_engine.config import DISPLAY_WIDTH
+from app.gesture_engine.core import gesture_handlers
+from app.gesture_engine.core import handle_gesture_start_hook
+from app.gesture_engine.detector.gesture_detector import detect_gesture
+from app.gesture_engine.detector.hand_tracker import HandTracker
+from app.gesture_engine.logger import logger
+from app.gesture_engine.utils import PerformanceTracker
+from app.gesture_engine.utils import ThreadedCapture
+from app.gesture_engine.utils.visualizer import Visualizer
 
 
 # inicjalizacja komponentow

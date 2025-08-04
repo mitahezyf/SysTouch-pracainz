@@ -5,7 +5,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import types
 from unittest.mock import patch
 
-import app.detector.gesture_detector as gesture_detector
+import app.gesture_engine.detector.gesture_detector as gesture_detector
 
 
 # ladowanie gestow z mockowanych plikow gestures/ i funkcji detect_

@@ -1,12 +1,12 @@
 import cv2
 import mediapipe as mp
 
-from app.config import CONNECTION_COLOR
-from app.config import LABEL_FONT_SCALE
-from app.config import LABEL_THICKNESS
-from app.config import LANDMARK_CIRCLE_RADIUS
-from app.config import LANDMARK_COLOR
-from app.config import LANDMARK_LINE_THICKNESS
+from app.gesture_engine.config import CONNECTION_COLOR
+from app.gesture_engine.config import LABEL_FONT_SCALE
+from app.gesture_engine.config import LABEL_THICKNESS
+from app.gesture_engine.config import LANDMARK_CIRCLE_RADIUS
+from app.gesture_engine.config import LANDMARK_COLOR
+from app.gesture_engine.config import LANDMARK_LINE_THICKNESS
 
 mp_drawing = mp.solutions.drawing_utils
 mp_hands = mp.solutions.hands

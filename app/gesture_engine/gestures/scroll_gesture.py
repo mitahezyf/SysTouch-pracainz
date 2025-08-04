@@ -1,8 +1,8 @@
 # todo optymalizacja
-from app.config import FLEX_THRESHOLD
-from app.utils.landmarks import FINGER_MCPS
-from app.utils.landmarks import FINGER_PIPS
-from app.utils.landmarks import FINGER_TIPS
+from app.gesture_engine.config import FLEX_THRESHOLD
+from app.gesture_engine.utils.landmarks import FINGER_MCPS
+from app.gesture_engine.utils.landmarks import FINGER_PIPS
+from app.gesture_engine.utils.landmarks import FINGER_TIPS
 
 
 def detect_scroll_gesture(landmarks):

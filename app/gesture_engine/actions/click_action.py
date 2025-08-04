@@ -3,8 +3,8 @@ import time
 
 import pyautogui
 
-from app.config import HOLD_THRESHOLD
-from app.logger import logger
+from app.gesture_engine.config import HOLD_THRESHOLD
+from app.gesture_engine.logger import logger
 
 
 click_state = {

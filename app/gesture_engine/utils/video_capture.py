@@ -2,11 +2,11 @@ from threading import Thread
 
 import cv2
 
-from app.config import CAMERA_INDEX
-from app.config import CAPTURE_HEIGHT
-from app.config import CAPTURE_WIDTH
-from app.config import TARGET_CAMERA_FPS
-from app.logger import logger
+from app.gesture_engine.config import CAMERA_INDEX
+from app.gesture_engine.config import CAPTURE_HEIGHT
+from app.gesture_engine.config import CAPTURE_WIDTH
+from app.gesture_engine.config import TARGET_CAMERA_FPS
+from app.gesture_engine.logger import logger
 
 
 # klasa do obslugi przechwytywania obrazu z kamery

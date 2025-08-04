@@ -4,7 +4,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from unittest.mock import patch, MagicMock
 
-from app.detector.hand_tracker import HandTracker
+from app.gesture_engine.detector.hand_tracker import HandTracker
 
 
 # inicjalizacja tworzy obiekt mediapipe Hands z odpowiednimi argumentami

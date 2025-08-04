@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-import app.core.hooks as hooks
+import app.gesture_engine.core.hooks as hooks
 from unittest.mock import MagicMock, patch
 
 

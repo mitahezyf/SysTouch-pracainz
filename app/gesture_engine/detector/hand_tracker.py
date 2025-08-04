@@ -1,6 +1,6 @@
 import mediapipe as mp
 
-from app.logger import logger
+from app.gesture_engine.logger import logger
 
 
 class HandTracker:
