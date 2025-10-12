@@ -77,15 +77,98 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
-          pip install pytest-cov
+          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-dev.txt
+          python -m pip install pytest-cov
 
       - name: Prepare reports dir
         run: python -c "import os; os.makedirs('reports', exist_ok=True); print('reports dir ready')"
 
+      - name: Dependency health check
+        run: |
+          python -m pip check
+          python -m pip list
+
+      - name: Smoke import (non-fatal)
+        run: >
+          python -c "import importlib,sys,traceback; mods=['app.gesture_engine.utils','app.gesture_engine.utils.video_capture','app.gesture_engine.utils.visualizer','app.gesture_engine.detector.hand_tracker','app.gesture_engine.detector.mediapipe_wrapper','app.gesture_engine.actions.click_action','app.gesture_engine.actions.close_program_action','app.gesture_engine.utils.pycaw_controller'];
+
+          [ (lambda m: (print('OK import', m))) (m) if not (lambda: False)() else None for m in [] ];
+
+          failed=[]
+
+
+
+
+          ;
+
+
+
+
+
+
+
+          for m in mods:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            try:
+              importlib.import_module(m); print('OK import', m)
+            except Exception as e:
+              print('WARN import', m, ':', e, file=sys.stderr)
+          sys.exit(0)"
+
       - name: Run tests
-        run: pytest -q --maxfail=1 --disable-warnings --junitxml=reports/junit.xml --cov=app --cov-report=xml:reports/coverage.xml
+        run: python -m pytest -q --maxfail=1 --disable-warnings --junitxml=reports/junit.xml --cov=app --cov-report=xml:reports/coverage.xml
+
+      - name: Export installed packages
+        if: always()
+        run: python -m pip freeze > reports/pip-freeze.txt
 
       - name: Upload coverage to Codecov
         # uruchamiaj tylko dla zaufanych eventow i gdy token jest dostepny
@@ -106,4 +189,5 @@ jobs:
           path: |
             reports/junit.xml
             reports/coverage.xml
+            reports/pip-freeze.txt
           if-no-files-found: warn

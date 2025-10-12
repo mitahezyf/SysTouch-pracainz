@@ -1,5 +1,27 @@
 # pobiera snapshot dloni z kamerki i zwraca landmarki albo None
-import cv2
+# Bezpieczny import cv2 – aby import modułu nie wywracał się w CI bez OpenCV
+try:  # pragma: no cover
+    import cv2  # type: ignore
+except Exception:  # pragma: no cover
+
+    class _CV2Stub:
+        CAP_PROP_FRAME_WIDTH = 3
+        CAP_PROP_FRAME_HEIGHT = 4
+        COLOR_BGR2RGB = 4
+
+        class VideoCapture:
+            def __init__(self, *_, **__):
+                raise ImportError(
+                    "cv2 (OpenCV) nie jest zainstalowane – zainstaluj opencv-python(-headless)."
+                )
+
+        @staticmethod
+        def cvtColor(*_, **__):
+            raise ImportError(
+                "cv2.cvtColor niedostępne – zainstaluj opencv-python(-headless)."
+            )
+
+    cv2 = _CV2Stub()  # type: ignore
 
 from app.gesture_engine.config import CAMERA_INDEX
 from app.gesture_engine.config import CAPTURE_HEIGHT
