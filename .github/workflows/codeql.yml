@@ -5,6 +5,13 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+    paths:
+      - 'app/**'
+      - 'tests/**'
+      - 'requirements*.txt'
+      - 'pytest.ini'
+      - 'pyproject.toml'
+      - 'README.md'
   schedule:
     - cron: '0 3 * * 1'  # co poniedziałek o 03:00 UTC
 
