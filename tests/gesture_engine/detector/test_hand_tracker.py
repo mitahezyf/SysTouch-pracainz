@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from unittest.mock import patch, MagicMock
@@ -11,7 +12,9 @@ from app.gesture_engine.detector.hand_tracker import HandTracker
 @patch("app.detector.hand_tracker.mp.solutions.hands.Hands")
 @patch("app.detector.hand_tracker.logger")
 def test_hand_tracker_init(mock_logger, mock_hands):
-    tracker = HandTracker(max_num_hands=3, detection_confidence=0.8, tracking_confidence=0.6)
+    tracker = HandTracker(
+        max_num_hands=3, detection_confidence=0.8, tracking_confidence=0.6
+    )
 
     mock_hands.assert_called_once_with(
         max_num_hands=3,

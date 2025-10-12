@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from unittest.mock import patch
@@ -11,13 +12,15 @@ import app.gesture_engine.actions.click_action as click_action
 # resetuje stan click_state i handle_click.active przed kazdym testem
 @pytest.fixture(autouse=True)
 def reset_click_state():
-    click_action.click_state.update({
-        "start_time": None,
-        "holding": False,
-        "mouse_down": False,
-        "click_sent": False,
-        "was_active": False,
-    })
+    click_action.click_state.update(
+        {
+            "start_time": None,
+            "holding": False,
+            "mouse_down": False,
+            "click_sent": False,
+            "was_active": False,
+        }
+    )
     click_action.handle_click.active = False
 
 
@@ -53,13 +56,15 @@ def test_handle_active_triggers_hold(mock_time, mock_mouse_down, _):
 @patch("app.actions.click_action.pyautogui.click")
 @patch("app.actions.click_action.time.time")
 def test_release_click_short_tap(mock_time, mock_click, _):
-    click_action.click_state.update({
-        "start_time": 1000,
-        "holding": False,
-        "mouse_down": False,
-        "click_sent": False,
-        "was_active": False,
-    })
+    click_action.click_state.update(
+        {
+            "start_time": 1000,
+            "holding": False,
+            "mouse_down": False,
+            "click_sent": False,
+            "was_active": False,
+        }
+    )
     mock_time.return_value = 1000 + click_action.HOLD_THRESHOLD - 0.1
 
     click_action.release_click()
@@ -73,11 +78,13 @@ def test_release_click_short_tap(mock_time, mock_click, _):
 @patch("app.actions.click_action.pyautogui.mouseUp")
 @patch("app.actions.click_action.time.time")
 def test_release_click_hold(mock_time, mock_mouse_up, _):
-    click_action.click_state.update({
-        "start_time": 1000,
-        "holding": True,
-        "mouse_down": True,
-    })
+    click_action.click_state.update(
+        {
+            "start_time": 1000,
+            "holding": True,
+            "mouse_down": True,
+        }
+    )
     mock_time.return_value = 1002
 
     click_action.release_click()
@@ -125,24 +132,17 @@ def test_update_click_state_deactivates(mock_release):
 
 # get_click_state_name zwraca nazwe w zaleznosci od stanu
 def test_get_click_state_name():
-    click_action.click_state.update({
-        "holding": True,
-        "start_time": 123,
-        "click_sent": False
-    })
+    click_action.click_state.update(
+        {"holding": True, "start_time": 123, "click_sent": False}
+    )
     assert click_action.get_click_state_name() == "click-hold"
 
-    click_action.click_state.update({
-        "holding": False,
-        "start_time": 123,
-        "click_sent": False
-    })
+    click_action.click_state.update(
+        {"holding": False, "start_time": 123, "click_sent": False}
+    )
     assert click_action.get_click_state_name() == "click"
 
-    click_action.click_state.update({
-        "start_time": None,
-        "click_sent": True
-    })
+    click_action.click_state.update({"start_time": None, "click_sent": True})
     assert click_action.get_click_state_name() is None
 
 

@@ -1,3 +1,12 @@
+# SystemTouch
+
+## CI/CD
+- CI (ci.yml): lint (ruff/black/bandit/pre-commit) na Ubuntu i testy na Windows (Python 3.11/3.12) z raportami JUnit i coverage; cache pip, concurrency, ręczny trigger i harmonogram co tydzień.
+- CodeQL (codeql.yml): analiza bezpieczeństwa dla Pythona na push/PR i w harmonogramie.
+- Release (release.yml): automatyczny GitHub Release po wypchnięciu taga `v*.*.*` z dołączonym archiwum repo.
+- Dependabot: cotygodniowe PR z aktualizacjami pip i GitHub Actions.
+- Coverage: wyniki publikowane do Codecov; jeśli repo jest prywatne, dodaj secret `CODECOV_TOKEN` w Settings → Secrets and variables → Actions.
+
 # Program komputerowy SystemTouch
 ## Wstępnie planowane biblioteki
 - OpenCV — wstępne przetwarzanie obrazu

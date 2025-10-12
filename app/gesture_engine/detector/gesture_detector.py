@@ -7,17 +7,17 @@ from app.gesture_engine.logger import logger
 
 _log_counter = 0  # licznik do throttlingu
 
-# ścieżka do folderu gestures
+# sciezka do folderu gestures
 GESTURE_DIR = Path(__file__).parent.parent / "gestures"
 
 
-# wczytanie funkcji zaczynających się od detect_
+# wczytuje funkcje zaczynajace sie od detect_
 def load_gesture_detectors():
     detectors = []
 
     for file in os.listdir(GESTURE_DIR):
         if file.endswith(".py") and not file.startswith("__"):
-            module_name = f"gestures.{file[:-3]}"
+            module_name = f"app.gesture_engine.gestures.{file[:-3]}"
             try:
                 module = importlib.import_module(module_name)
             except Exception as e:

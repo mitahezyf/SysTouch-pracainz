@@ -31,9 +31,9 @@ PINKY_TIP = 20
 # nadgarstek
 WRIST = 0
 
-# slownik
+# zbiory indeksow dla palcow i nadgarstka
 
-# zbiory calych palcow
+# zbiory calych palcow (od podstawy do opuszka)
 FINGERS = {
     "thumb": [THUMB_CMC, THUMB_MCP, THUMB_IP, THUMB_TIP],
     "index": [INDEX_MCP, INDEX_PIP, INDEX_DIP, INDEX_TIP],
@@ -60,7 +60,7 @@ FINGER_DIPS = {
     "pinky": PINKY_DIP,
 }
 
-# druku staw liczac od opuszka
+# drugi staw liczac od opuszka
 FINGER_PIPS = {
     "index": INDEX_PIP,
     "middle": MIDDLE_PIP,

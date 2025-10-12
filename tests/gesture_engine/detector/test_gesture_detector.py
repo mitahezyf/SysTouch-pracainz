@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import types
@@ -19,8 +20,12 @@ def test_load_gesture_detectors(_, mock_getmembers, mock_import, mock_listdir):
 
     mock_listdir.return_value = ["click.py", "scroll.py"]
 
-    def dummy1(x): return x
-    def dummy2(x): return x
+    def dummy1(x):
+        return x
+
+    def dummy2(x):
+        return x
+
     mock_getmembers.side_effect = [
         [("detect_click", dummy1)],
         [("detect_scroll", dummy2)],
@@ -56,10 +61,10 @@ def test_load_with_import_error(_, mock_import, mock_listdir):
 
 
 # pierwszy detector zwraca gest
-@patch("app.detector.gesture_detector.gesture_detectors", [
-    lambda lm: ("click", 0.95),
-    lambda lm: None
-])
+@patch(
+    "app.detector.gesture_detector.gesture_detectors",
+    [lambda lm: ("click", 0.95), lambda lm: None],
+)
 @patch("app.detector.gesture_detector.logger")
 def test_detect_gesture_first_match(_):
     result = gesture_detector.detect_gesture("fake_landmarks")
@@ -67,10 +72,10 @@ def test_detect_gesture_first_match(_):
 
 
 # zaden detector nie zwraca nic
-@patch("app.detector.gesture_detector.gesture_detectors", [
-    lambda lm: None,
-    lambda lm: None
-])
+@patch(
+    "app.detector.gesture_detector.gesture_detectors",
+    [lambda lm: None, lambda lm: None],
+)
 @patch("app.detector.gesture_detector.logger")
 def test_detect_gesture_no_match(_):
     result = gesture_detector.detect_gesture("fake_landmarks")
@@ -78,9 +83,7 @@ def test_detect_gesture_no_match(_):
 
 
 # logowanie co 10 wywolanie
-@patch("app.detector.gesture_detector.gesture_detectors", [
-    lambda lm: ("test", 0.88)
-])
+@patch("app.detector.gesture_detector.gesture_detectors", [lambda lm: ("test", 0.88)])
 @patch("app.detector.gesture_detector.logger")
 def test_detect_gesture_logs_every_10th(mock_logger):
     gesture_detector._log_counter = 9

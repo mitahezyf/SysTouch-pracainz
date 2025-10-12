@@ -28,7 +28,7 @@ register_gesture_start_hook("scroll", scroll_start_hook)
 
 
 def scroll_windows(amount):
-    # Windows native scroll using user32.mouse_event
+    # przewijanie w windows z uzyciem user32.mouse_event
     logger.debug(f"[scroll] wykonanie scrolla: amount={amount}")
     ctypes.windll.user32.mouse_event(0x0800, 0, 0, int(amount * 120), 0)
 

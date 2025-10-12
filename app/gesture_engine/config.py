@@ -10,21 +10,22 @@ DISPLAY_WIDTH = 640
 DISPLAY_HEIGHT = 480
 
 
-# FRAME_WIDTH = 1280
-# FRAME_HEIGHT = 720
+# opcjonalne ustawienia ramki (przyklad)
+# przyklad: frame_width = 1280
+# przyklad: frame_height = 720
 
 TARGET_CAMERA_FPS = 60
 
 
-# debug / diagnostyka
+# debug i diagnostyka
 DEBUG_MODE = True
 SHOW_FPS = True
 SHOW_DELAY = True
 
 
-# progi gestww
+# progi gestow
 CLICK_THRESHOLD = 0.5
-HOLD_THRESHOLD = 3.0
+HOLD_THRESHOLD = 2.0
 SCROLL_THRESHOLD = 5
 SCROLL_SENSITIVITY = 30
 MOUSE_MOVING_SMOOTHING = 0.7
@@ -35,7 +36,7 @@ VOLUME_THRESHOLD = 0.5
 GESTURE_CONFIDENCE_THRESHOLD = 0.9
 
 
-# scroll
+# ustawienia scrolla
 MAX_SCROLL_SPEED = 10
 SCROLL_BASE_INTERVAL = 0.3
 
@@ -54,3 +55,16 @@ LABEL_COLOR = (0, 255, 0)  # zielony
 
 
 VOLUME_CONFIRMATION_DELAY = 2
+
+# rozszerzone ustawienia dla gestu klikniecia (pod przyszla stabilizacje/fsm)
+CONFIDENCE_MIN = 0.98  # minimalna akceptowalna pewnosc pojedynczej klatki
+STABLE_FRAMES_PRESS = (
+    3  # ile kolejnych klatek musi spelniac warunek, zeby wejsc w pressed
+)
+STABLE_FRAMES_RELEASE = 2  # ile kolejnych klatek potwierdza zwolnienie
+RELEASE_COOLDOWN = 0.2  # czas blokady po zwolnieniu [s]
+CLICK_DISTANCE_CLOSE = 0.015  # dystans kciuk-wskazujacy uznawany za "zamkniety"
+CLICK_DISTANCE_OPEN = 0.030  # dystans uznawany za "otwarty" (histereza)
+SMOOTHING_ALPHA = 0.0  # wspolczynnik wygladzania (0 = wyl.)
+PRIMARY_HAND = "Left"  # sterujaca reka: "Left" | "Right" | "Auto"
+LOG_LEVEL = "INFO"  # domyslny poziom logowania

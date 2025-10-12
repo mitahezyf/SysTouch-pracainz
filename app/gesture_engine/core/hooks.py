@@ -14,7 +14,12 @@ def register_gesture_start_hook(gesture_name, func):
 def handle_gesture_start_hook(gesture_name, landmarks, frame_shape):
     global last_gesture_name
 
-    if handle_click.active and gesture_name not in ("click", "click-hold"):
+    # zwalnia click przy zmianie na inny gest (ale nie None - to obsluzymy nizej)
+    if (
+        handle_click.active
+        and gesture_name is not None
+        and gesture_name not in ("click", "click-hold")
+    ):
         update_click_state(False)
         handle_click.active = False
         logger.debug("[hook] click released (gest zmienił się)")
@@ -24,8 +29,12 @@ def handle_gesture_start_hook(gesture_name, landmarks, frame_shape):
         hook = gesture_start_hooks.get(gesture_name)
         if hook:
             logger.debug(f"[hook] wywołanie hooka dla: {gesture_name}")
-            hook(landmarks, frame_shape)
+            if landmarks is not None and frame_shape is not None:
+                hook(landmarks, frame_shape)
+            else:
+                logger.debug("[hook] pomijam wywołanie hooka (brak danych)")
 
+    # specjalny przypadek: koniec gestu (None) po clicku
     if gesture_name is None and last_gesture_name in ("click", "click-hold"):
         update_click_state(False)
         handle_click.active = False
@@ -36,4 +45,5 @@ def handle_gesture_start_hook(gesture_name, landmarks, frame_shape):
     def test_scroll_hook(landmarks, frame_shape):
         logger.debug("[hook] scroll hook wywołany")
 
-    register_gesture_start_hook("scroll", test_scroll_hook)
+    if "scroll" not in gesture_start_hooks:
+        register_gesture_start_hook("scroll", test_scroll_hook)

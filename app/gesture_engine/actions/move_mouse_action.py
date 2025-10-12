@@ -7,7 +7,7 @@ import pyautogui
 from app.gesture_engine.logger import logger
 from app.gesture_engine.utils.landmarks import FINGER_TIPS
 
-# bufor wygładzania
+# bufor wygladzania pozycji kursora
 position_buffer = deque(maxlen=5)
 latest_position = None
 lock = threading.Lock()

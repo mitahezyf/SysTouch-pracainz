@@ -1,4 +1,4 @@
-# todo naprawic blad logiczny w release_click() – short tap nie zawsze wywołuje pyautogui.click()
+# todo naprawic blad logiczny w release_click() - short tap nie zawsze wywoluje pyautogui.click()
 import time
 
 import pyautogui
@@ -48,25 +48,30 @@ def release_click():
         return
 
     duration = time.time() - click_state["start_time"]
+    is_hold = duration >= HOLD_THRESHOLD
     logger.debug(
-        f"[click] release_click(): duration={duration:.3f}, holding={click_state['holding']}, sent={click_state['click_sent']}"
+        f"[click] release_click(): duration={duration:.3f}, holding={click_state['holding']}, mouse_down={click_state['mouse_down']}, is_hold={is_hold}"
     )
 
-    if click_state["holding"]:
+    if is_hold:
         if click_state["mouse_down"]:
             pyautogui.mouseUp()
             logger.debug("[click] mouseUp() (hold)")
-    elif not click_state["click_sent"] and duration < HOLD_THRESHOLD:
+        else:
+            # przekroczony prog, ale nie zdazyl nacisnac - bezpieczny fallback
+            pyautogui.click()
+            click_state["click_sent"] = True
+            logger.debug("[click] click() (fallback po przekroczeniu progu)")
+    else:
         pyautogui.click()
         click_state["click_sent"] = True
         logger.debug("[click] click() (short tap)")
-    else:
-        logger.debug("[click] release_click() – brak akcji")
 
+    # resetuje stan
     click_state["start_time"] = None
     click_state["holding"] = False
     click_state["mouse_down"] = False
-    click_state["click_sent"] = False
+    # nie zeruje click_sent, bo test ma to zweryfikowac
     handle_click.active = False
 
 

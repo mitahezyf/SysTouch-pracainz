@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    - cron: '0 5 * * 1'  # co poniedziałek o 05:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint (ruff/black/bandit/pre-commit)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dev dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Ruff (lint)
+        run: ruff check .
+
+      - name: Black (format check)
+        run: black --check .
+
+      - name: Bandit (security)
+        run: bandit -q -r app || true  # wstępnie ostrzegawczo, nie blokuje PR
+
+      - name: Pre-commit (all files)
+        run: |
+          pre-commit install --install-hooks
+          pre-commit run --all-files || true  # ostrzegawczo
+
+  test:
+    name: Tests (Windows)
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12']
+    env:
+      PYTHONIOENCODING: 'utf-8'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+          pip install pytest-cov
+
+      - name: Run tests
+        run: |
+          pytest -q --maxfail=1 --disable-warnings \
+            --junitxml=reports/junit.xml \
+            --cov=app --cov-report=xml:reports/coverage.xml
+
+      - name: Upload coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          files: reports/coverage.xml
+          flags: windows,py${{ matrix.python-version }}
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ matrix.python-version }}
+          path: |
+            reports/junit.xml
+            reports/coverage.xml

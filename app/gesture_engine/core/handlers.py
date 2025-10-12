@@ -1,8 +1,8 @@
-from app.gesture_engine.actions import handle_volume
 from app.gesture_engine.actions.click_action import handle_click
 from app.gesture_engine.actions.close_program_action import handle_close_program
 from app.gesture_engine.actions.move_mouse_action import handle_move_mouse
 from app.gesture_engine.actions.scroll_action import handle_scroll
+from app.gesture_engine.actions.volume_action import handle_volume
 
 
 gesture_handlers = {

@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import numpy as np
@@ -8,15 +9,18 @@ from unittest.mock import patch, MagicMock
 
 from app.gesture_engine.utils.visualizer import Visualizer
 
-# sztuczna ramka do testow - czarne tło
+
+# sztuczna ramka do testow - czarne tlo
 def dummy_frame():
     return np.zeros((480, 640, 3), dtype=np.uint8)
+
 
 # inicjalizacja i skalowanie
 def test_visualizer_scaling():
     vis = Visualizer((1920, 1080), (640, 480))
     assert vis.scale_x == 640 / 1920
     assert vis.scale_y == 480 / 1080
+
 
 # draw_label: rysuje nazwe gestu i confidence
 @patch("app.utils.visualizer.cv2.putText")
@@ -35,7 +39,8 @@ def test_draw_label(mock_putText):
         pytest.approx(1, rel=1),
     )
 
-# draw_fps: rysuje FPS
+
+# draw_fps: rysuje fps
 @patch("app.utils.visualizer.cv2.putText")
 def test_draw_fps(mock_putText):
     frame = dummy_frame()
@@ -51,6 +56,7 @@ def test_draw_fps(mock_putText):
         (0, 255, 0),
         1,
     )
+
 
 # draw_frametime: rysuje czas klatki
 @patch("app.utils.visualizer.cv2.putText")
@@ -69,6 +75,7 @@ def test_draw_frametime(mock_putText):
         1,
     )
 
+
 # draw_current_gesture z nazwa
 @patch("app.utils.visualizer.cv2.putText")
 def test_draw_current_gesture_with_name(mock_putText):
@@ -86,7 +93,8 @@ def test_draw_current_gesture_with_name(mock_putText):
         1,
     )
 
-# raw_current_gesture bez nazwy - None
+
+# raw_current_gesture bez nazwy - none
 @patch("app.utils.visualizer.cv2.putText")
 def test_draw_current_gesture_none(mock_putText):
     frame = dummy_frame()
@@ -103,6 +111,7 @@ def test_draw_current_gesture_none(mock_putText):
         1,
     )
 
+
 # draw_landmarks: czy mediapipe.draw_landmarks zostalo wywolane
 @patch("app.utils.visualizer.mp_drawing.draw_landmarks")
 def test_draw_landmarks(mock_draw):
@@ -113,6 +122,7 @@ def test_draw_landmarks(mock_draw):
     vis.draw_landmarks(frame, landmarks)
 
     mock_draw.assert_called_once()
+
 
 # test draw_hand_box z etykieta
 @patch("app.utils.visualizer.cv2.putText")
@@ -127,6 +137,7 @@ def test_draw_hand_box_with_label(mock_rect, mock_text):
 
     mock_rect.assert_called_once()
     mock_text.assert_called_once()
+
 
 # test draw_hand_box bez etykiety
 @patch("app.utils.visualizer.cv2.rectangle")

@@ -4,13 +4,13 @@ from app.gesture_engine.config import CAPTURE_HEIGHT
 from app.gesture_engine.config import CAPTURE_WIDTH
 from app.gesture_engine.config import DISPLAY_HEIGHT
 from app.gesture_engine.config import DISPLAY_WIDTH
-from app.gesture_engine.core import gesture_handlers
-from app.gesture_engine.core import handle_gesture_start_hook
+from app.gesture_engine.core.handlers import gesture_handlers
+from app.gesture_engine.core.hooks import handle_gesture_start_hook
 from app.gesture_engine.detector.gesture_detector import detect_gesture
 from app.gesture_engine.detector.hand_tracker import HandTracker
 from app.gesture_engine.logger import logger
-from app.gesture_engine.utils import PerformanceTracker
-from app.gesture_engine.utils import ThreadedCapture
+from app.gesture_engine.utils.performance import PerformanceTracker
+from app.gesture_engine.utils.video_capture import ThreadedCapture
 from app.gesture_engine.utils.visualizer import Visualizer
 
 
@@ -91,10 +91,10 @@ while True:
     visualizer.draw_fps(resized_frame, performance.fps)
     visualizer.draw_frametime(resized_frame, performance.frametime_ms)
 
-    # pobierz ostatni gest i confidence jesli istnieje
+    # pobiera ostatni gest i confidence jesli istnieje
     gesture_name, confidence = None, 0.0
     if last_gestures:
-        last_id = next(iter(last_gestures))  # bierze pierwszą rękę
+        last_id = next(iter(last_gestures))  # bierze pierwsza reke
         gesture = detect_gesture(results.multi_hand_landmarks[0].landmark)
         if gesture:
             gesture_name, confidence = gesture

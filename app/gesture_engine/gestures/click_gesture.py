@@ -30,7 +30,7 @@ def detect_click_gesture(landmarks):
     ring_straight = ring_tip.y < ring_dip.y
     middle_straight = middle_tip.y < middle_dip.y
 
-    # logujemy tylko co 10 wywołań
+    # loguje co 10 wywolan
     if _log_counter % 10 == 0:
         logger.debug(f"[click] dist={dist:.4f}, confidence={confidence:.2f}")
         logger.debug(
