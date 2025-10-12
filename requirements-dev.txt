@@ -1,4 +1,4 @@
-black==24.4.2
+black==25.9.0
 ruff==0.4.4
 mypy==1.8.0
 bandit==1.7.8
