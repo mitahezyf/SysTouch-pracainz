@@ -3,6 +3,12 @@ from app.gesture_engine.actions.click_action import handle_click
 from app.gesture_engine.actions.click_action import update_click_state
 from app.gesture_engine.logger import logger
 
+# volume: import stanu do resetu/przejsc
+try:
+    from app.gesture_engine.gestures.volume_gesture import volume_state  # type: ignore
+except Exception:
+    volume_state = None  # type: ignore
+
 last_gesture_name = None
 gesture_start_hooks = {}
 
@@ -24,6 +30,13 @@ def handle_gesture_start_hook(gesture_name, landmarks, frame_shape):
         handle_click.active = False
         logger.debug("[hook] click released (gest zmienił się)")
 
+    # reset volume przy wyjsciu z gestu
+    if last_gesture_name == "volume" and gesture_name != "volume":
+        if volume_state is not None:
+            volume_state["phase"] = "idle"
+            volume_state["_extend_start"] = None
+            logger.debug("[hook] volume reset (wyjscie z gestu)")
+
     if gesture_name != last_gesture_name:
         logger.debug(f"[hook] zmiana gestu: {last_gesture_name} -> {gesture_name}")
         hook = gesture_start_hooks.get(gesture_name)
@@ -43,7 +56,17 @@ def handle_gesture_start_hook(gesture_name, landmarks, frame_shape):
     last_gesture_name = gesture_name
 
     def test_scroll_hook(landmarks, frame_shape):
-        logger.debug("[hook] scroll hook wywołany")
+        logger.debug("[hook] scroll hook wywolany")
 
     if "scroll" not in gesture_start_hooks:
         register_gesture_start_hook("scroll", test_scroll_hook)
+
+    # start hook dla volume: ustawia faze na adjusting gdy gest aktywowany
+    def volume_start_hook(_landmarks, _frame_shape):
+        if volume_state is not None:
+            volume_state["phase"] = "adjusting"
+            volume_state["_extend_start"] = None
+            logger.debug("[hook] volume start -> adjusting")
+
+    if "volume" not in gesture_start_hooks:
+        register_gesture_start_hook("volume", volume_start_hook)

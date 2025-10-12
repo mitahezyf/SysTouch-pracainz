@@ -1,5 +1,8 @@
 # SystemTouch
 
+## Dokumentacja
+- Plan i pipeline rozpoznawania gestów: docs/GESTURE_PIPELINE.md
+
 ## CI/CD
 - CI (ci.yml): lint (ruff/black/bandit/pre-commit) na Ubuntu i testy na Windows (Python 3.11/3.12) z raportami JUnit i coverage; cache pip, concurrency, ręczny trigger i harmonogram co tydzień.
 - CodeQL (codeql.yml): analiza bezpieczeństwa dla Pythona na push/PR i w harmonogramie.

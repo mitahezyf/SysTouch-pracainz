@@ -9,6 +9,8 @@ CAPTURE_HEIGHT = 1080
 DISPLAY_WIDTH = 640
 DISPLAY_HEIGHT = 480
 
+# okno podgladu (GUI)
+SHOW_WINDOW = True  # domyslnie wlaczone; main przelacza na headless przy bledzie GUI
 
 # opcjonalne ustawienia ramki (przyklad)
 # przyklad: frame_width = 1280
@@ -68,3 +70,9 @@ CLICK_DISTANCE_OPEN = 0.030  # dystans uznawany za "otwarty" (histereza)
 SMOOTHING_ALPHA = 0.0  # wspolczynnik wygladzania (0 = wyl.)
 PRIMARY_HAND = "Left"  # sterujaca reka: "Left" | "Right" | "Auto"
 LOG_LEVEL = "INFO"  # domyslny poziom logowania
+
+# gesty z json (opcjonalnie)
+USE_JSON_GESTURES = False  # wlacznik runtime json
+JSON_GESTURE_PATHS = [
+    "app/gesture_engine/gestures_json"  # katalog z wbudowanymi definicjami
+]

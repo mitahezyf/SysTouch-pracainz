@@ -1,0 +1,21 @@
+[
+  {
+    "type": "static",
+    "name": "volume_adjust",
+    "namespace": "builtin",
+    "fingers": {
+      "thumb": { "state": "any" },
+      "index": { "state": "extended" },
+      "middle": { "state": "extended" },
+      "ring": { "state": "curled" },
+      "pinky": { "state": "curled" }
+    },
+    "predicates": {
+      "pinch": { "enabled": true, "entry": 0.12, "exit": 0.15 },
+      "orientation": { "palm_up": false }
+    },
+    "stabilization": { "smooth": 5, "entry": 0.7, "exit": 0.6, "min_hold": 2 },
+    "action": { "type": "volume", "params": { "mode": "relative" } },
+    "priority": 50
+  }
+]

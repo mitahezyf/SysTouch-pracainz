@@ -1,0 +1,21 @@
+[
+  {
+    "type": "static",
+    "name": "pinch_click",
+    "namespace": "builtin",
+    "fingers": {
+      "thumb": { "state": "any" },
+      "index": { "state": "extended", "extended_thr": 0.3, "curled_thr": 0.6 },
+      "middle": { "state": "curled" },
+      "ring": { "state": "curled" },
+      "pinky": { "state": "curled" }
+    },
+    "predicates": {
+      "pinch": { "enabled": true, "entry": 0.12, "exit": 0.15 },
+      "orientation": { "palm_up": false }
+    },
+    "stabilization": { "smooth": 5, "entry": 0.7, "exit": 0.6, "min_hold": 3 },
+    "action": { "type": "click", "params": {} },
+    "priority": 60
+  }
+]

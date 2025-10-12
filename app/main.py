@@ -5,6 +5,7 @@ def main():
     from app.gesture_engine.config import CAPTURE_WIDTH
     from app.gesture_engine.config import DISPLAY_HEIGHT
     from app.gesture_engine.config import DISPLAY_WIDTH
+    from app.gesture_engine.config import SHOW_WINDOW
     from app.gesture_engine.core.handlers import gesture_handlers
     from app.gesture_engine.core.hooks import handle_gesture_start_hook
     from app.gesture_engine.detector.gesture_detector import detect_gesture
@@ -22,6 +23,23 @@ def main():
         capture_size=(CAPTURE_WIDTH, CAPTURE_HEIGHT),
         display_size=(DISPLAY_WIDTH, DISPLAY_HEIGHT),
     )
+
+    # flaga GUI z configu; gdy highgui niedostepne, przelaczymy na headless w locie
+    display_enabled = bool(SHOW_WINDOW)
+
+    # gesty json (opcjonalnie)
+    from app.gesture_engine.config import USE_JSON_GESTURES, JSON_GESTURE_PATHS
+
+    json_runtime = None
+    if USE_JSON_GESTURES:
+        try:
+            from app.gesture_engine.core.gesture_runtime import GestureRuntime
+
+            json_runtime = GestureRuntime(JSON_GESTURE_PATHS)
+            logger.info("[json] runtime gestow json wlaczony")
+        except Exception as e:
+            logger.warning(f"[json] nie udalo sie uruchomic runtime: {e}")
+            json_runtime = None
 
     last_gestures = {}
     detected_hands_ids = set()
@@ -52,13 +70,32 @@ def main():
 
                 gesture_name = None
                 confidence = 0.0
-                gesture = detect_gesture(hand_landmarks.landmark)
 
-                if gesture:
-                    gesture_name, confidence = gesture
-                    logger.debug(
-                        f"[gesture] {hand_id}: {gesture_name} ({confidence:.2f})"
-                    )
+                # json runtime (jesli wlaczony) -> preferowany wynik
+                if json_runtime is not None:
+                    # ramka jako lista (x,y,z)
+                    lm = [
+                        (lm.x, lm.y, getattr(lm, "z", 0.0))
+                        for lm in hand_landmarks.landmark
+                    ]
+                    try:
+                        res = json_runtime.update(lm)
+                    except Exception as e:
+                        logger.debug(f"[json] blad matchera: {e}")
+                        res = None
+                    if res:
+                        # nazwa gestu do UI to nazwa akcji (mapowanie do handlera)
+                        gesture_name = res.get("action", {}).get("type")
+                        confidence = float(res.get("confidence", 1.0))
+
+                # fallback do istniejacego detektora
+                if gesture_name is None:
+                    gesture = detect_gesture(hand_landmarks.landmark)
+                    if gesture:
+                        gesture_name, confidence = gesture
+                        logger.debug(
+                            f"[gesture] {hand_id}: {gesture_name} ({confidence:.2f})"
+                        )
 
                 handle_gesture_start_hook(
                     gesture_name, hand_landmarks.landmark, frame_shape
@@ -68,7 +105,7 @@ def main():
                 if gesture_name:
                     handler = gesture_handlers.get(gesture_name)
                     if handler:
-                        logger.debug(f"Wywołanie handlera dla gestu: {gesture_name}")
+                        logger.debug(f"Wywolanie handlera dla gestu: {gesture_name}")
                         handler(hand_landmarks.landmark, frame_shape)
 
                 label_text = (
@@ -103,14 +140,25 @@ def main():
 
         visualizer.draw_current_gesture(resized_frame, gesture_name, confidence)
 
-        cv2.imshow("SysTouch", resized_frame)
-
-        if cv2.waitKey(1) & 0xFF == 27:
-            logger.info("Zamknięcie aplikacji przez ESC")
-            break
+        if display_enabled:
+            try:
+                cv2.imshow("SysTouch", resized_frame)
+                if cv2.waitKey(1) & 0xFF == 27:
+                    logger.info("Zamknięcie aplikacji przez ESC")
+                    break
+            except cv2.error as e:
+                logger.warning(
+                    "OpenCV GUI niedostepne (imshow). Przechodze w tryb headless. Szczegoly: %s",
+                    e,
+                )
+                display_enabled = False
+        else:
+            # w trybie headless brak okna i klawiatury; krotki sleep implicit w cap.read/loop
+            pass
 
     cap.stop()
-    cv2.destroyAllWindows()
+    if display_enabled:
+        cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":

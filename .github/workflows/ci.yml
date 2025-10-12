@@ -90,78 +90,30 @@ jobs:
           python -m pip list
 
       - name: Smoke import (non-fatal)
-        run: >
-          python -c "import importlib,sys,traceback; mods=['app.gesture_engine.utils','app.gesture_engine.utils.video_capture','app.gesture_engine.utils.visualizer','app.gesture_engine.detector.hand_tracker','app.gesture_engine.detector.mediapipe_wrapper','app.gesture_engine.actions.click_action','app.gesture_engine.actions.close_program_action','app.gesture_engine.utils.pycaw_controller'];
+        run: |
+          $code = @"
+          import importlib, sys
 
-          [ (lambda m: (print('OK import', m))) (m) if not (lambda: False)() else None for m in [] ];
-
-          failed=[]
-
-
-
-
-          ;
-
-
-
-
-
-
+          mods = [
+              'app.gesture_engine.utils',
+              'app.gesture_engine.utils.video_capture',
+              'app.gesture_engine.utils.visualizer',
+              'app.gesture_engine.detector.hand_tracker',
+              'app.gesture_engine.detector.mediapipe_wrapper',
+              'app.gesture_engine.actions.click_action',
+              'app.gesture_engine.actions.close_program_action',
+              'app.gesture_engine.utils.pycaw_controller',
+          ]
 
           for m in mods:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-            try:
-              importlib.import_module(m); print('OK import', m)
-            except Exception as e:
-              print('WARN import', m, ':', e, file=sys.stderr)
-          sys.exit(0)"
+              try:
+                  importlib.import_module(m)
+                  print('OK import', m)
+              except Exception as e:
+                  print('WARN import', m, ':', e, file=sys.stderr)
+          sys.exit(0)
+          "@
+          python -c $code
 
       - name: Run tests
         run: python -m pytest -q --maxfail=1 --disable-warnings --junitxml=reports/junit.xml --cov=app --cov-report=xml:reports/coverage.xml

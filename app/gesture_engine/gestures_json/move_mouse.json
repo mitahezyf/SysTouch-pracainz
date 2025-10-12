@@ -1,0 +1,21 @@
+[
+  {
+    "type": "static",
+    "name": "move_mouse_index",
+    "namespace": "builtin",
+    "fingers": {
+      "thumb": { "state": "any" },
+      "index": { "state": "extended" },
+      "middle": { "state": "curled" },
+      "ring": { "state": "curled" },
+      "pinky": { "state": "curled" }
+    },
+    "predicates": {
+      "pinch": { "enabled": false },
+      "orientation": { "palm_up": false }
+    },
+    "stabilization": { "smooth": 5, "entry": 0.6, "exit": 0.5, "min_hold": 2 },
+    "action": { "type": "move_mouse", "params": {} },
+    "priority": 40
+  }
+]
