@@ -1,10 +1,31 @@
 # todo naprawic blad logiczny w release_click() - short tap nie zawsze wywoluje pyautogui.click()
 import time
 
-import pyautogui
-
 from app.gesture_engine.config import HOLD_THRESHOLD
 from app.gesture_engine.logger import logger
+
+# leniwy import pyautogui z no-op stubem, aby nie wysypywac sie w srodowiskach bez GUI
+try:  # pragma: no cover - gałąź zależna od srodowiska CI
+    import pyautogui as _pyautogui  # type: ignore
+except Exception:  # pragma: no cover
+
+    class _PyAutoGuiStub:
+        def click(self, *_, **__):
+            pass
+
+        def mouseDown(self, *_, **__):
+            pass
+
+        def mouseUp(self, *_, **__):
+            pass
+
+        def size(self):
+            return (1920, 1080)
+
+    logger.warning("pyautogui niedostepne – uzywam no-op stubu")
+    pyautogui = _PyAutoGuiStub()  # type: ignore
+else:
+    pyautogui = _pyautogui  # type: ignore
 
 
 click_state = {

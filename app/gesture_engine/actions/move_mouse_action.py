@@ -2,9 +2,25 @@ import threading
 import time
 from collections import deque
 
-import pyautogui
-
 from app.gesture_engine.logger import logger
+
+# leniwy import pyautogui z no-op stubem
+try:  # pragma: no cover
+    import pyautogui as _pyautogui  # type: ignore
+except Exception:  # pragma: no cover
+
+    class _PyAutoGuiStub:
+        def moveTo(self, *_args, **_kwargs):
+            pass
+
+        def size(self):
+            return (1920, 1080)
+
+    logger.warning("pyautogui niedostepne – uzywam no-op stubu (move_mouse)")
+    pyautogui = _PyAutoGuiStub()  # type: ignore
+else:
+    pyautogui = _pyautogui  # type: ignore
+
 from app.gesture_engine.utils.landmarks import FINGER_TIPS
 
 # bufor wygladzania pozycji kursora
