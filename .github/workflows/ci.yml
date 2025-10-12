@@ -57,16 +57,10 @@ jobs:
   test:
     name: Tests (Windows)
     runs-on: windows-latest
-    # python 3.13 traktujemy jako eksperymentalny (nieblokujacy), bo nie wszystkie kola moga byc dostepne
-    continue-on-error: ${{ matrix.experimental }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - python-version: '3.12'
-            experimental: false
-          - python-version: '3.13'
-            experimental: true
+        python-version: ['3.12']
     env:
       PYTHONIOENCODING: 'utf-8'
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
