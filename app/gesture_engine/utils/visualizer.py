@@ -1,5 +1,58 @@
-import cv2
-import mediapipe as mp
+# Bezpieczne importy: cv2 i mediapipe mogą nie być dostępne w środowisku CI.
+try:  # pragma: no cover
+    import cv2  # type: ignore
+except Exception:  # pragma: no cover
+
+    class _CV2Stub:
+        FONT_HERSHEY_SIMPLEX = 0
+
+        @staticmethod
+        def putText(*_, **__):
+            raise ImportError(
+                "cv2.putText niedostępne – zainstaluj opencv-python(-headless)."
+            )
+
+        @staticmethod
+        def rectangle(*_, **__):
+            raise ImportError(
+                "cv2.rectangle niedostępne – zainstaluj opencv-python(-headless)."
+            )
+
+    cv2 = _CV2Stub()  # type: ignore
+
+try:  # pragma: no cover
+    import mediapipe as mp  # type: ignore
+
+    mp_drawing = mp.solutions.drawing_utils
+    mp_hands = mp.solutions.hands
+except Exception:  # pragma: no cover
+
+    class _MPDrawingStub:
+        class DrawingSpec:
+            def __init__(self, color=None, thickness=None, circle_radius=None):
+                self.color = color
+                self.thickness = thickness
+                self.circle_radius = circle_radius
+
+        @staticmethod
+        def draw_landmarks(*_, **__):
+            raise ImportError(
+                "mediapipe.draw_landmarks niedostępne – zainstaluj mediapipe."
+            )
+
+    class _MPHandsStub:
+        HAND_CONNECTIONS = None
+
+    class _MPSolutionsStub:
+        drawing_utils = _MPDrawingStub()
+        hands = _MPHandsStub()
+
+    class _MPStub:
+        solutions = _MPSolutionsStub()
+
+    mp = _MPStub()  # type: ignore
+    mp_drawing = mp.solutions.drawing_utils
+    mp_hands = mp.solutions.hands
 
 from app.gesture_engine.config import CONNECTION_COLOR
 from app.gesture_engine.config import LABEL_FONT_SCALE
@@ -7,9 +60,6 @@ from app.gesture_engine.config import LABEL_THICKNESS
 from app.gesture_engine.config import LANDMARK_CIRCLE_RADIUS
 from app.gesture_engine.config import LANDMARK_COLOR
 from app.gesture_engine.config import LANDMARK_LINE_THICKNESS
-
-mp_drawing = mp.solutions.drawing_utils
-mp_hands = mp.solutions.hands
 
 
 class Visualizer:

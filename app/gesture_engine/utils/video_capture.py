@@ -1,6 +1,29 @@
 from threading import Thread
 
-import cv2
+# Bezpieczny import cv2 – w CI lub środowiskach bez OpenCV pozwalamy na import
+# modułu poprzez stub, aby testy mogły patchować cv2.VideoCapture.
+try:  # pragma: no cover - ścieżka zależna od środowiska
+    import cv2  # type: ignore
+except Exception:  # pragma: no cover
+
+    class _CV2Stub:  # minimalny stub potrzebny w testach
+        # wartości zgodne z OpenCV
+        CAP_PROP_FRAME_WIDTH = 3
+        CAP_PROP_FRAME_HEIGHT = 4
+        CAP_PROP_FPS = 5
+
+        class VideoCapture:
+            def __init__(self, *_, **__):
+                raise ImportError(
+                    "cv2 (OpenCV) nie jest zainstalowane – użyto stubu. Zainstaluj opencv-python(-headless)."
+                )
+
+        def __getattr__(self, name):  # dla ewentualnych innych atrybutów
+            raise ImportError(
+                f"cv2 atrybut '{name}' nie jest dostępny w trybie stub. Zainstaluj opencv-python(-headless)."
+            )
+
+    cv2 = _CV2Stub()  # type: ignore
 
 from app.gesture_engine.config import CAMERA_INDEX
 from app.gesture_engine.config import CAPTURE_HEIGHT
