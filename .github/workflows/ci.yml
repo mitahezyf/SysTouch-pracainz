@@ -56,6 +56,7 @@ jobs:
         python-version: ['3.11', '3.12']
     env:
       PYTHONIOENCODING: 'utf-8'
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -73,26 +74,22 @@ jobs:
           pip install -r requirements-dev.txt
           pip install pytest-cov
 
+      - name: Prepare reports dir
+        run: python -c "import os; os.makedirs('reports', exist_ok=True); print('reports dir ready')"
+
       - name: Run tests
-        run: |
-          pytest -q --maxfail=1 --disable-warnings \
-            --junitxml=reports/junit.xml \
-            --cov=app --cov-report=xml:reports/coverage.xml
+        run: pytest -q --maxfail=1 --disable-warnings --junitxml=reports/junit.xml --cov=app --cov-report=xml:reports/coverage.xml
 
       - name: Upload coverage to Codecov
-        # uruchamiaj tylko, gdy to nie jest PR Dependabota/forka i gdy token jest dostepny
-        if: |
-          always() &&
-          github.actor != 'dependabot[bot]' &&
-          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) &&
-          secrets.CODECOV_TOKEN != ''
+        # uruchamiaj tylko dla zaufanych eventow i gdy token jest dostepny
+        if: github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && env.CODECOV_TOKEN != ''
         uses: codecov/codecov-action@v4
         with:
           files: reports/coverage.xml
           flags: windows,py${{ matrix.python-version }}
           fail_ci_if_error: false
         env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          CODECOV_TOKEN: ${{ env.CODECOV_TOKEN }}
 
       - name: Upload test reports
         if: always()
@@ -102,3 +99,4 @@ jobs:
           path: |
             reports/junit.xml
             reports/coverage.xml
+          if-no-files-found: warn

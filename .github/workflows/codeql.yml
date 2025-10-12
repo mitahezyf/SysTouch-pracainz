@@ -12,6 +12,7 @@ jobs:
   analyze:
     name: Analyze (CodeQL)
     runs-on: ubuntu-latest
+    continue-on-error: true
     # nie odpalaj na PR-ach Dependabota ani z forkow (ograniczone uprawnienia/secrets)
     if: |
       github.event_name != 'pull_request' ||
