@@ -5,29 +5,19 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-    paths:
-      - 'app/**'
-      - 'tests/**'
-      - 'requirements*.txt'
-      - 'pytest.ini'
-      - 'pyproject.toml'
-      - 'README.md'
-  schedule:
-    - cron: '0 3 * * 1'  # co poniedziałek o 03:00 UTC
 
 jobs:
   analyze:
     name: Analyze (CodeQL)
     runs-on: ubuntu-latest
-    continue-on-error: true
-    # nie odpalaj na PR-ach Dependabota ani z forkow (ograniczone uprawnienia/secrets)
-    if: |
-      github.event_name != 'pull_request' ||
-      (github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository)
     permissions:
-      security-events: write
       actions: read
       contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -35,12 +25,10 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
-          languages: python
+          languages: 'python'
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
-        with:
-          category: '/language:python'

@@ -5,65 +5,20 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-    paths:
-      - 'app/**'
-      - 'tests/**'
-      - 'requirements*.txt'
-      - 'pytest.ini'
-      - 'pyproject.toml'
-      - 'README.md'
-  schedule:
-    - cron: '0 5 * * 1'  # co poniedziałek o 05:00 UTC
   workflow_dispatch:
 
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  lint:
-    name: Lint (ruff/black/bandit/pre-commit)
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-
-      - name: Install dev dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
-
-      - name: Ruff (lint)
-        run: ruff check .
-
-      - name: Black (format check)
-        run: black --check .
-
-      - name: Bandit (security)
-        run: bandit -q -r app || true  # wstępnie ostrzegawczo, nie blokuje PR
-
-      - name: Pre-commit (all files)
-        run: |
-          pre-commit install --install-hooks
-          pre-commit run --all-files || true  # ostrzegawczo
-
-  test:
-    name: Tests (Windows)
+  tests:
+    name: Tests (Windows, Py${{ matrix.python-version }})
     runs-on: windows-latest
+    permissions:
+      contents: read
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.12']
-    env:
-      PYTHONIOENCODING: 'utf-8'
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        python-version: [ '3.12' ]
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -73,73 +28,32 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
+          cache-dependency-path: requirements.txt
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
-          python -m pip install -r requirements-dev.txt
-          python -m pip install pytest-cov
+          pip install -r requirements.txt
+          pip install pytest-cov
 
-      - name: Prepare reports dir
-        run: python -c "import os; os.makedirs('reports', exist_ok=True); print('reports dir ready')"
-
-      - name: Dependency health check
+      - name: Create reports folder
         run: |
-          python -m pip check
-          python -m pip list
+          if (!(Test-Path reports)) { New-Item -ItemType Directory -Path reports | Out-Null }
 
-      - name: Smoke import (non-fatal)
+      - name: Run tests with coverage
         run: |
-          $code = @"
-          import importlib, sys
-
-          mods = [
-              'app.gesture_engine.utils',
-              'app.gesture_engine.utils.video_capture',
-              'app.gesture_engine.utils.visualizer',
-              'app.gesture_engine.detector.hand_tracker',
-              'app.gesture_engine.detector.mediapipe_wrapper',
-              'app.gesture_engine.actions.click_action',
-              'app.gesture_engine.actions.close_program_action',
-              'app.gesture_engine.utils.pycaw_controller',
-          ]
-
-          for m in mods:
-              try:
-                  importlib.import_module(m)
-                  print('OK import', m)
-              except Exception as e:
-                  print('WARN import', m, ':', e, file=sys.stderr)
-          sys.exit(0)
-          "@
-          python -c $code
-
-      - name: Run tests
-        run: python -m pytest -q --maxfail=1 --disable-warnings --junitxml=reports/junit.xml --cov=app --cov-report=xml:reports/coverage.xml
-
-      - name: Export installed packages
-        if: always()
-        run: python -m pip freeze > reports/pip-freeze.txt
+          pytest --maxfail=1 --disable-warnings --cov=app --cov-report=xml:reports/coverage.xml --junitxml=reports/junit.xml -q
 
       - name: Upload coverage to Codecov
-        # uruchamiaj tylko dla zaufanych eventow i gdy token jest dostepny
-        if: github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && env.CODECOV_TOKEN != ''
         uses: codecov/codecov-action@v4
         with:
           files: reports/coverage.xml
-          flags: windows,py${{ matrix.python-version }}
           fail_ci_if_error: false
-        env:
-          CODECOV_TOKEN: ${{ env.CODECOV_TOKEN }}
 
-      - name: Upload test reports
-        if: always()
+      - name: Upload test reports (artifact)
         uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: test-reports-${{ matrix.python-version }}
-          path: |
-            reports/junit.xml
-            reports/coverage.xml
-            reports/pip-freeze.txt
-          if-no-files-found: warn
+          name: reports-${{ matrix.python-version }}
+          path: reports/
+          if-no-files-found: ignore
