@@ -6,7 +6,7 @@ from __future__ import annotations
 from collections import deque
 from typing import Any, Deque, Dict, List, Optional, Tuple
 
-from ..utils.hand_features import normalize_landmarks, curl_score, pinch_distance_norm
+from ..utils.hand_features import curl_score, normalize_landmarks, pinch_distance_norm
 
 # indeksy mediapipe
 WRIST = 0

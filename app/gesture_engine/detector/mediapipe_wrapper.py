@@ -23,9 +23,7 @@ except Exception:  # pragma: no cover
 
     cv2 = _CV2Stub()  # type: ignore
 
-from app.gesture_engine.config import CAMERA_INDEX
-from app.gesture_engine.config import CAPTURE_HEIGHT
-from app.gesture_engine.config import CAPTURE_WIDTH
+from app.gesture_engine.config import CAMERA_INDEX, CAPTURE_HEIGHT, CAPTURE_WIDTH
 from app.gesture_engine.detector.hand_tracker import HandTracker
 
 hand_tracker = HandTracker(max_num_hands=1)

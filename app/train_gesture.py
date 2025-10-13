@@ -7,8 +7,8 @@ from app.gesture_engine.logger import logger
 def main():
     # lokalne importy ciężkich bibliotek
     import cv2  # type: ignore
-    import numpy as np  # type: ignore
     import mediapipe as mp  # type: ignore
+    import numpy as np  # type: ignore
 
     # inicjalizacja rysowania dla mediapipe
     _mp_drawing = mp.solutions.drawing_utils

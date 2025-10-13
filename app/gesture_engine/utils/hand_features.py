@@ -2,8 +2,8 @@
 # lekki szkic, bezpieczny do importu
 from __future__ import annotations
 
-from typing import List, Sequence, Tuple
 import math
+from typing import List, Sequence, Tuple
 
 Landmark = Tuple[float, float, float]
 Frame = Sequence[Landmark]

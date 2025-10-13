@@ -3,11 +3,7 @@ import json
 from pathlib import Path
 
 from app.gesture_engine.utils.geometry import distance
-from app.gesture_engine.utils.landmarks import INDEX_MCP
-from app.gesture_engine.utils.landmarks import MIDDLE_TIP
-from app.gesture_engine.utils.landmarks import RING_MCP
-from app.gesture_engine.utils.landmarks import WRIST
-
+from app.gesture_engine.utils.landmarks import INDEX_MCP, MIDDLE_TIP, RING_MCP, WRIST
 
 CALIBRATION_PATH = Path(__file__).parent / "data" / "calibration.json"
 

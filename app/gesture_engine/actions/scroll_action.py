@@ -3,9 +3,11 @@ import ctypes
 import time
 from collections import deque
 
-from app.gesture_engine.config import MAX_SCROLL_SPEED
-from app.gesture_engine.config import SCROLL_BASE_INTERVAL
-from app.gesture_engine.config import SCROLL_SENSITIVITY
+from app.gesture_engine.config import (
+    MAX_SCROLL_SPEED,
+    SCROLL_BASE_INTERVAL,
+    SCROLL_SENSITIVITY,
+)
 from app.gesture_engine.core.hooks import register_gesture_start_hook
 from app.gesture_engine.logger import logger
 from app.gesture_engine.utils.landmarks import WRIST

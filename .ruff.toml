@@ -1,0 +1,25 @@
+# Konfiguracja Ruff
+# Cel: zgodnosc z Black, podstawowe reguly (E,F,I), ignorowanie E402 w testach
+
+line-length = 88
+ target-version = "py312"
+
+[lint]
+select = ["E", "F", "I"]
+ignore = [
+  # dlugie linie – trzymamy sie formatera, nie lintera
+  "E501",
+]
+fixable = ["ALL"]
+
+[lint.isort]
+# Dla poprawnego sortowania importow z pakietu "app"
+known-first-party = ["app"]
+
+[lint.per-file-ignores]
+# W testach dopuszczamy modyfikacje sys.path przed importami
+"tests/**/*.py" = ["E402"]
+
+[format]
+# Ruff format jest zgodny z Black; nie wymuszamy zmiany cudzyslowow
+quote-style = "preserve"

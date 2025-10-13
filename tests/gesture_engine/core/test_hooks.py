@@ -3,8 +3,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-import app.gesture_engine.core.hooks as hooks
 from unittest.mock import MagicMock, patch
+
+import app.gesture_engine.core.hooks as hooks
 
 
 # czy rejestracja hooka dziala i jest wykonywana przy zmianie gestu

@@ -1,12 +1,13 @@
 # todo do zrobienia od nowa, pokonalo mnie to
 from time import monotonic
 
-from app.gesture_engine.utils.geometry import angle_between
-from app.gesture_engine.utils.geometry import distance
-from app.gesture_engine.utils.landmarks import FINGER_MCPS
-from app.gesture_engine.utils.landmarks import FINGER_PIPS
-from app.gesture_engine.utils.landmarks import FINGER_TIPS
-from app.gesture_engine.utils.landmarks import WRIST
+from app.gesture_engine.utils.geometry import angle_between, distance
+from app.gesture_engine.utils.landmarks import (
+    FINGER_MCPS,
+    FINGER_PIPS,
+    FINGER_TIPS,
+    WRIST,
+)
 
 # globalny stan gestu
 timezone_offset = 0

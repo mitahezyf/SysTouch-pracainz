@@ -1,11 +1,13 @@
 def main():
     import cv2  # lokalny import, by uniknac bledow przy samym imporcie modułu
 
-    from app.gesture_engine.config import CAPTURE_HEIGHT
-    from app.gesture_engine.config import CAPTURE_WIDTH
-    from app.gesture_engine.config import DISPLAY_HEIGHT
-    from app.gesture_engine.config import DISPLAY_WIDTH
-    from app.gesture_engine.config import SHOW_WINDOW
+    from app.gesture_engine.config import (
+        CAPTURE_HEIGHT,
+        CAPTURE_WIDTH,
+        DISPLAY_HEIGHT,
+        DISPLAY_WIDTH,
+        SHOW_WINDOW,
+    )
     from app.gesture_engine.core.handlers import gesture_handlers
     from app.gesture_engine.core.hooks import handle_gesture_start_hook
     from app.gesture_engine.detector.gesture_detector import detect_gesture
@@ -28,7 +30,7 @@ def main():
     display_enabled = bool(SHOW_WINDOW)
 
     # gesty json (opcjonalnie)
-    from app.gesture_engine.config import USE_JSON_GESTURES, JSON_GESTURE_PATHS
+    from app.gesture_engine.config import JSON_GESTURE_PATHS, USE_JSON_GESTURES
 
     json_runtime = None
     if USE_JSON_GESTURES:

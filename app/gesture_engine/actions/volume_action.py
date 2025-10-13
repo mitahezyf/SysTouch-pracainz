@@ -1,15 +1,11 @@
 # todo: do przerobienia od nowa, obecna wersja jest zbyt niestabilna
-from app.gesture_engine.gestures.volume_gesture import PINCH_RATIO
-from app.gesture_engine.gestures.volume_gesture import volume_state
+from app.gesture_engine.gestures.volume_gesture import PINCH_RATIO, volume_state
 from app.gesture_engine.utils.geometry import distance
-from app.gesture_engine.utils.landmarks import FINGER_MCPS
-from app.gesture_engine.utils.landmarks import FINGER_TIPS
-from app.gesture_engine.utils.landmarks import WRIST
+from app.gesture_engine.utils.landmarks import FINGER_MCPS, FINGER_TIPS, WRIST
 from app.gesture_engine.utils.pycaw_controller import set_system_volume
 
 
 def handle_volume(landmarks, frame_shape):
-
     phase = volume_state.get("phase")
     print(f"[volume_action] phase = {phase}")
     if phase != "adjusting":

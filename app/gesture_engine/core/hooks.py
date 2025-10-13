@@ -1,6 +1,5 @@
 # todo usunac powielone wywolanie update_click_state(False) przy zmianie gestu z click
-from app.gesture_engine.actions.click_action import handle_click
-from app.gesture_engine.actions.click_action import update_click_state
+from app.gesture_engine.actions.click_action import handle_click, update_click_state
 from app.gesture_engine.logger import logger
 
 # volume: import stanu do resetu/przejsc

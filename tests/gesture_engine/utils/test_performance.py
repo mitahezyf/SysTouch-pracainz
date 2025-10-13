@@ -4,6 +4,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 import time
+
 from app.gesture_engine.utils import PerformanceTracker
 
 

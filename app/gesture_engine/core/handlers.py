@@ -4,7 +4,6 @@ from app.gesture_engine.actions.move_mouse_action import handle_move_mouse
 from app.gesture_engine.actions.scroll_action import handle_scroll
 from app.gesture_engine.actions.volume_action import handle_volume
 
-
 gesture_handlers = {
     "click": handle_click,
     "move_mouse": handle_move_mouse,

@@ -3,10 +3,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-import pytest
 from types import SimpleNamespace
 
-from app.gesture_engine.utils.geometry import distance, angle_between
+import pytest
+
+from app.gesture_engine.utils.geometry import angle_between, distance
 
 
 # prosty obiekt punktu z atrybutami x, y, z

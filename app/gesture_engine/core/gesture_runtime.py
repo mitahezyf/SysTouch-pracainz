@@ -6,7 +6,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional, Tuple
 
 from .gesture_loader import load_gestures
-from .gesture_matcher import StaticGestureMatcher, SequenceGestureMatcher
+from .gesture_matcher import SequenceGestureMatcher, StaticGestureMatcher
 
 
 class GestureRuntime:

@@ -3,7 +3,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 import app.gesture_engine.actions.move_mouse_action as move_mouse
 
 

@@ -1,9 +1,11 @@
 from app.gesture_engine.logger import logger
 from app.gesture_engine.utils.geometry import angle_between
-from app.gesture_engine.utils.landmarks import FINGER_MCPS
-from app.gesture_engine.utils.landmarks import FINGER_PIPS
-from app.gesture_engine.utils.landmarks import FINGER_TIPS
-from app.gesture_engine.utils.landmarks import THUMB_IP
+from app.gesture_engine.utils.landmarks import (
+    FINGER_MCPS,
+    FINGER_PIPS,
+    FINGER_TIPS,
+    THUMB_IP,
+)
 
 _log_counter = 0
 

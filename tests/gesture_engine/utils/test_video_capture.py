@@ -4,6 +4,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from unittest.mock import MagicMock, patch
+
 from app.gesture_engine.utils import ThreadedCapture
 
 
@@ -15,8 +16,8 @@ def test_threaded_capture_init(mock_cv2):
     mock_cv2.return_value = mock_cap
 
     from app.gesture_engine.config import (
-        CAPTURE_WIDTH,
         CAPTURE_HEIGHT,
+        CAPTURE_WIDTH,
         TARGET_CAMERA_FPS,
     )
 

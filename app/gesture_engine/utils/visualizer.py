@@ -54,16 +54,17 @@ except Exception:  # pragma: no cover
     mp_drawing = mp.solutions.drawing_utils
     mp_hands = mp.solutions.hands
 
-from app.gesture_engine.config import CONNECTION_COLOR
-from app.gesture_engine.config import LABEL_FONT_SCALE
-from app.gesture_engine.config import LABEL_THICKNESS
-from app.gesture_engine.config import LANDMARK_CIRCLE_RADIUS
-from app.gesture_engine.config import LANDMARK_COLOR
-from app.gesture_engine.config import LANDMARK_LINE_THICKNESS
+from app.gesture_engine.config import (
+    CONNECTION_COLOR,
+    LABEL_FONT_SCALE,
+    LABEL_THICKNESS,
+    LANDMARK_CIRCLE_RADIUS,
+    LANDMARK_COLOR,
+    LANDMARK_LINE_THICKNESS,
+)
 
 
 class Visualizer:
-
     def __init__(self, capture_size, display_size):
         self.capture_size = capture_size
         self.display_size = display_size

@@ -3,7 +3,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from app.gesture_engine.detector.hand_tracker import HandTracker
 

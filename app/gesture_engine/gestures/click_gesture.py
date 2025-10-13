@@ -1,8 +1,7 @@
 from app.gesture_engine.config import CLICK_THRESHOLD
 from app.gesture_engine.logger import logger
 from app.gesture_engine.utils.geometry import distance
-from app.gesture_engine.utils.landmarks import FINGER_DIPS
-from app.gesture_engine.utils.landmarks import FINGER_TIPS
+from app.gesture_engine.utils.landmarks import FINGER_DIPS, FINGER_TIPS
 
 _log_counter = 0
 
