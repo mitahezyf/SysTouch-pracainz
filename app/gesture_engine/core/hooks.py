@@ -4,7 +4,7 @@ from app.gesture_engine.logger import logger
 
 # volume: import stanu do resetu/przejsc
 try:
-    from app.gesture_engine.gestures.volume_gesture import volume_state  # type: ignore
+    from app.gesture_engine.gestures.volume_gesture import volume_state
 except Exception:
     volume_state = None  # type: ignore
 

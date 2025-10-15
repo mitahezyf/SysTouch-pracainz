@@ -1,12 +1,13 @@
 import threading
 import time
 from collections import deque
+from typing import Deque, Optional, Tuple
 
 from app.gesture_engine.logger import logger
 
 # leniwy import pyautogui z no-op stubem
 try:  # pragma: no cover
-    import pyautogui as _pyautogui  # type: ignore
+    import pyautogui as _pyautogui
 except Exception:  # pragma: no cover
 
     class _PyAutoGuiStub:
@@ -17,15 +18,15 @@ except Exception:  # pragma: no cover
             return (1920, 1080)
 
     logger.warning("pyautogui niedostepne – uzywam no-op stubu (move_mouse)")
-    pyautogui = _PyAutoGuiStub()  # type: ignore
+    pyautogui = _PyAutoGuiStub()
 else:
-    pyautogui = _pyautogui  # type: ignore
+    pyautogui = _pyautogui
 
 from app.gesture_engine.utils.landmarks import FINGER_TIPS
 
 # bufor wygladzania pozycji kursora
-position_buffer = deque(maxlen=5)
-latest_position = None
+position_buffer: Deque[Tuple[int, int]] = deque(maxlen=5)
+latest_position: Optional[Tuple[int, int]] = None
 lock = threading.Lock()
 running = True
 

@@ -6,9 +6,9 @@ from app.gesture_engine.logger import logger
 
 def main():
     # lokalne importy ciężkich bibliotek
-    import cv2  # type: ignore
-    import mediapipe as mp  # type: ignore
-    import numpy as np  # type: ignore
+    import cv2
+    import mediapipe as mp
+    import numpy as np
 
     # inicjalizacja rysowania dla mediapipe
     _mp_drawing = mp.solutions.drawing_utils

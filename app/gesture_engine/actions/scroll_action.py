@@ -2,6 +2,7 @@
 import ctypes
 import time
 from collections import deque
+from typing import Deque, Optional
 
 from app.gesture_engine.config import (
     MAX_SCROLL_SPEED,
@@ -12,9 +13,9 @@ from app.gesture_engine.core.hooks import register_gesture_start_hook
 from app.gesture_engine.logger import logger
 from app.gesture_engine.utils.landmarks import WRIST
 
-position_buffer = deque(maxlen=3)
-scroll_anchor_y = None
-last_scroll_time = 0
+position_buffer: Deque[int] = deque(maxlen=3)
+scroll_anchor_y: Optional[int] = None
+last_scroll_time: float = 0.0
 
 
 def scroll_start_hook(landmarks, frame_shape):

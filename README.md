@@ -8,6 +8,8 @@
 Nowoczesne sterowanie komputerem za pomocą gestów dłoni wykrywanych w kamerze. Projekt działa lokalnie na Windows i wykorzystuje MediaPipe oraz OpenCV do detekcji dłoni, a następnie mapuje rozpoznane gesty na akcje systemowe.
 
 - Dokumentacja pipeline: docs/GESTURE_PIPELINE.md
+- Mapowanie gestów -> akcje i MVP GUI: docs/GESTURE_MAPPING_AND_GUI.md
+- Projektowy TODO (checklista, komentarze): docs/PROJECT_TODO.todo
 - Diagram przypadków użycia: UseCaseDiagram1.png
 
 ## Wymagania
@@ -17,12 +19,12 @@ Nowoczesne sterowanie komputerem za pomocą gestów dłoni wykrywanych w kamerze
 
 ## Zależności
 Główne biblioteki używane przez projekt:
-- mediapipe – śledzenie dłoni/landmarków
-- opencv-python (lub opencv-python-headless) – przetwarzanie obrazu i GUI (imshow)
-- numpy – operacje numeryczne
-- pywin32 / comtypes / pycaw – kontrola głośności systemu
-- PyAutoGUI / pynput – sterowanie myszą/klawiaturą
-- pytest – testy jednostkowe
+- mediapipe - śledzenie dłoni/landmarków
+- opencv-python (lub opencv-python-headless) - przetwarzanie obrazu i GUI (imshow)
+- numpy - operacje numeryczne
+- pywin32 / comtypes / pycaw - kontrola głośności systemu
+- PyAutoGUI / pynput - sterowanie myszą/klawiaturą
+- pytest - testy jednostkowe
 
 Zobacz plik `requirements.txt` dla pełnej listy i wersji. Jeśli nie potrzebujesz okna podglądu (GUI), możesz użyć wariantu `opencv-python-headless`.
 
@@ -56,22 +58,22 @@ Domyślnie program otwiera okno podglądu (GUI). Jeśli środowisko nie wspiera 
 ## Konfiguracja
 Plik: `app/gesture_engine/config.py`. Kluczowe opcje:
 - Kamera i obraz:
-  - `CAMERA_INDEX` – indeks kamery (0 domyślnie)
-  - `CAPTURE_WIDTH`, `CAPTURE_HEIGHT` – rozdzielczość przechwytywania (np. 1920x1080)
-  - `DISPLAY_WIDTH`, `DISPLAY_HEIGHT` – rozdzielczość wyświetlania (np. 640x480)
-  - `TARGET_CAMERA_FPS` – docelowa liczba FPS
-  - `SHOW_WINDOW` – włącza/wyłącza okno podglądu
+  - `CAMERA_INDEX` - indeks kamery (0 domyślnie)
+  - `CAPTURE_WIDTH`, `CAPTURE_HEIGHT` - rozdzielczość przechwytywania (np. 1920x1080)
+  - `DISPLAY_WIDTH`, `DISPLAY_HEIGHT` - rozdzielczość wyświetlania (np. 640x480)
+  - `TARGET_CAMERA_FPS` - docelowa liczba FPS
+  - `SHOW_WINDOW` - włącza/wyłącza okno podglądu
 - Logowanie i overlay: `LOG_LEVEL`, `DEBUG_MODE`, `SHOW_FPS`, `SHOW_DELAY`
 - Progi gestów: `CLICK_THRESHOLD`, `SCROLL_THRESHOLD`, `VOLUME_THRESHOLD`, `GESTURE_CONFIDENCE_THRESHOLD`, itp.
 - Gesty z JSON (opcjonalnie): `USE_JSON_GESTURES`, `JSON_GESTURE_PATHS`
 
 ## Gesty i akcje (zaimplementowane)
 Mapowanie (zob. `app/gesture_engine/core/handlers.py`):
-- `click` – symulacja kliknięcia
-- `move_mouse` – poruszanie kursorem
-- `scroll` – przewijanie
-- `volume` – regulacja głośności systemu
-- `close_program` – zamykanie aktywnego okna/programu
+- `click` - symulacja kliknięcia
+- `move_mouse` - poruszanie kursorem
+- `scroll` - przewijanie
+- `volume` - regulacja głośności systemu
+- `close_program` - zamykanie aktywnego okna/programu
 
 Detekcja landmarków: `app/gesture_engine/detector/hand_tracker.py`
 Prosty klasyfikator gestów: `app/gesture_engine/detector/gesture_detector.py`
@@ -85,18 +87,18 @@ Uruchom w katalogu głównym:
 Raporty coverage generowane są w CI do `reports/coverage.xml`.
 
 ## CI/CD
-- CI (`.github/workflows/ci.yml`): Windows, Python 3.12, testy z pokryciem (pytest-cov), artefakty JUnit i coverage, publikacja do Codecov (repo publiczne – bez tokena).
+- CI (`.github/workflows/ci.yml`): Windows, Python 3.12, testy z pokryciem (pytest-cov), artefakty JUnit i coverage, publikacja do Codecov (repo publiczne - bez tokena).
 - CodeQL (`.github/workflows/codeql.yml`): analiza bezpieczeństwa na push/PR (bez harmonogramu tygodniowego).
 
 Badge’e u góry wskazują status CI i wykres pokrycia gałęzi `main`.
 
 ## Struktura repo (skrót)
-- `app/` – kod aplikacji
-  - `main.py` – punkt wejścia
-  - `gesture_engine/` – silnik gestów (detekcja, klasyfikacja, akcje, utils, konfiguracja)
-- `tests/` – testy jednostkowe
-- `docs/GESTURE_PIPELINE.md` – pipeline przetwarzania gestów
-- `UseCaseDiagram1.png` – diagram przypadków użycia
+- `app/` - kod aplikacji
+  - `main.py` - punkt wejścia
+  - `gesture_engine/` - silnik gestów (detekcja, klasyfikacja, akcje, utils, konfiguracja)
+- `tests/` - testy jednostkowe
+- `docs/GESTURE_PIPELINE.md` - pipeline przetwarzania gestów
+- `UseCaseDiagram1.png` - diagram przypadków użycia
 
 ---
 
@@ -116,11 +118,11 @@ Badge’e u góry wskazują status CI i wykres pokrycia gałęzi `main`.
 Jedyny aktor przewidziany jest dla użytkownika; program działa lokalnie, więc nie potrzeba roli administracyjnej.
 
 ### Przykładowe gesty
-- lupa — oddalenie od siebie kciuka i palca wskazującego
-- przewijanie w dół — przesunięcie ręki i gest "idź sobie"
-- zmiana głośności — przytrzymanie złączonego kciuka i palca serdecznego, następnie przeliczanie ich odległości na skalę głośności
-- klik — złączone palce i gest puknięcia
-- powrót — machnięcie dłoni w lewo
+- lupa - oddalenie od siebie kciuka i palca wskazującego
+- przewijanie w dół - przesunięcie ręki i gest "idź sobie"
+- zmiana głośności - przytrzymanie złączonego kciuka i palca serdecznego, następnie przeliczanie ich odległości na skalę głośności
+- klik - złączone palce i gest puknięcia
+- powrót - machnięcie dłoni w lewo
 
 ### Interakcja z programem
 Program w czasie rzeczywistym reaguje na gesty i wykonuje przypisane do nich akcje. Po wykonaniu specjalnego gestu przełączany jest tryb obsługi gestów oraz rozpoznawania języka migowego. W trybie uproszczonym program śledzi położenie specjalnie przeznaczonego do tego przedmiotu i rozpoznaje kształty/gesty.
@@ -137,7 +139,7 @@ Program w czasie rzeczywistym reaguje na gesty i wykonuje przypisane do nich akc
 | Warunki wstępne:                | Użytkownik musi mieć skonfigurowane urządzenie do rejestrowania gestów (np. kamera) oraz aktywny system rozpoznawania gestów. |
 | Warunki końcowe:                | System poprawnie interpretuje gesty użytkownika jako polecenia i wykonuje odpowiadające im akcje w systemie operacyjnym. |
 | Główny przepływ zdarzeń:        | 1. Użytkownik inicjuje sesję sterowania gestami. <br/>2. System uruchamia moduł rozpoznawania gestów. <br/>3. Użytkownik wykonuje gesty jednoręczne lub oburęczne. <br/>4. System rozpoznaje gest jako jedno z dostępnych poleceń (np. kliknięcie, przewijanie). <br/>5. Użytkownik wykonuje gest geometryczny (np. koło, linia). <br/>6. System interpretuje kształt i wykonuje przypisaną akcję. <br/>7. System informuje użytkownika o wykonaniu akcji (np. dźwiękiem lub ikoną). |
-| Alternatywne przepływy zdarzeń: | 3a. System nie rozpoznaje gestu: wyświetlana jest informacja o błędzie i użytkownik może spróbować ponownie. <br/>4a. Gest jest nieprawidłowy lub niewłaściwie wykonany – brak akcji, system prosi o powtórzenie. |
+| Alternatywne przepływy zdarzeń: | 3a. System nie rozpoznaje gestu: wyświetlana jest informacja o błędzie i użytkownik może spróbować ponownie. <br/>4a. Gest jest nieprawidłowy lub niewłaściwie wykonany - brak akcji, system prosi o powtórzenie. |
 | Specjalne wymagania:            | 1. Rozpoznanie gestu nie może trwać dłużej niż 1 sekundę.<br/> 2. System powinien działać w czasie rzeczywistym z opóźnieniem nie większym niż 0.5 sekundy od wykonania gestu do reakcji.<br/> 3. Minimalne oświetlenie 150 luksów. |
 
 | Nazwa:                          | Gesty obsługi dłońmi |
@@ -147,7 +149,7 @@ Program w czasie rzeczywistym reaguje na gesty i wykonuje przypisane do nich akc
 | Warunki wstępne:                | System musi mieć uruchomione rozpoznawanie gestów i dostęp do kamery. |
 | Warunki końcowe:                | Gesty są poprawnie zinterpretowane i wywołują odpowiednie akcje. |
 | Główny przepływ zdarzeń:        | 1. Użytkownik wykonuje gest dłonią.<br/>2. System analizuje układ i ruch dłoni.<br/>3. Gest zostaje zaklasyfikowany jako jedno- lub oburęczny.<br/>4. System wykonuje odpowiednią akcję. |
-| Alternatywne przepływy zdarzeń: | 2a. Ręka niewidoczna – system zgłasza brak widoczności dłoni.<br/>3a. Niezidentyfikowany gest – użytkownik proszony o powtórzenie. |
+| Alternatywne przepływy zdarzeń: | 2a. Ręka niewidoczna - system zgłasza brak widoczności dłoni.<br/>3a. Niezidentyfikowany gest - użytkownik proszony o powtórzenie. |
 | Specjalne wymagania:            | 1. Minimalna rozdzielczość kamery: 720p.<br/>2. Opóźnienie maksymalne: 0.3 sekundy. |
 
 | Nazwa:                          | Gesty oburącz |
@@ -157,7 +159,7 @@ Program w czasie rzeczywistym reaguje na gesty i wykonuje przypisane do nich akc
 | Warunki wstępne:                | Obie ręce muszą być widoczne dla systemu. |
 | Warunki końcowe:                | System poprawnie wykonuje przypisaną akcję do gestu oburęcznego. |
 | Główny przepływ zdarzeń:        | 1. Użytkownik unosi obie ręce i wykonuje gest.<br/>2. System rozpoznaje układ dłoni oraz synchronizację ruchów.<br/>3. Wykonywana jest przypisana operacja systemowa. |
-| Alternatywne przepływy zdarzeń: | 1a. Jedna ręka niewidoczna – system prosi o poprawne wykonanie gestu. |
+| Alternatywne przepływy zdarzeń: | 1a. Jedna ręka niewidoczna - system prosi o poprawne wykonanie gestu. |
 | Specjalne wymagania:            | 1. Wymagana synchronizacja rąk z dokładnością do 0.2 sekundy. |
 
 | Nazwa:                          | Gesty jednorącz |
@@ -167,7 +169,7 @@ Program w czasie rzeczywistym reaguje na gesty i wykonuje przypisane do nich akc
 | Warunki wstępne:                | Widoczność jednej dłoni w kadrze. |
 | Warunki końcowe:                | System wykonuje przypisaną operację. |
 | Główny przepływ zdarzeń:        | 1. Użytkownik wykonuje gest jednoręczny.<br/>2. System analizuje jego kształt, kierunek i dynamikę.<br/>3. Rozpoznany gest powoduje określoną akcję. |
-| Alternatywne przepływy zdarzeń: | 2a. Niezrozumiały gest – prośba o powtórzenie. |
+| Alternatywne przepływy zdarzeń: | 2a. Niezrozumiały gest - prośba o powtórzenie. |
 | Specjalne wymagania:            | Ręka nie może być zasłonięta ani rozmyta. |
 
 | Nazwa:                          | Gesty obsługi za pomocą śledzenia punktu i wykrywania kształtów geometrycznych |
@@ -177,7 +179,7 @@ Program w czasie rzeczywistym reaguje na gesty i wykonuje przypisane do nich akc
 | Warunki wstępne:                | Aktywny tryb śledzenia punktów. |
 | Warunki końcowe:                | Zidentyfikowany kształt powoduje wykonanie akcji. |
 | Główny przepływ zdarzeń:        | 1. Użytkownik wykonuje rysunek w powietrzu (np. okrąg).<br/>2. System śledzi trajektorię ruchu.<br/>3. Kształt zostaje rozpoznany i zinterpretowany jako polecenie.<br/>4. Wykonywana jest akcja. |
-| Alternatywne przepływy zdarzeń: | 2a. Kształt zbyt nieczytelny – komunikat błędu. |
+| Alternatywne przepływy zdarzeń: | 2a. Kształt zbyt nieczytelny - komunikat błędu. |
 | Specjalne wymagania:            | Dopuszczalna tolerancja rozpoznania kształtu: ±10%. |
 
 | Nazwa:                          | Tłumacz migowego |
@@ -187,7 +189,7 @@ Program w czasie rzeczywistym reaguje na gesty i wykonuje przypisane do nich akc
 | Warunki wstępne:                | Włączony tryb tłumacza migowego. |
 | Warunki końcowe:                | Gesty przetłumaczone na tekst lub komunikaty dźwiękowe. |
 | Główny przepływ zdarzeń:        | 1. Użytkownik wykonuje gest w języku migowym.<br/>2. System analizuje i identyfikuje gest.<br/>3. Odpowiedni tekst zostaje wyświetlony lub wypowiedziany. |
-| Alternatywne przepływy zdarzeń: | 2a. Brak rozpoznania gestu – użytkownik informowany o błędzie. |
+| Alternatywne przepływy zdarzeń: | 2a. Brak rozpoznania gestu - użytkownik informowany o błędzie. |
 | Specjalne wymagania:            | Obsługa co najmniej 500 najczęściej używanych gestów. |
 
 | Nazwa:                          | Rozpoznawanie migów pojedynczych słów |
@@ -197,7 +199,7 @@ Program w czasie rzeczywistym reaguje na gesty i wykonuje przypisane do nich akc
 | Warunki wstępne:                | Tryb tłumaczenia migów aktywny. |
 | Warunki końcowe:                | Każdy gest zostaje przypisany do słowa. |
 | Główny przepływ zdarzeń:        | 1. Użytkownik wykonuje gest odpowiadający konkretnemu słowu.<br/>2. System wyświetla tłumaczenie na ekranie. |
-| Alternatywne przepływy zdarzeń: | 1a. Gest nieznany – komunikat błędu. |
+| Alternatywne przepływy zdarzeń: | 1a. Gest nieznany - komunikat błędu. |
 | Specjalne wymagania:            | Słownik co najmniej 300 słów. |
 
 | Nazwa:                          | Rozpoznawanie migów alfabetu |
@@ -207,7 +209,7 @@ Program w czasie rzeczywistym reaguje na gesty i wykonuje przypisane do nich akc
 | Warunki wstępne:                | Aktywny tryb alfabetu. |
 | Warunki końcowe:                | System wyświetla literę odpowiadającą gestowi. |
 | Główny przepływ zdarzeń:        | 1. Użytkownik pokazuje literę w języku migowym.<br/>2. System rozpoznaje ją i dodaje do tekstu. |
-| Alternatywne przepływy zdarzeń: | 1a. Nierozpoznana litera – informacja zwrotna o błędzie. |
+| Alternatywne przepływy zdarzeń: | 1a. Nierozpoznana litera - informacja zwrotna o błędzie. |
 | Specjalne wymagania:            | Obsługa pełnego alfabetu (26 liter). |
 
 | Nazwa:                          | Ustawienia |
@@ -235,5 +237,6 @@ Program w czasie rzeczywistym reaguje na gesty i wykonuje przypisane do nich akc
 | Warunki wstępne:                | Aktywny panel personalizacji. |
 | Warunki końcowe:                | Nowy gest jest rozpoznawany przez system i aktywny. |
 | Główny przepływ zdarzeń:        | 1. Użytkownik otwiera panel dodawania gestu.<br/>2. Wykonuje gest próbny.<br/>3. Przypisuje mu określoną funkcję.<br/>4. Zapisuje konfigurację. |
-| Alternatywne przepływy zdarzeń: | 2a. Gest zbyt podobny do istniejącego – system prosi o inny. |
+| Alternatywne przepływy zdarzeń: | 2a. Gest zbyt podobny do istniejącego - system prosi o inny. |
 | Specjalne wymagania:            | Możliwość zapisania co najmniej 20 gestów użytkownika. |
+

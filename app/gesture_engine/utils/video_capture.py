@@ -3,7 +3,7 @@ from threading import Thread
 # Bezpieczny import cv2 – w CI lub srodowiskach bez OpenCV pozwalamy na import
 # modulu poprzez stub, aby testy mogly patchowac cv2.VideoCapture.
 try:  # pragma: no cover
-    import cv2  # type: ignore
+    import cv2
 except Exception:  # pragma: no cover
 
     class _CV2Stub:  # minimalny stub potrzebny w testach
@@ -23,7 +23,7 @@ except Exception:  # pragma: no cover
                 f"cv2 atrybut '{name}' nie jest dostepny w trybie stub. Zainstaluj opencv-python."
             )
 
-    cv2 = _CV2Stub()  # type: ignore
+    cv2 = _CV2Stub()
 
 from app.gesture_engine.config import (
     CAMERA_INDEX,
@@ -118,6 +118,6 @@ class ThreadedCapture:
         self.thread.join()
         try:
             self.cap.release()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Wyjatek przy zwalnianiu kamery: {e}")
         logger.info("Kamera zostala zwolniona i watek zakonczony.")

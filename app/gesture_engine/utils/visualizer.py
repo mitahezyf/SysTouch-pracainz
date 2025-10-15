@@ -1,6 +1,6 @@
 # Bezpieczne importy: cv2 i mediapipe mogą nie być dostępne w środowisku CI.
 try:  # pragma: no cover
-    import cv2  # type: ignore
+    import cv2
 except Exception:  # pragma: no cover
 
     class _CV2Stub:
@@ -18,10 +18,10 @@ except Exception:  # pragma: no cover
                 "cv2.rectangle niedostępne – zainstaluj opencv-python(-headless)."
             )
 
-    cv2 = _CV2Stub()  # type: ignore
+    cv2 = _CV2Stub()
 
 try:  # pragma: no cover
-    import mediapipe as mp  # type: ignore
+    import mediapipe as mp
 
     mp_drawing = mp.solutions.drawing_utils
     mp_hands = mp.solutions.hands
@@ -50,7 +50,7 @@ except Exception:  # pragma: no cover
     class _MPStub:
         solutions = _MPSolutionsStub()
 
-    mp = _MPStub()  # type: ignore
+    mp = _MPStub()
     mp_drawing = mp.solutions.drawing_utils
     mp_hands = mp.solutions.hands
 

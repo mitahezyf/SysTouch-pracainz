@@ -1,0 +1,78 @@
+# python: pliki cache i kompilowane
+__pycache__/
+*.py[cod]
+*$py.class
+
+# dystrybucja / pakowanie
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# srodowiska wirtualne
+.venv/
+venv/
+env/
+ENV/
+.conda/
+.conda_env/
+
+# testy / pokrycie
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+.pytest_cache/
+
+# typowanie / lintery
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+.pyre/
+.pytype/
+.pyright/
+
+# ide / edytory
+.idea/
+.vscode/
+*.code-workspace
+
+# logi i tymczasowe
+*.log
+logs/
+tmp/
+temp/
+
+# pliki systemowe
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# jupyter
+.ipynb_checkpoints/
+*-checkpoint.ipynb
+
+# specyficzne dla projektu
+# ignoruj caly folder dokumentacji
+/docs/
+docs/
+

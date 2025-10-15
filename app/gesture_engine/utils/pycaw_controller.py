@@ -5,12 +5,12 @@ from app.gesture_engine.logger import logger
 
 # proba importu comtypes/pycaw; jesli brak – ustawiamy na None i dzialamy no-op
 try:  # pragma: no cover
-    from comtypes import CLSCTX_ALL  # type: ignore
-    from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume  # type: ignore
+    from comtypes import CLSCTX_ALL
+    from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 except Exception:  # pragma: no cover
-    CLSCTX_ALL = None  # type: ignore
-    AudioUtilities = None  # type: ignore
-    IAudioEndpointVolume = None  # type: ignore
+    CLSCTX_ALL = None
+    AudioUtilities = None
+    IAudioEndpointVolume = None
 
 
 def _get_volume_interface():

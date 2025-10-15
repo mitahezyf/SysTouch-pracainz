@@ -18,7 +18,7 @@ def detect_close_program_gesture(landmarks):
         tip = landmarks[FINGER_TIPS[finger]]
         pip = landmarks[FINGER_PIPS[finger]]
         mcp = landmarks[FINGER_MCPS[finger]]
-        a = angle_between(mcp, pip, tip)
+        a = float(angle_between(mcp, pip, tip))
 
         if _log_counter % 10 == 0:
             logger.debug(f"[gesture] {finger} angle = {a:.2f}")

@@ -1,6 +1,7 @@
 # todo do zrobienia od nowa, pokonalo mnie to
 from time import monotonic
 
+from app.gesture_engine.logger import logger
 from app.gesture_engine.utils.geometry import angle_between, distance
 from app.gesture_engine.utils.landmarks import (
     FINGER_MCPS,
@@ -24,7 +25,7 @@ STABLE_DURATION = 0.3  # czas [s], przez ktory kat musi byc stabilny
 
 
 def log_state(phase, hand_size, pinch_th, min_ref, d):
-    print(
+    logger.debug(
         f"[volume_gesture] phase={phase:<12} | hand_size={hand_size:.4f} | pinch_th={pinch_th:.4f} | min_ref={min_ref:.4f} | d={d:.4f}"
     )
 
@@ -66,23 +67,23 @@ def detect_volume_gesture(landmarks):
     if prev in ("init", "reference_set", "adjusting") and d > min_ref * 1.2:
         volume_state["phase"] = "idle"
         volume_state["_extend_start"] = None
-        print(
+        logger.debug(
             f"[volume_gesture] reset -> d ({d:.4f}) > 1.2*min_ref ({min_ref*1.2:.4f})"
         )
         log_state("idle", hand_size, pinch_th, min_ref, d)
         return None
 
-        # idle -> init
-        if prev == "idle":
-            if d < pinch_th:
-                volume_state["phase"] = "init"
-                volume_state["_extend_start"] = None
-                print(
-                    f"[volume_gesture] idle -> init (d < pinch_th: {d:.4f} < {pinch_th:.4f})"
-                )
-                log_state("init", hand_size, pinch_th, min_ref, d)
-                return "volume", 1.0
-            return None
+    # idle -> init
+    if prev == "idle":
+        if d < pinch_th:
+            volume_state["phase"] = "init"
+            volume_state["_extend_start"] = None
+            logger.debug(
+                f"[volume_gesture] idle -> init (d < pinch_th: {d:.4f} < {pinch_th:.4f})"
+            )
+            log_state("init", hand_size, pinch_th, min_ref, d)
+            return "volume", 1.0
+        return None
 
     # init -> reference_set
     if prev == "init":
@@ -92,7 +93,7 @@ def detect_volume_gesture(landmarks):
             elif now - volume_state["_extend_start"] >= STABLE_DURATION:
                 volume_state["phase"] = "reference_set"
                 volume_state["_extend_start"] = None
-                print(
+                logger.debug(
                     "[volume_gesture] init -> reference_set (palce stabilnie wyprostowane)"
                 )
                 log_state("reference_set", hand_size, pinch_th, min_ref, d)
@@ -105,7 +106,7 @@ def detect_volume_gesture(landmarks):
     if prev == "reference_set":
         volume_state["phase"] = "adjusting"
         volume_state["_start_time"] = now
-        print("[volume_gesture] reference_set -> adjusting")
+        logger.debug("[volume_gesture] reference_set -> adjusting")
         log_state("adjusting", hand_size, pinch_th, min_ref, d)
         return "volume", 1.0
 

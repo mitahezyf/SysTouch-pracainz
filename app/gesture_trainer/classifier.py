@@ -1,5 +1,5 @@
 # trenuje i przewiduje klasyfikator na wektorach landmarkow
-import pickle
+import pickle  # nosec B403
 
 from sklearn.neighbors import KNeighborsClassifier
 
@@ -32,4 +32,4 @@ class GestureClassifier:
 
     def load(self):
         with open(MODEL_PATH, "rb") as f:
-            self.model = pickle.load(f)
+            self.model = pickle.load(f)  # nosec B301

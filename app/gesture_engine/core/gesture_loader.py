@@ -7,6 +7,8 @@ import json
 import os
 from typing import Any, Dict, List
 
+from app.gesture_engine.logger import logger
+
 from .gesture_schema import normalize_gesture_def
 
 
@@ -41,12 +43,12 @@ def load_gestures(paths: List[str]) -> List[Dict[str, Any]]:
                 try:
                     norm = normalize_gesture_def(item)
                     results.append(norm)
-                except Exception:
+                except Exception as e:
                     # pomijamy bledny wpis
-                    pass
-        except Exception:
+                    logger.warning(f"Pominięto błędny wpis w {fp}: {e}")
+        except Exception as e:
             # pomijamy bledny plik
-            pass
+            logger.warning(f"Pominięto błędny plik gestu {fp}: {e}")
     # sort po priorytecie malejaco
     results.sort(key=lambda g: int(g.get("priority", 0)), reverse=True)
     return results

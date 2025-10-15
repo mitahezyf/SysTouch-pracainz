@@ -2,7 +2,7 @@ from app.gesture_engine.logger import logger
 
 # odporny na brak mediapipe: tworzymy stub, aby import modulu nie padal w CI
 try:  # pragma: no cover
-    import mediapipe as mp  # type: ignore
+    import mediapipe as mp
 except Exception:  # pragma: no cover
 
     class _HandsStub:

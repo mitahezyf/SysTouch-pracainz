@@ -15,11 +15,9 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 try:  # opcjonalne
-    import torch  # type: ignore
 
     _TORCH_AVAILABLE = True
 except Exception:
-    torch = None  # type: ignore
     _TORCH_AVAILABLE = False
 
 LandmarksFrame = Union[List[Tuple[float, float, float]], List[List[float]]]

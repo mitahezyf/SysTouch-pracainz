@@ -1,7 +1,7 @@
 # pobiera snapshot dloni z kamerki i zwraca landmarki albo None
 # Bezpieczny import cv2 – aby import modułu nie wywracał się w CI bez OpenCV
 try:  # pragma: no cover
-    import cv2  # type: ignore
+    import cv2
 except Exception:  # pragma: no cover
 
     class _CV2Stub:
@@ -21,16 +21,17 @@ except Exception:  # pragma: no cover
                 "cv2.cvtColor niedostępne – zainstaluj opencv-python(-headless)."
             )
 
-    cv2 = _CV2Stub()  # type: ignore
+    cv2 = _CV2Stub()
 
 from app.gesture_engine.config import CAMERA_INDEX, CAPTURE_HEIGHT, CAPTURE_WIDTH
 from app.gesture_engine.detector.hand_tracker import HandTracker
+from app.gesture_engine.logger import logger
 
 hand_tracker = HandTracker(max_num_hands=1)
 
 
 def get_hand_landmarks():
-    print(">>> [mediapipe_wrapper] get_hand_landmarks() odpalony")
+    logger.info(">>> [mediapipe_wrapper] get_hand_landmarks() odpalony")
 
     cap = cv2.VideoCapture(CAMERA_INDEX)
 
@@ -39,18 +40,18 @@ def get_hand_landmarks():
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAPTURE_HEIGHT)
 
     if not cap.isOpened():
-        print("[mediapipe_wrapper] Kamera nie zostala otwarta!")
+        logger.error("[mediapipe_wrapper] Kamera nie zostala otwarta!")
         return None
     else:
-        print("[mediapipe_wrapper] Kamera otwarta OK")
+        logger.info("[mediapipe_wrapper] Kamera otwarta OK")
 
     ret, frame = cap.read()
     cap.release()
 
-    print(f"[mediapipe_wrapper] ret: {ret}, frame is None: {frame is None}")
+    logger.debug(f"[mediapipe_wrapper] ret: {ret}, frame is None: {frame is None}")
 
     if not ret or frame is None:
-        print("[mediapipe_wrapper] Nie udalo sie odczytac klatki z kamery")
+        logger.error("[mediapipe_wrapper] Nie udalo sie odczytac klatki z kamery")
         return None
 
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -59,8 +60,8 @@ def get_hand_landmarks():
     if result.multi_hand_landmarks:
         hand = result.multi_hand_landmarks[0]
         landmarks = [(lm.x, lm.y, lm.z) for lm in hand.landmark]
-        print(f"[mediapipe_wrapper] Wykryto {len(landmarks)} punktow")
+        logger.info(f"[mediapipe_wrapper] Wykryto {len(landmarks)} punktow")
         return landmarks
 
-    print("[mediapipe_wrapper] Brak wykrytej dloni")
+    logger.info("[mediapipe_wrapper] Brak wykrytej dloni")
     return None

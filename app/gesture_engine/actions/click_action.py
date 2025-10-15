@@ -6,7 +6,7 @@ from app.gesture_engine.logger import logger
 
 # leniwy import pyautogui z no-op stubem, aby nie wysypywac sie w srodowiskach bez GUI
 try:  # pragma: no cover - gałąź zależna od srodowiska CI
-    import pyautogui as _pyautogui  # type: ignore
+    import pyautogui as _pyautogui
 except Exception:  # pragma: no cover
 
     class _PyAutoGuiStub:
@@ -23,9 +23,9 @@ except Exception:  # pragma: no cover
             return (1920, 1080)
 
     logger.warning("pyautogui niedostepne – uzywam no-op stubu")
-    pyautogui = _PyAutoGuiStub()  # type: ignore
+    pyautogui = _PyAutoGuiStub()
 else:
-    pyautogui = _pyautogui  # type: ignore
+    pyautogui = _pyautogui
 
 
 click_state = {
@@ -93,7 +93,7 @@ def release_click():
     click_state["holding"] = False
     click_state["mouse_down"] = False
     # nie zeruje click_sent, bo test ma to zweryfikowac
-    handle_click.active = False
+    setattr(handle_click, "active", False)
 
 
 def update_click_state(active: bool):
@@ -118,8 +118,8 @@ def get_click_state_name():
 
 
 def handle_click(_landmarks, _frame_shape):
-    handle_click.active = True
+    setattr(handle_click, "active", True)
     update_click_state(True)
 
 
-handle_click.active = False
+setattr(handle_click, "active", False)
