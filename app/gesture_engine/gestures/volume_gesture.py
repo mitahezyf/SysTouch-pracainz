@@ -33,7 +33,7 @@ def log_state(phase, hand_size, pinch_th, min_ref, d):
 def is_fingers_extended(landmarks):
     """
     sprawdza, czy index, middle, ring, pinky sa wyprostowane,
-    korzystajac z pomiaru kata mcp–pip–tip (angle_between)
+    korzystajac z pomiaru kata mcp-pip-tip (angle_between)
     """
     for name in ["index", "middle", "ring", "pinky"]:
         mcp = landmarks[FINGER_MCPS[name]]

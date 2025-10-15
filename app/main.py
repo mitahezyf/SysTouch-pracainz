@@ -55,7 +55,7 @@ def main():
         ret, frame = cap.read()
         frame = cv2.flip(frame, 1)
         if not ret or frame is None:
-            logger.debug("Brak klatki z kamery – pomijam")
+            logger.debug("Brak klatki z kamery - pomijam")
             continue
 
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)

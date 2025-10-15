@@ -1,6 +1,19 @@
-# Bezpieczne importy: cv2 i mediapipe mogą nie być dostępne w środowisku CI.
+from typing import Any, cast
+
+from app.gesture_engine.config import (
+    CONNECTION_COLOR,
+    LABEL_FONT_SCALE,
+    LABEL_THICKNESS,
+    LANDMARK_CIRCLE_RADIUS,
+    LANDMARK_COLOR,
+    LANDMARK_LINE_THICKNESS,
+)
+
+# Bezpieczne importy: cv2 i mediapipe moga nie byc dostepne w srodowisku CI.
 try:  # pragma: no cover
-    import cv2
+    import cv2 as _cv2
+
+    cv2: Any = cast(Any, _cv2)
 except Exception:  # pragma: no cover
 
     class _CV2Stub:
@@ -9,16 +22,16 @@ except Exception:  # pragma: no cover
         @staticmethod
         def putText(*_, **__):
             raise ImportError(
-                "cv2.putText niedostępne – zainstaluj opencv-python(-headless)."
+                "cv2.putText niedostepne - zainstaluj opencv-python(-headless)."
             )
 
         @staticmethod
         def rectangle(*_, **__):
             raise ImportError(
-                "cv2.rectangle niedostępne – zainstaluj opencv-python(-headless)."
+                "cv2.rectangle niedostepne - zainstaluj opencv-python(-headless)."
             )
 
-    cv2 = _CV2Stub()
+    cv2 = cast(Any, _CV2Stub())
 
 try:  # pragma: no cover
     import mediapipe as mp
@@ -37,7 +50,7 @@ except Exception:  # pragma: no cover
         @staticmethod
         def draw_landmarks(*_, **__):
             raise ImportError(
-                "mediapipe.draw_landmarks niedostępne – zainstaluj mediapipe."
+                "mediapipe.draw_landmarks niedostepne - zainstaluj mediapipe."
             )
 
     class _MPHandsStub:
@@ -53,15 +66,6 @@ except Exception:  # pragma: no cover
     mp = _MPStub()
     mp_drawing = mp.solutions.drawing_utils
     mp_hands = mp.solutions.hands
-
-from app.gesture_engine.config import (
-    CONNECTION_COLOR,
-    LABEL_FONT_SCALE,
-    LABEL_THICKNESS,
-    LANDMARK_CIRCLE_RADIUS,
-    LANDMARK_COLOR,
-    LANDMARK_LINE_THICKNESS,
-)
 
 
 class Visualizer:

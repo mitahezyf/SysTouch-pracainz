@@ -17,7 +17,7 @@ except Exception:  # pragma: no cover
         def size(self):
             return (1920, 1080)
 
-    logger.warning("pyautogui niedostepne – uzywam no-op stubu (move_mouse)")
+    logger.warning("pyautogui niedostepne - uzywam no-op stubu (move_mouse)")
     pyautogui = _PyAutoGuiStub()
 else:
     pyautogui = _pyautogui

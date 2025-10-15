@@ -28,27 +28,35 @@ Główne biblioteki używane przez projekt:
 
 Zobacz plik `requirements.txt` dla pełnej listy i wersji. Jeśli nie potrzebujesz okna podglądu (GUI), możesz użyć wariantu `opencv-python-headless`.
 
-## Tech Stack
+## Nowe: GUI (PySide6)
+Dostępne jest lekkie, eleganckie GUI oparte o PySide6 (Qt), które wykorzystuje istniejący pipeline (MediaPipe + OpenCV) i pozwala sterować działaniem aplikacji.
 
-![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![OpenCV](https://img.shields.io/badge/OpenCV-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white)
-![MediaPipe](https://img.shields.io/badge/MediaPipe-FF6F00?style=for-the-badge&logo=google&logoColor=white)
-![NumPy](https://img.shields.io/badge/NumPy-4D77CF?style=for-the-badge&logo=numpy&logoColor=white)
-![PyAutoGUI](https://img.shields.io/badge/PyAutoGUI-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![PyTest](https://img.shields.io/badge/PyTest-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white)
-![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
-![Codecov](https://img.shields.io/badge/Codecov-F01F7A?style=for-the-badge&logo=codecov&logoColor=white)
-![Windows](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)
+Funkcje MVP:
+- Wybór kamery (automatyczne wykrywanie dostępnych urządzeń)
+- Start/Stop przetwarzania
+- Przełącznik „Wykonuj akcje” (bezpiecznie domyślnie wyłączony)
+- Przełącznik „Pokaż podgląd” (możliwość ukrycia okna wideo)
+- Wyświetlanie bieżącego gestu, FPS oraz FrameTime
 
-## Instalacja (Windows)
-1) (Opcjonalnie) Utwórz i aktywuj wirtualne środowisko.
-2) Zainstaluj zależności:
-   - z GUI: `pip install -r requirements.txt`
-   - bez GUI (headless): w `requirements.txt` zamień `opencv-python` na `opencv-python-headless`, następnie `pip install -r requirements.txt`
+Instalacja (GUI):
+1) Zainstaluj zależności developerskie (zawierają PySide6):
 
-Jeśli mediapipe sprawia problemy, upewnij się, że używasz wspieranej wersji Pythona (3.12) oraz masz Visual C++ Redistributable (x64).
+```
+python -m pip install -r requirements-dev.txt
+```
 
-## Szybki start
+2) Uruchom GUI:
+
+```
+python -m app.gui.ui_app
+```
+
+Uwagi:
+- GUI działa lokalnie na Windows i wykorzystuje kamerę systemową.
+- „Wykonuj akcje” wywołuje zmapowane akcje systemowe (klik, scroll, głośność) – zostaw wyłączone podczas pierwszych testów.
+- Jeśli korzystasz z `opencv-python-headless`, do GUI potrzebny jest pełny `opencv-python`.
+
+## Szybki start (CLI)
 Punkt wejścia: `app/main.py`.
 - Uruchom: `python -m app.main` (z katalogu głównego repo) lub `python app/main.py`.
 - Wyjście: naciśnij ESC w oknie podglądu.
@@ -82,9 +90,13 @@ Przechwytywanie wątkiem: `app/gesture_engine/utils/video_capture.py`
 
 ## Testy
 Uruchom w katalogu głównym:
-- `pytest -q`
+- `python -m pytest -q`
 
 Raporty coverage generowane są w CI do `reports/coverage.xml`.
+
+## Kontrole lokalne (Windows cmd.exe)
+- Lint: `ruff check .`
+- Typy: `mypy .`
 
 ## CI/CD
 - CI (`.github/workflows/ci.yml`): Windows, Python 3.12, testy z pokryciem (pytest-cov), artefakty JUnit i coverage, publikacja do Codecov (repo publiczne - bez tokena).
@@ -94,7 +106,8 @@ Badge’e u góry wskazują status CI i wykres pokrycia gałęzi `main`.
 
 ## Struktura repo (skrót)
 - `app/` - kod aplikacji
-  - `main.py` - punkt wejścia
+  - `main.py` - punkt wejścia (CLI / OpenCV imshow)
+  - `gui/ui_app.py` - punkt wejścia GUI (PySide6)
   - `gesture_engine/` - silnik gestów (detekcja, klasyfikacja, akcje, utils, konfiguracja)
 - `tests/` - testy jednostkowe
 - `docs/GESTURE_PIPELINE.md` - pipeline przetwarzania gestów
@@ -142,7 +155,7 @@ Program w czasie rzeczywistym reaguje na gesty i wykonuje przypisane do nich akc
 | Alternatywne przepływy zdarzeń: | 3a. System nie rozpoznaje gestu: wyświetlana jest informacja o błędzie i użytkownik może spróbować ponownie. <br/>4a. Gest jest nieprawidłowy lub niewłaściwie wykonany - brak akcji, system prosi o powtórzenie. |
 | Specjalne wymagania:            | 1. Rozpoznanie gestu nie może trwać dłużej niż 1 sekundę.<br/> 2. System powinien działać w czasie rzeczywistym z opóźnieniem nie większym niż 0.5 sekundy od wykonania gestu do reakcji.<br/> 3. Minimalne oświetlenie 150 luksów. |
 
-| Nazwa:                          | Gesty obsługi dłońmi |
+| Nazwa:                          | Gesty obsługi dłoni |
 |---------------------------------|----------------------|
 | Aktorzy:                        | Użytkownik |
 | Krótki opis:                    | Umożliwienie użytkownikowi wykonywania poleceń za pomocą gestów jednej lub dwóch dłoni. |

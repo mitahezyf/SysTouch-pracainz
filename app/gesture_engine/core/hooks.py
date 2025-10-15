@@ -1,12 +1,21 @@
 # todo usunac powielone wywolanie update_click_state(False) przy zmianie gestu z click
+
+from typing import Dict, Optional, cast
+
 from app.gesture_engine.actions.click_action import handle_click, update_click_state
 from app.gesture_engine.logger import logger
 
+# deklaracja typu na poziomie modułu
+volume_state: Optional[Dict[str, object]] = None
+
 # volume: import stanu do resetu/przejsc
 try:
-    from app.gesture_engine.gestures.volume_gesture import volume_state
+    from app.gesture_engine.gestures.volume_gesture import volume_state as _volume_state
+
+    volume_state = cast(Dict[str, object], _volume_state)
 except Exception:
-    volume_state = None  # type: ignore
+    # gdy modul gestu nie jest dostepny (np. w minimalnym trybie testowym)
+    volume_state = None
 
 last_gesture_name = None
 gesture_start_hooks = {}
@@ -37,14 +46,16 @@ def handle_gesture_start_hook(gesture_name, landmarks, frame_shape):
             logger.debug("[hook] volume reset (wyjscie z gestu)")
 
     if gesture_name != last_gesture_name:
-        logger.debug(f"[hook] zmiana gestu: {last_gesture_name} -> {gesture_name}")
+        logger.debug(
+            "[hook] zmiana gestu: {} -> {}".format(last_gesture_name, gesture_name)
+        )
         hook = gesture_start_hooks.get(gesture_name)
         if hook:
-            logger.debug(f"[hook] wywołanie hooka dla: {gesture_name}")
+            logger.debug("[hook] wywołanie hooka dla: {}".format(gesture_name))
             if landmarks is not None and frame_shape is not None:
                 hook(landmarks, frame_shape)
             else:
-                logger.debug("[hook] pomijam wywołanie hooka (brak danych)")
+                logger.debug("[hook] pomijam wywolanie hooka (brak danych)")
 
     # specjalny przypadek: koniec gestu (None) po clicku
     if gesture_name is None and last_gesture_name in ("click", "click-hold"):

@@ -1,5 +1,6 @@
 # todo do poprawy hooki i akceleracja scrolla
 import ctypes
+import sys
 import time
 from collections import deque
 from typing import Deque, Optional
@@ -24,7 +25,7 @@ def scroll_start_hook(landmarks, frame_shape):
     anchor_y = int(wrist.y * screen_h)
     set_scroll_anchor(anchor_y)
     reset_scroll()
-    logger.debug(f"[scroll] start hook: anchor_y={anchor_y}")
+    logger.debug("[scroll] start hook: anchor_y={}".format(anchor_y))
 
 
 register_gesture_start_hook("scroll", scroll_start_hook)
@@ -32,7 +33,10 @@ register_gesture_start_hook("scroll", scroll_start_hook)
 
 def scroll_windows(amount):
     # przewijanie w windows z uzyciem user32.mouse_event
-    logger.debug(f"[scroll] wykonanie scrolla: amount={amount}")
+    if sys.platform != "win32":  # pragma: no cover
+        logger.warning("[scroll] nie-Windows - pomijam scroll_windows")
+        return
+    logger.debug("[scroll] wykonanie scrolla: amount={}".format(amount))
     ctypes.windll.user32.mouse_event(0x0800, 0, 0, int(amount * 120), 0)
 
 
@@ -57,7 +61,7 @@ def handle_scroll(landmarks, frame_shape):
 
     if scroll_anchor_y is None:
         scroll_anchor_y = avg_y
-        logger.debug(f"[scroll] brak anchor, ustawiam na: {scroll_anchor_y}")
+        logger.debug("[scroll] brak anchor, ustawiam na: {}".format(scroll_anchor_y))
         return
 
     delta = avg_y - scroll_anchor_y
@@ -75,7 +79,9 @@ def handle_scroll(landmarks, frame_shape):
         scroll_windows(direction)
         last_scroll_time = now
         logger.debug(
-            f"[scroll] delta={delta:.1f}, scale={scale:.2f}, direction={direction}, interval={interval:.3f}s"
+            "[scroll] delta={:.1f}, scale={:.2f}, direction={}, interval={:.3f}s".format(
+                delta, scale, direction, interval
+            )
         )
 
 

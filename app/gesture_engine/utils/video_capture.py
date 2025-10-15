@@ -1,9 +1,22 @@
 from threading import Thread
+from typing import Any, cast
 
-# Bezpieczny import cv2 – w CI lub srodowiskach bez OpenCV pozwalamy na import
+from app.gesture_engine.config import (
+    CAMERA_INDEX,
+    CAPTURE_HEIGHT,
+    CAPTURE_WIDTH,
+    TARGET_CAMERA_FPS,
+)
+from app.gesture_engine.logger import logger
+
+cv2: Any  # typ ogolny dla cv2 (modul lub stub)
+
+# Bezpieczny import cv2 - w CI lub srodowiskach bez OpenCV pozwalamy na import
 # modulu poprzez stub, aby testy mogly patchowac cv2.VideoCapture.
 try:  # pragma: no cover
-    import cv2
+    import cv2 as _cv2
+
+    cv2 = cast(Any, _cv2)
 except Exception:  # pragma: no cover
 
     class _CV2Stub:  # minimalny stub potrzebny w testach
@@ -15,7 +28,7 @@ except Exception:  # pragma: no cover
         class VideoCapture:
             def __init__(self, *_, **__):
                 raise ImportError(
-                    "cv2 (OpenCV) nie jest zainstalowane – uzyto stubu. Zainstaluj opencv-python."
+                    "cv2 (OpenCV) nie jest zainstalowane - uzyto stubu. Zainstaluj opencv-python."
                 )
 
         def __getattr__(self, name):  # dla ewentualnych innych atrybutow
@@ -23,25 +36,25 @@ except Exception:  # pragma: no cover
                 f"cv2 atrybut '{name}' nie jest dostepny w trybie stub. Zainstaluj opencv-python."
             )
 
-    cv2 = _CV2Stub()
-
-from app.gesture_engine.config import (
-    CAMERA_INDEX,
-    CAPTURE_HEIGHT,
-    CAPTURE_WIDTH,
-    TARGET_CAMERA_FPS,
-)
-from app.gesture_engine.logger import logger
+    cv2 = cast(Any, _CV2Stub())
 
 
 # klasa do obslugi przechwytywania obrazu z kamery
 class ThreadedCapture:
-    def __init__(self):
+    def __init__(self, camera_index=None):
+        """
+        Inicjalizuje watkowe przechwytywanie obrazu.
+
+        :param camera_index: Opcjonalny indeks kamery. Jesli None, uzywa wartosci z configu (CAMERA_INDEX).
+        """
         # walidacja atrybutow cv2 po imporcie (wychwytuje niepelne/bledne instalacje)
         if not hasattr(cv2, "VideoCapture"):
             raise RuntimeError(
                 "cv2.VideoCapture niedostepne. Sprawdz instalacje OpenCV (opencv-python), usun konflikty (np. kilka wariantow) i srodowisko PATH/DLL."
             )
+
+        # ustal indeks kamery
+        self._camera_index = CAMERA_INDEX if camera_index is None else int(camera_index)
 
         # proba z backendami Windows (DirectShow/MSMF), potem domyslny
         backends = []
@@ -55,12 +68,14 @@ class ThreadedCapture:
         for be in backends:
             try:
                 cap = (
-                    cv2.VideoCapture(CAMERA_INDEX, be)
+                    cv2.VideoCapture(self._camera_index, be)
                     if be != 0
-                    else cv2.VideoCapture(CAMERA_INDEX)
+                    else cv2.VideoCapture(self._camera_index)
                 )
                 if cap is not None and cap.isOpened():
-                    logger.info(f"Kamera otwarta backend={be}")
+                    logger.info(
+                        f"Kamera otwarta backend={be}, index={self._camera_index}"
+                    )
                     break
                 else:
                     if cap is not None:
@@ -90,7 +105,7 @@ class ThreadedCapture:
             logger.warning("Nie udalo sie pobrac pierwszej klatki z kamery.")
 
         logger.info(
-            f"Uruchomiono kamerę (index={CAMERA_INDEX}, res={CAPTURE_WIDTH}x{CAPTURE_HEIGHT}, fps={TARGET_CAMERA_FPS})"
+            f"Uruchomiono kamere (index={self._camera_index}, res={CAPTURE_WIDTH}x{CAPTURE_HEIGHT}, fps={TARGET_CAMERA_FPS})"
         )
 
         self.running = True

@@ -22,7 +22,7 @@ except Exception:  # pragma: no cover
     setattr(solutions, "drawing_utils", object())
     setattr(solutions, "drawing_styles", object())
     mp = type("mp_stub", (), {"solutions": solutions})()
-    logger.warning("mediapipe niedostepne – uzywam no-op stuba (hand_tracker)")
+    logger.warning("mediapipe niedostepne - uzywam no-op stuba (hand_tracker)")
 
 
 class HandTracker:

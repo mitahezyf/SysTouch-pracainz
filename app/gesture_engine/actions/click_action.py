@@ -22,7 +22,7 @@ except Exception:  # pragma: no cover
         def size(self):
             return (1920, 1080)
 
-    logger.warning("pyautogui niedostepne – uzywam no-op stubu")
+    logger.warning("pyautogui niedostepne - uzywam no-op stubu")
     pyautogui = _PyAutoGuiStub()
 else:
     pyautogui = _pyautogui
@@ -65,7 +65,7 @@ def handle_active():
 
 def release_click():
     if click_state["start_time"] is None:
-        logger.debug("[click] Ignoruję release – brak start_time")
+        logger.debug("[click] Ignoruje release - brak start_time")
         return
 
     duration = time.time() - click_state["start_time"]
@@ -82,7 +82,7 @@ def release_click():
             # przekroczony prog, ale nie zdazyl nacisnac - bezpieczny fallback
             pyautogui.click()
             click_state["click_sent"] = True
-            logger.debug("[click] click() (fallback po przekroczeniu progu)")
+            logger.debug("[click] click() (fallback po przekroceniu progu)")
     else:
         pyautogui.click()
         click_state["click_sent"] = True

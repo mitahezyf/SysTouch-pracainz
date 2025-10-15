@@ -1,7 +1,16 @@
 # pobiera snapshot dloni z kamerki i zwraca landmarki albo None
-# Bezpieczny import cv2 – aby import modułu nie wywracał się w CI bez OpenCV
+from typing import Any
+
+from app.gesture_engine.config import CAMERA_INDEX, CAPTURE_HEIGHT, CAPTURE_WIDTH
+from app.gesture_engine.detector.hand_tracker import HandTracker
+from app.gesture_engine.logger import logger
+
+cv2: Any
+# Bezpieczny import cv2 - aby import modulu nie wywracal sie w CI bez OpenCV
 try:  # pragma: no cover
-    import cv2
+    import cv2 as _cv2
+
+    cv2 = _cv2
 except Exception:  # pragma: no cover
 
     class _CV2Stub:
@@ -12,20 +21,16 @@ except Exception:  # pragma: no cover
         class VideoCapture:
             def __init__(self, *_, **__):
                 raise ImportError(
-                    "cv2 (OpenCV) nie jest zainstalowane – zainstaluj opencv-python(-headless)."
+                    "cv2 (OpenCV) nie jest zainstalowane - zainstaluj opencv-python(-headless)."
                 )
 
         @staticmethod
         def cvtColor(*_, **__):
             raise ImportError(
-                "cv2.cvtColor niedostępne – zainstaluj opencv-python(-headless)."
+                "cv2.cvtColor niedostepne - zainstaluj opencv-python(-headless)."
             )
 
     cv2 = _CV2Stub()
-
-from app.gesture_engine.config import CAMERA_INDEX, CAPTURE_HEIGHT, CAPTURE_WIDTH
-from app.gesture_engine.detector.hand_tracker import HandTracker
-from app.gesture_engine.logger import logger
 
 hand_tracker = HandTracker(max_num_hands=1)
 
