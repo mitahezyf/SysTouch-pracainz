@@ -13,7 +13,7 @@ def make_point(x, y, z=0.0):
 
 
 def make_landmarks():
-    # przygotuj 21 punktow z atrybutami x,y,z
+    # przygotowuje 21 punktow z atrybutami x,y,z
     pts = [make_point(0.0, 0.0, 0.0) for _ in range(21)]
     pts[WRIST] = make_point(0.0, 0.0, 0.0)
     pts[MIDDLE_TIP] = make_point(0.0, 10.0, 0.0)  # odleglosc od wrist = 10
@@ -30,12 +30,12 @@ def test_calibrate_and_load(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     data = cal.calibrate(landmarks)
 
     assert tmp_file.exists()
-    # sprawdz wartosci w pliku
+    # sprawdza wartosci w pliku
     on_disk = json.loads(tmp_file.read_text())
     assert pytest.approx(on_disk["hand_size"], rel=1e-6) == 10.0
     assert pytest.approx(on_disk["hand_width"], rel=1e-6) == 4.0
 
-    # zwrocone dane musza byc zgodne z zapisanymi
+    # zwraca te same dane co zapisane
     assert data == on_disk
 
     # load_calibration zwraca to samo
