@@ -1,7 +1,7 @@
 # SystemTouch
 
-[![CI](https://img.shields.io/github/actions/workflow/status/mitahezyf/inzynierka/ci.yml?branch=main&style=for-the-badge&logo=github)](https://github.com/mitahezyf/inzynierka/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/codecov/c/github/mitahezyf/inzynierka?branch=main&style=for-the-badge&logo=codecov)](https://codecov.io/gh/mitahezyf/inzynierka)
+[![CI](https://img.shields.io/github/actions/workflow/status/mitahezyf/SysTouch-pracainz/ci.yml?branch=main&style=for-the-badge&logo=github)](https://github.com/mitahezyf/SysTouch-pracainz/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/codecov/c/github/mitahezyf/SysTouch-pracainz?branch=main&style=for-the-badge&logo=codecov)](https://codecov.io/gh/mitahezyf/SysTouch-pracainz)
 ![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![Windows](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)
 
@@ -99,7 +99,7 @@ Raporty coverage generowane są w CI do `reports/coverage.xml`.
 - Typy: `mypy .`
 
 ## CI/CD
-- CI (`.github/workflows/ci.yml`): Windows, Python 3.12, testy z pokryciem (pytest-cov), artefakty JUnit i coverage, publikacja do Codecov (repo publiczne - bez tokena).
+- CI (`.github/workflows/ci.yml`): Windows, Python 3.12, testy z pokryciem (pytest-cov), artefakty JUnit i coverage, publikacja do Codecov (repo publiczne - bez tokena lub z CODECOV_TOKEN).
 - CodeQL (`.github/workflows/codeql.yml`): analiza bezpieczeństwa na push/PR (bez harmonogramu tygodniowego).
 
 Badge’e u góry wskazują status CI i wykres pokrycia gałęzi `main`.

@@ -5,6 +5,7 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   tests:
@@ -39,6 +40,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: reports/coverage.xml
+          slug: mitahezyf/SysTouch-pracainz
           flags: unittests
           fail_ci_if_error: false
           verbose: true
