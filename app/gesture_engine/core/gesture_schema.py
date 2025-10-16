@@ -96,7 +96,7 @@ def normalize_sequence_def(d: Dict[str, Any]) -> Dict[str, Any]:
         isinstance(d.get("namespace"), str) and d["namespace"], "namespace required"
     )
     states = d.get("states")
-    # jawna walidacja, aby mypy widziało listę
+    # jawna walidacja, aby mypy widzialo liste
     if not isinstance(states, list) or len(states) == 0:
         raise ValueError("states required")
     norm_states: List[Dict[str, Any]] = []

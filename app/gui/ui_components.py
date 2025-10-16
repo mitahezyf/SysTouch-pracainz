@@ -18,6 +18,8 @@ class UIRefs:
     status_label: object
     fps_label: object
     gesture_label: object
+    left_hand_label: object
+    right_hand_label: object
     central_widget: object
 
 
@@ -59,7 +61,9 @@ def build_ui(display_width: int, display_height: int) -> UIRefs:
 
     status_label = QLabel("Status: gotowe")
     fps_label = QLabel("FPS: 0")
-    gesture_label = QLabel("Gesture: None")
+    gesture_label = QLabel("Gesture (best): None")
+    left_hand_label = QLabel("Left: None")
+    right_hand_label = QLabel("Right: None")
 
     top_bar = QHBoxLayout()
     top_bar.addWidget(QLabel("Kamera:"))
@@ -78,6 +82,8 @@ def build_ui(display_width: int, display_height: int) -> UIRefs:
     info_group = QGroupBox("Informacje")
     info_layout = QVBoxLayout()
     info_layout.addWidget(gesture_label)
+    info_layout.addWidget(left_hand_label)
+    info_layout.addWidget(right_hand_label)
     info_layout.addWidget(status_label)
     info_group.setLayout(info_layout)
 
@@ -102,5 +108,7 @@ def build_ui(display_width: int, display_height: int) -> UIRefs:
         status_label=status_label,
         fps_label=fps_label,
         gesture_label=gesture_label,
+        left_hand_label=left_hand_label,
+        right_hand_label=right_hand_label,
         central_widget=central,
     )

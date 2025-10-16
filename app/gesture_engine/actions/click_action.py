@@ -5,7 +5,7 @@ from app.gesture_engine.config import HOLD_THRESHOLD
 from app.gesture_engine.logger import logger
 
 # leniwy import pyautogui z no-op stubem, aby nie wysypywac sie w srodowiskach bez GUI
-try:  # pragma: no cover - gałąź zależna od srodowiska CI
+try:  # pragma: no cover - galaz zaleznia od srodowiska CI
     import pyautogui as _pyautogui
 except Exception:  # pragma: no cover
 
@@ -82,7 +82,7 @@ def release_click():
             # przekroczony prog, ale nie zdazyl nacisnac - bezpieczny fallback
             pyautogui.click()
             click_state["click_sent"] = True
-            logger.debug("[click] click() (fallback po przekroceniu progu)")
+            logger.debug("[click] click() (fallback po przekroczeniu progu)")
     else:
         pyautogui.click()
         click_state["click_sent"] = True

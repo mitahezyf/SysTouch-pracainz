@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import importlib
+from typing import List
 
 from app.gesture_engine.logger import logger
-from app.gui.camera import discover_cameras
+from app.gui.camera import discover_camera_sources
 from app.gui.styles import DARK_STYLESHEET
 from app.gui.ui_components import build_ui
 from app.gui.worker import create_processing_worker
@@ -39,6 +40,8 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                 self.status_label = ui.status_label
                 self.fps_label = ui.fps_label
                 self.gesture_label = ui.gesture_label
+                self.left_hand_label = ui.left_hand_label
+                self.right_hand_label = ui.right_hand_label
                 self.setCentralWidget(ui.central_widget)
 
                 self.worker = create_processing_worker()
@@ -46,6 +49,7 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                 self.worker.status.connect(self.on_status)
                 self.worker.metrics.connect(self.on_metrics)
                 self.worker.gesture.connect(self.on_gesture)
+                self.worker.hands.connect(self.on_hands)
                 self.worker.startedOK.connect(self.on_started)
                 self.worker.stoppedOK.connect(self.on_stopped)
 
@@ -59,20 +63,21 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
 
             def populate_cameras(self):
                 self.camera_combo.clear()
-                cams = discover_cameras(max_index=10)
-                for idx in cams:
-                    self.camera_combo.addItem(f"Kamera {idx}", idx)
+                sources = discover_camera_sources(max_index=10)
+                for source, name in sources:
+                    self.camera_combo.addItem(name, source)
                 if self.camera_combo.count() == 0:
                     self.camera_combo.addItem("Brak kamer", -1)
-                self.status_label.setText(
-                    f"Status: Wykryto kamery: {', '.join(map(str, cams)) if cams else 'brak'}"
+                cams_text = (
+                    ", ".join([name for _, name in sources]) if sources else "brak"
                 )
+                self.status_label.setText(f"Status: Wykryto kamery: {cams_text}")
 
             def on_start(self):
                 if self.worker.isRunning():  # zabezpieczenie przed wielokrotnym startem
                     return
                 cam_data = self.camera_combo.currentData()
-                if cam_data is None or cam_data < 0:
+                if cam_data is None or (isinstance(cam_data, int) and cam_data < 0):
                     self.status_label.setText("Status: Wybierz prawidlowa kamere")
                     return
                 actions_enabled = self.exec_actions_chk.isChecked()
@@ -114,10 +119,36 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
             def on_gesture(self, result):
                 if result.name:
                     self.gesture_label.setText(
-                        f"Gesture: {result.name} ({int(result.confidence * 100)}%)"
+                        f"Gesture (best): {result.name} ({int(result.confidence * 100)}%)"
                     )
                 else:
-                    self.gesture_label.setText("Gesture: None")
+                    self.gesture_label.setText("Gesture (best): None")
+
+            def on_hands(self, per_hand: List[object]):
+                # per_hand to lista SingleHandResult z polami: handedness ("Left"/"Right"), name, confidence
+                left_txt = "Left: None"
+                right_txt = "Right: None"
+                try:
+                    for h in per_hand:
+                        handed = getattr(h, "handedness", None)
+                        name = getattr(h, "name", None)
+                        conf = getattr(h, "confidence", 0.0)
+                        if handed and str(handed).lower().startswith("left"):
+                            left_txt = (
+                                f"Left: {name} ({int(conf * 100)}%)"
+                                if name
+                                else "Left: None"
+                            )
+                        elif handed and str(handed).lower().startswith("right"):
+                            right_txt = (
+                                f"Right: {name} ({int(conf * 100)}%)"
+                                if name
+                                else "Right: None"
+                            )
+                except Exception as e:
+                    logger.debug("on_hands parse error: %s", e)
+                self.left_hand_label.setText(left_txt)
+                self.right_hand_label.setText(right_txt)
 
             def on_started(self):
                 self.status_label.setText("Status: Przetwarzanie uruchomione")

@@ -5,7 +5,7 @@ from app.gesture_engine.logger import logger
 
 
 def main():
-    # lokalne importy ciężkich bibliotek
+    # lokalne importy ciezkich bibliotek
     import cv2
     import mediapipe as mp
     import numpy as np

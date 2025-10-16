@@ -1,5 +1,5 @@
 from threading import Thread
-from typing import Any, cast
+from typing import Any, Union, cast
 
 from app.gesture_engine.config import (
     CAMERA_INDEX,
@@ -41,11 +41,12 @@ except Exception:  # pragma: no cover
 
 # klasa do obslugi przechwytywania obrazu z kamery
 class ThreadedCapture:
-    def __init__(self, camera_index=None):
+    def __init__(self, camera_index: Union[int, str, None] = None):
         """
         Inicjalizuje watkowe przechwytywanie obrazu.
 
-        :param camera_index: Opcjonalny indeks kamery. Jesli None, uzywa wartosci z configu (CAMERA_INDEX).
+        :param camera_index: indeks kamery lub nazwa DirectShow w formacie "video=<NAZWA>".
+        Jesli None, uzywa wartosci z configu (CAMERA_INDEX).
         """
         # walidacja atrybutow cv2 po imporcie (wychwytuje niepelne/bledne instalacje)
         if not hasattr(cv2, "VideoCapture"):
@@ -53,41 +54,69 @@ class ThreadedCapture:
                 "cv2.VideoCapture niedostepne. Sprawdz instalacje OpenCV (opencv-python), usun konflikty (np. kilka wariantow) i srodowisko PATH/DLL."
             )
 
-        # ustal indeks kamery
-        self._camera_index = CAMERA_INDEX if camera_index is None else int(camera_index)
-
-        # proba z backendami Windows (DirectShow/MSMF), potem domyslny
-        backends = []
-        if hasattr(cv2, "CAP_DSHOW"):
-            backends.append(cv2.CAP_DSHOW)
-        if hasattr(cv2, "CAP_MSMF"):
-            backends.append(cv2.CAP_MSMF)
-        backends.append(0)  # domyslny
+        # ustal zrodlo kamery (int lub string)
+        self._camera_source: Union[int, str]
+        if camera_index is None:
+            self._camera_source = int(CAMERA_INDEX)
+        else:
+            self._camera_source = camera_index
 
         cap = None
-        for be in backends:
+
+        # jesli podano nazwe urzadzenia DirectShow: probuje tylko z CAP_DSHOW
+        if isinstance(self._camera_source, str):
             try:
+                backend = getattr(cv2, "CAP_DSHOW", 0)
                 cap = (
-                    cv2.VideoCapture(self._camera_index, be)
-                    if be != 0
-                    else cv2.VideoCapture(self._camera_index)
+                    cv2.VideoCapture(self._camera_source, backend)
+                    if backend != 0
+                    else cv2.VideoCapture(self._camera_source)
                 )
                 if cap is not None and cap.isOpened():
                     logger.info(
-                        f"Kamera otwarta backend={be}, index={self._camera_index}"
+                        f"Kamera otwarta backend={backend}, source={self._camera_source}"
                     )
-                    break
                 else:
                     if cap is not None:
                         cap.release()
-                    cap = None
+                        cap = None
             except Exception as e:
-                logger.debug(f"VideoCapture init fail backend={be}: {e}")
+                logger.debug(
+                    f"VideoCapture init fail for source '{self._camera_source}': {e}"
+                )
                 cap = None
+        else:
+            # proba z backendami Windows (DirectShow/MSMF), potem domyslny
+            backends = []
+            if hasattr(cv2, "CAP_DSHOW"):
+                backends.append(cv2.CAP_DSHOW)
+            if hasattr(cv2, "CAP_MSMF"):
+                backends.append(cv2.CAP_MSMF)
+            backends.append(0)  # domyslny
+
+            for be in backends:
+                try:
+                    cap = (
+                        cv2.VideoCapture(int(self._camera_source), be)
+                        if be != 0
+                        else cv2.VideoCapture(int(self._camera_source))
+                    )
+                    if cap is not None and cap.isOpened():
+                        logger.info(
+                            f"Kamera otwarta backend={be}, index={self._camera_source}"
+                        )
+                        break
+                    else:
+                        if cap is not None:
+                            cap.release()
+                        cap = None
+                except Exception as e:
+                    logger.debug(f"VideoCapture init fail backend={be}: {e}")
+                    cap = None
 
         if cap is None:
             raise RuntimeError(
-                "Nie udalo sie otworzyc kamery. Sprawdz index kamery, uprawnienia i instalacje sterownikow/DirectShow."
+                "Nie udalo sie otworzyc kamery. Sprawdz zrodlo kamery (index lub 'video=<NAZWA>'), uprawnienia i instalacje sterownikow/DirectShow."
             )
 
         self.cap = cap
@@ -105,7 +134,7 @@ class ThreadedCapture:
             logger.warning("Nie udalo sie pobrac pierwszej klatki z kamery.")
 
         logger.info(
-            f"Uruchomiono kamere (index={self._camera_index}, res={CAPTURE_WIDTH}x{CAPTURE_HEIGHT}, fps={TARGET_CAMERA_FPS})"
+            f"Uruchomiono kamere (source={self._camera_source}, res={CAPTURE_WIDTH}x{CAPTURE_HEIGHT}, fps={TARGET_CAMERA_FPS})"
         )
 
         self.running = True

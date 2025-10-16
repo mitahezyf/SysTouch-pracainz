@@ -5,7 +5,7 @@ from typing import Dict, Optional, cast
 from app.gesture_engine.actions.click_action import handle_click, update_click_state
 from app.gesture_engine.logger import logger
 
-# deklaracja typu na poziomie modułu
+# deklaracja typu na poziomie modulu
 volume_state: Optional[Dict[str, object]] = None
 
 # volume: import stanu do resetu/przejsc

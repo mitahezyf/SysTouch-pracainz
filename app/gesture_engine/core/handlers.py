@@ -6,8 +6,8 @@ from app.gesture_engine.actions.move_mouse_action import handle_move_mouse
 from app.gesture_engine.actions.scroll_action import handle_scroll
 from app.gesture_engine.actions.volume_action import handle_volume
 
-# Mapowanie nazw gestów na funkcje-obslugiwacze
-# Kontrakt: handler(landmarks, frame_shape) -> None
+# mapowanie nazw gestow na funkcje-obslugiwacze
+# kontrakt: handler(landmarks, frame_shape) -> None
 gesture_handlers: Dict[str, Callable[[Any, Any], None]] = {
     "click": handle_click,
     "move_mouse": handle_move_mouse,

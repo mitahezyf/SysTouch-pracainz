@@ -1,5 +1,5 @@
 def main():
-    import cv2  # lokalny import, by uniknac bledow przy samym imporcie modułu
+    import cv2  # lokalny import, by uniknac bledow przy samym imporcie modulu
 
     from app.gesture_engine.config import (
         CAPTURE_HEIGHT,
@@ -120,7 +120,7 @@ def main():
                 )
 
         for missing_id in detected_hands_ids - current_hands_ids:
-            logger.debug(f"Ręka zniknęła: {missing_id}")
+            logger.debug(f"Reka zniknela: {missing_id}")
             last_gestures.pop(missing_id, None)
 
         detected_hands_ids = current_hands_ids
@@ -135,7 +135,7 @@ def main():
         # pobiera ostatni gest i confidence jesli istnieje
         gesture_name, confidence = None, 0.0
         if last_gestures:
-            # bierze pierwszą rękę (nazwa nieużywana dalej)
+            # bierze pierwsza reke (nazwa nieuzywana dalej)
             gesture = detect_gesture(results.multi_hand_landmarks[0].landmark)
             if gesture:
                 gesture_name, confidence = gesture
@@ -146,7 +146,7 @@ def main():
             try:
                 cv2.imshow("SysTouch", resized_frame)
                 if cv2.waitKey(1) & 0xFF == 27:
-                    logger.info("Zamknięcie aplikacji przez ESC")
+                    logger.info("Zamkniecie aplikacji przez ESC")
                     break
             except cv2.error as e:
                 logger.warning(
