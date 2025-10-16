@@ -40,10 +40,10 @@ def detect_action_capabilities() -> Dict[str, Tuple[bool, str]]:
     else:
         caps["pyautogui"] = (
             False,
-            "PyAutoGUI brak lub stub – zainstaluj pakiet 'PyAutoGUI' i uruchom ponownie",
+            "PyAutoGUI brak lub stub - zainstaluj pakiet 'PyAutoGUI' i uruchom ponownie",
         )
 
-    # pycaw (volume) – tylko Windows
+    # pycaw (volume) - tylko Windows
     if sys.platform == "win32":
         audio_utils = getattr(pycaw_controller, "AudioUtilities", None)
         endpoint_iface = getattr(pycaw_controller, "IAudioEndpointVolume", None)
@@ -58,15 +58,15 @@ def detect_action_capabilities() -> Dict[str, Tuple[bool, str]]:
         else:
             caps["pycaw"] = (
                 False,
-                "pycaw/comtypes brak – zainstaluj 'pycaw' i 'comtypes' (tylko Windows)",
+                "pycaw/comtypes brak - zainstaluj 'pycaw' i 'comtypes' (tylko Windows)",
             )
     else:
         caps["pycaw"] = (
             False,
-            "Nie-Windows – regulacja glosnosci niedostepna (pomijam)",
+            "Nie-Windows - regulacja glosnosci niedostepna (pomijam)",
         )
 
-    # pywin32 (close_program) – tylko Windows
+    # pywin32 (close_program) - tylko Windows
     if sys.platform == "win32":
         win32gui = getattr(close_program_action, "win32gui", None)
         win32con = getattr(close_program_action, "win32con", None)
@@ -76,12 +76,12 @@ def detect_action_capabilities() -> Dict[str, Tuple[bool, str]]:
         else:
             caps["pywin32"] = (
                 False,
-                "pywin32 brak – zainstaluj 'pywin32' (tylko Windows)",
+                "pywin32 brak - zainstaluj 'pywin32' (tylko Windows)",
             )
     else:
         caps["pywin32"] = (
             False,
-            "Nie-Windows – zamykanie okna niedostepne (pomijam)",
+            "Nie-Windows - zamykanie okna niedostepne (pomijam)",
         )
 
     return caps
