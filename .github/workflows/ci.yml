@@ -35,7 +35,7 @@ jobs:
           path: reports/
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           files: reports/coverage.xml
           flags: unittests
