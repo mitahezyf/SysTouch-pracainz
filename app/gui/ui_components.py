@@ -55,7 +55,7 @@ def build_ui(display_width: int, display_height: int) -> UIRefs:
     stop_btn = QPushButton("Stop")
     stop_btn.setEnabled(False)
     exec_actions_chk = QCheckBox("Wykonuj akcje")
-    exec_actions_chk.setChecked(False)
+    exec_actions_chk.setChecked(True)
     preview_chk = QCheckBox("Pokaz podglad")
     preview_chk.setChecked(True)
 

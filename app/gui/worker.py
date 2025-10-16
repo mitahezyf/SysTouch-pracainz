@@ -11,10 +11,14 @@ from app.gesture_engine.config import (
     DISPLAY_HEIGHT,
     DISPLAY_WIDTH,
     JSON_GESTURE_PATHS,
+    LOG_PER_FRAME,
+    PROCESSING_MAX_FPS,
+    RELOAD_DETECTORS_SEC,
     USE_JSON_GESTURES,
 )
 from app.gesture_engine.core.handlers import gesture_handlers
-from app.gesture_engine.core.hooks import handle_gesture_start_hook
+from app.gesture_engine.core.hooks import handle_gesture_start_hook, reset_hooks_state
+from app.gesture_engine.detector.gesture_detector import reload_gesture_detectors
 from app.gesture_engine.detector.hand_tracker import HandTracker
 from app.gesture_engine.logger import logger
 from app.gesture_engine.utils.performance import PerformanceTracker
@@ -73,6 +77,9 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
             self._stop_flag = threading.Event()
             self._actions_enabled = False
             self._preview_enabled = True
+            # wewnetrzne stany do logowania zmian gestow
+            self._last_best: Union[str, None] = None
+            self._last_per_hand: dict[int, Union[str, None]] = {}
 
         def configure(
             self,
@@ -96,6 +103,26 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
 
         def stop(self) -> None:
             self._stop_flag.set()
+
+        def start(self) -> None:
+            # przygotowuje stan przed startem watku
+            try:
+                self._stop_flag.clear()
+            except Exception:
+                # w razie gdyby Event zostal podmieniony
+                self._stop_flag = threading.Event()
+            self._last_best = None
+            self._last_per_hand = {}
+            # reset globalnych hookow i przeladowanie detektorow gestow
+            try:
+                reset_hooks_state()
+            except Exception as e:
+                logger.debug("reset_hooks_state error: %s", e)
+            try:
+                reload_gesture_detectors()
+            except Exception as e:
+                logger.debug("reload_gesture_detectors error: %s", e)
+            super().start()
 
         def _create_json_runtime(self):
             if not USE_JSON_GESTURES:
@@ -153,15 +180,50 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
             json_runtime = self._create_json_runtime()
 
             self.startedOK.emit()
-            # po starcie raportuje capabilities, zeby uzytkownik wiedzial, czy akcje beda dzialac
+            # po starcie raportuje capabilities, zeby uzytkownik widzial, czy akcje beda dzialac
             self._report_capabilities()
+
+            # licznik do okresowego przeladowania detektorow gestow
+            last_reload = time.monotonic()
+            failed_reads = 0
+
+            # pacing petli przetwarzania
+            target_dt = (
+                1.0 / float(PROCESSING_MAX_FPS) if PROCESSING_MAX_FPS > 0 else 0.0
+            )
 
             try:
                 while not self._stop_flag.is_set():
+                    loop_t0 = time.monotonic()
+                    # okresowy hot-reload gestow wg konfiguracji
+                    if RELOAD_DETECTORS_SEC and RELOAD_DETECTORS_SEC > 0:
+                        now = loop_t0
+                        if now - last_reload >= RELOAD_DETECTORS_SEC:
+                            try:
+                                reload_gesture_detectors()
+                            except Exception as e:
+                                logger.debug(
+                                    "periodic reload_gesture_detectors error: %s", e
+                                )
+                            last_reload = now
+
                     ret, frame = cap.read()
                     if not ret or frame is None:
+                        failed_reads += 1
+                        # po dluzszej serii bledow przerywa, aby GUI moglo automatycznie wznowic
+                        if failed_reads >= 120:
+                            self.status.emit("Brak klatek z kamery - auto stop")
+                            break
                         time.sleep(0.005)
+                        # pacing nawet przy braku klatki
+                        if target_dt > 0.0:
+                            elapsed = time.monotonic() - loop_t0
+                            sleep_for = target_dt - elapsed
+                            if sleep_for > 0:
+                                time.sleep(sleep_for)
                         continue
+
+                    failed_reads = 0
 
                     frame = cv2.flip(frame, 1)
 
@@ -170,51 +232,121 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
                         frame, tracker, json_runtime, visualizer, self._preview_enabled
                     )
 
+                    # loguje zmiane najlepszego gestu (do UI)
+                    if gesture_res.name != self._last_best:
+                        if self._last_best is None and gesture_res.name:
+                            logger.info(
+                                "[ui] gesture start: %s (conf=%.2f)",
+                                gesture_res.name,
+                                gesture_res.confidence or 0.0,
+                            )
+                        elif self._last_best is not None and gesture_res.name is None:
+                            logger.info("[ui] gesture end: %s", self._last_best)
+                        else:
+                            if LOG_PER_FRAME:
+                                logger.debug(
+                                    "[ui] gesture change: %s -> %s (conf=%.2f)",
+                                    self._last_best,
+                                    gesture_res.name,
+                                    gesture_res.confidence or 0.0,
+                                )
+                        self._last_best = gesture_res.name
+
                     # obsluga akcji/hookow per reka
                     if per_hand:
                         for hand in per_hand:
-                            # zawsze informuje hook o zmianie gestu (takze None)
-                            try:
-                                handle_gesture_start_hook(
-                                    hand.name,
-                                    hand.landmarks,
-                                    frame.shape,
-                                )
-                            except Exception as e:
-                                logger.debug(f"[hook] wyjatek: {e}")
+                            idx = getattr(hand, "index", -1)
+                            handed = getattr(hand, "handedness", None)
+                            name = getattr(hand, "name", None)
+                            conf = getattr(hand, "confidence", 0.0)
+
+                            # loguje tylko start/end na INFO; zmiany na DEBUG
+                            last = self._last_per_hand.get(idx)
+                            if last != name:
+                                if last is None and name is not None:
+                                    logger.info(
+                                        "[gesture] start hand=%s/%s: %s (conf=%.2f)",
+                                        idx,
+                                        handed,
+                                        name,
+                                        conf,
+                                    )
+                                elif last is not None and name is None:
+                                    logger.info(
+                                        "[gesture] end hand=%s/%s: %s",
+                                        idx,
+                                        handed,
+                                        last,
+                                    )
+                                else:
+                                    if LOG_PER_FRAME:
+                                        logger.debug(
+                                            "[gesture] change hand=%s/%s: %s -> %s (conf=%.2f)",
+                                            idx,
+                                            handed,
+                                            last,
+                                            name,
+                                            conf,
+                                        )
+                                self._last_per_hand[idx] = name
+
+                                # informuje hook tylko przy zmianie (takze None)
+                                try:
+                                    handle_gesture_start_hook(
+                                        name, hand.landmarks, frame.shape
+                                    )
+                                except Exception as e:
+                                    logger.debug(f"[hook] wyjatek: {e}")
 
                             handler = (
                                 gesture_handlers.get(hand.name) if hand.name else None
                             )
-                            logger.debug(
-                                "[dispatch] hand=%s/%s gesture=%s conf=%.2f actions=%s handler=%s",
-                                getattr(hand, "index", None),
-                                getattr(hand, "handedness", None),
-                                hand.name,
-                                getattr(hand, "confidence", 0.0),
-                                self._actions_enabled,
-                                bool(handler),
-                            )
+                            if LOG_PER_FRAME:
+                                logger.debug(
+                                    "[dispatch] hand=%s/%s gesture=%s conf=%.2f actions=%s handler=%s",
+                                    getattr(hand, "index", None),
+                                    getattr(hand, "handedness", None),
+                                    hand.name,
+                                    getattr(hand, "confidence", 0.0),
+                                    self._actions_enabled,
+                                    bool(handler),
+                                )
+
+                            # log na DEBUG gdy gest wykryty, ale akcje sa wylaczone lub brak handlera
+                            if hand.name and (
+                                not self._actions_enabled or handler is None
+                            ):
+                                if LOG_PER_FRAME:
+                                    logger.debug(
+                                        "[action] skip '%s' (actions=%s handler=%s)",
+                                        hand.name,
+                                        self._actions_enabled,
+                                        bool(handler),
+                                    )
 
                             if not self._actions_enabled or handler is None:
                                 continue
 
                             try:
+                                # loguje wywolanie akcji tylko na DEBUG i tylko gdy wlaczono logi per-klatka
+                                if LOG_PER_FRAME:
+                                    logger.debug("[action] invoke '%s'", hand.name)
                                 handler(hand.landmarks, frame.shape)
                             except Exception as e:
                                 logger.debug(f"[handler] wyjatek: {e}")
 
                     # metryki i render
                     performance.update()
-                    resized_frame = cv2.resize(
-                        cast(Any, display_frame), (DISPLAY_WIDTH, DISPLAY_HEIGHT)
-                    )
+
                     if self._preview_enabled:
+                        # tylko gdy podglad wlaczony: resize + rysowanie metryk i konwersja do QImage
+                        resized_frame = cv2.resize(
+                            cast(Any, display_frame), (DISPLAY_WIDTH, DISPLAY_HEIGHT)
+                        )
                         visualizer.draw_fps(resized_frame, performance.fps)
                         visualizer.draw_frametime(
                             resized_frame, performance.frametime_ms
                         )
-
                         rgb_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
                         h, w, ch = rgb_frame.shape
                         bytes_per_line = ch * w
@@ -226,6 +358,13 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
                     self.gesture.emit(gesture_res)
                     self.hands.emit(per_hand)
                     self.metrics.emit(performance.fps, performance.frametime_ms)
+
+                    # pacing petli przetwarzania
+                    if target_dt > 0.0:
+                        elapsed = time.monotonic() - loop_t0
+                        sleep_for = target_dt - elapsed
+                        if sleep_for > 0:
+                            time.sleep(sleep_for)
 
                 self.status.emit("Zatrzymano przetwarzanie")
             except Exception as e:

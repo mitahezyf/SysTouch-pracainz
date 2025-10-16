@@ -1,8 +1,12 @@
+import time
 from threading import Thread
 from typing import Any, Union, cast
 
 from app.gesture_engine.config import (
+    CAMERA_BUFFERSIZE,
+    CAMERA_FORCE_MJPG,
     CAMERA_INDEX,
+    CAMERA_SET_BUFFERSIZE,
     CAPTURE_HEIGHT,
     CAPTURE_WIDTH,
     TARGET_CAMERA_FPS,
@@ -125,6 +129,23 @@ class ThreadedCapture:
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAPTURE_WIDTH)
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAPTURE_HEIGHT)
             self.cap.set(cv2.CAP_PROP_FPS, TARGET_CAMERA_FPS)
+            # minimalny bufor klatek -> niska latencja
+            if CAMERA_SET_BUFFERSIZE and hasattr(cv2, "CAP_PROP_BUFFERSIZE"):
+                try:
+                    self.cap.set(cv2.CAP_PROP_BUFFERSIZE, float(CAMERA_BUFFERSIZE))
+                except Exception as e:
+                    logger.debug("Ustawienie CAP_PROP_BUFFERSIZE pominiete: %s", e)
+            # opcjonalne wymuszenie MJPG (stabilniejszy FPS na wielu USB cams)
+            if (
+                CAMERA_FORCE_MJPG
+                and hasattr(cv2, "CAP_PROP_FOURCC")
+                and hasattr(cv2, "VideoWriter_fourcc")
+            ):
+                try:
+                    fourcc = cv2.VideoWriter_fourcc(*"MJPG")
+                    self.cap.set(cv2.CAP_PROP_FOURCC, fourcc)
+                except Exception as e:
+                    logger.debug("Ustawienie FOURCC=MJPG pominiete: %s", e)
         except Exception as e:
             logger.debug(f"Ustawienia kamery pominiete: {e}")
 
@@ -145,12 +166,20 @@ class ThreadedCapture:
 
     # aktualizacja ramki - frame
     def update(self):
+        # interwal do docelowego FPS odczytu
+        target_dt = 1.0 / float(TARGET_CAMERA_FPS if TARGET_CAMERA_FPS > 0 else 30)
         while self.running:
+            t0 = time.perf_counter()
             try:
                 self.ret, self.frame = self.cap.read()
             except Exception as e:
                 logger.debug(f"Blad odczytu klatki: {e}")
                 self.ret, self.frame = False, None
+            # prosty throttling, aby nie zapychac CPU
+            elapsed = time.perf_counter() - t0
+            sleep_for = target_dt - elapsed
+            if sleep_for > 0:
+                time.sleep(sleep_for)
 
     # zwraca ostatni frame i status
     def read(self):

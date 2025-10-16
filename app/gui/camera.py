@@ -11,6 +11,7 @@ def discover_cameras(max_index: int = 10) -> list[int]:
 
     - zwraca liste indeksow kamer, ktore dalo sie otworzyc
     - uzywa cv2 jesli jest dostepne; w przeciwnym razie zwraca pusta liste
+    - na Windows preferuje backend DirectShow (CAP_DSHOW), aby uniknac problemow MSMF
     """
     try:  # pragma: no cover
         import cv2
@@ -21,7 +22,8 @@ def discover_cameras(max_index: int = 10) -> list[int]:
     for idx in range(max_index):
         cap = None
         try:
-            if hasattr(cv2, "CAP_DSHOW"):
+            # na Windows wymusza DirectShow przy skanowaniu indeksow
+            if sys.platform == "win32" and hasattr(cv2, "CAP_DSHOW"):
                 cap = cv2.VideoCapture(idx, cv2.CAP_DSHOW)
             else:
                 cap = cv2.VideoCapture(idx)
@@ -39,7 +41,7 @@ def discover_cameras(max_index: int = 10) -> list[int]:
 
 
 def _win_list_camera_names() -> list[str]:
-    """pobiera nazwy kamer z WMI (Windows) – best-effort; moze zwrocic pusta liste
+    """pobiera nazwy kamer z WMI (Windows) - best-effort; moze zwrocic pusta liste
 
     korzysta z pywin32 (win32com.client). brak dodatkowych zaleznosci.
     """
@@ -101,8 +103,9 @@ def discover_camera_names(max_index: int = 10) -> List[Tuple[int, str]]:
 def discover_camera_sources(max_index: int = 10) -> List[Tuple[Union[int, str], str]]:
     """Zwraca zrodla kamer do GUI: (source, display_name).
 
-    - zawsze otwiera po indeksie (stabilnie)
-    - gdy dostepne, dokleja nazwe WMI do etykiety (Windows)
+    - na Windows uzywa nazw z WMI jako etykiet, ale zrodlem pozostaje indeks
+    - zawsze zwraca indeksy jako source; to jest zgodne z OpenCV
+    - skanowanie indeksow wykonywane tylko gdy worker nie pracuje (steruje GUI)
     """
     indices = discover_cameras(max_index=max_index)
     names: list[str] = []
@@ -110,13 +113,9 @@ def discover_camera_sources(max_index: int = 10) -> List[Tuple[Union[int, str], 
         names = _win_list_camera_names()
 
     pairs: List[Tuple[Union[int, str], str]] = []
-    if names and len(names) == len(indices):
-        for i, idx in enumerate(indices):
-            pairs.append((idx, names[i]))
-    else:
-        for i, idx in enumerate(indices):
-            label = None
-            if names and i < len(names):
-                label = f"{names[i]} (idx {idx})"
-            pairs.append((idx, label or f"Kamera {idx}"))
+    for i, idx in enumerate(indices):
+        label = None
+        if names and i < len(names):
+            label = names[i]
+        pairs.append((idx, label or f"Kamera {idx}"))
     return pairs

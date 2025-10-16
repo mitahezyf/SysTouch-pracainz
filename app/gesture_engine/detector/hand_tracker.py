@@ -1,3 +1,4 @@
+from app.gesture_engine.config import HAND_MODEL_COMPLEXITY
 from app.gesture_engine.logger import logger
 
 # odporny na brak mediapipe: tworzymy stub, aby import modulu nie padal w CI
@@ -37,13 +38,13 @@ class HandTracker:
             max_num_hands=max_num_hands,
             min_detection_confidence=detection_confidence,
             min_tracking_confidence=tracking_confidence,
-            model_complexity=1,
+            model_complexity=HAND_MODEL_COMPLEXITY,
         )
         self.mp_drawing = mp.solutions.drawing_utils
         self.drawing_styles = mp.solutions.drawing_styles
 
         logger.info(
-            f"HandTracker initialized (max_hands={max_num_hands}, detect_conf={detection_confidence}, track_conf={tracking_confidence})"
+            f"HandTracker initialized (max_hands={max_num_hands}, detect_conf={detection_confidence}, track_conf={tracking_confidence}, model_complexity={HAND_MODEL_COMPLEXITY})"
         )
 
     def process(self, frame_rgb):

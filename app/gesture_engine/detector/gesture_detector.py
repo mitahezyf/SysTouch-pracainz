@@ -1,6 +1,7 @@
 import importlib
 import inspect
 import os
+import sys
 from pathlib import Path
 
 from app.gesture_engine.logger import logger
@@ -15,25 +16,63 @@ GESTURE_DIR = Path(__file__).parent.parent / "gestures"
 def load_gesture_detectors():
     detectors = []
 
+    # uniewaznia cache importu (dla nowych/zmienionych plikow)
+    importlib.invalidate_caches()
+
     for file in os.listdir(GESTURE_DIR):
         if file.endswith(".py") and not file.startswith("__"):
-            module_name = f"app.gesture_engine.gestures.{file[:-3]}"
-            try:
-                module = importlib.import_module(module_name)
-            except Exception as e:
-                logger.warning(f"Nie udało się załadować modułu {module_name}: {e}")
+            base = file[:-3]
+            # proba importu zgodna z testami (krotsza nazwa), potem pelna nazwa pakietu
+            module = None
+            module_names = [f"gestures.{base}", f"app.gesture_engine.gestures.{base}"]
+            for module_name in module_names:
+                try:
+                    if module_name in sys.modules:
+                        module = importlib.reload(sys.modules[module_name])
+                    else:
+                        module = importlib.import_module(module_name)
+                    break
+                except Exception as e:
+                    # log na debug, przechodzi do kolejnej nazwy
+                    logger.debug(
+                        "Nie udalo sie zaladowac %s: %s (sprobuje fallback)",
+                        module_name,
+                        e,
+                    )
+                    module = None
+
+            if module is None:
+                logger.warning(
+                    "Nie udalo sie zaladowac zadnej wersji modulu dla pliku %s", file
+                )
                 continue
 
-            for name, obj in inspect.getmembers(module, inspect.isfunction):
+            try:
+                members = inspect.getmembers(module, inspect.isfunction)
+            except Exception as e:
+                # w testach mock side_effect moze wyczerpac iterator -> StopIteration
+                logger.debug("inspect.getmembers error for %s: %s", module.__name__, e)
+                continue
+
+            for name, obj in members:
                 if name.startswith("detect_"):
                     detectors.append(obj)
-                    logger.debug(f"Załadowano gest: {name} z {module_name}")
+                    logger.debug(f"Zaladowano gest: {name} z {module.__name__}")
 
-    logger.info(f"Załadowano {len(detectors)} detektorów gestów.")
+    logger.info(f"Zaladowano {len(detectors)} detektorow gestow.")
     return detectors
 
 
 gesture_detectors = load_gesture_detectors()
+
+
+def reload_gesture_detectors() -> None:
+    """Przeladowuje liste detektorow gestow z katalogu gestures.
+
+    uzywane przy starcie lub okresowo, aby odswiezyc logike bez restartu aplikacji.
+    """
+    global gesture_detectors
+    gesture_detectors = load_gesture_detectors()
 
 
 def detect_gesture(landmarks):

@@ -19,7 +19,8 @@ def detect_and_draw(
     import cv2  # lokalny import
 
     frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
-    display_frame = frame_bgr.copy()
+    # tworzy kopie tylko gdy rysuje podglad, inaczej zwraca oryginalna ramke
+    display_frame = frame_bgr.copy() if preview_enabled else frame_bgr
 
     results = tracker.process(frame_rgb)
 
@@ -86,11 +87,11 @@ def detect_and_draw(
                 best_name = gesture_name
                 best_conf = confidence
 
-            # wizualizacja kazdej reki
-            label_text = (
-                f"{gesture_name}: ({confidence * 100:.1f})" if gesture_name else ""
-            )
+            # wizualizacja kazdej reki tylko gdy podglad wlaczony
             if preview_enabled:
+                label_text = (
+                    f"{gesture_name}: ({confidence * 100:.1f})" if gesture_name else ""
+                )
                 visualizer.draw_landmarks(display_frame, hand_landmarks)
                 visualizer.draw_hand_box(
                     display_frame, hand_landmarks, label=label_text

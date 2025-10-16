@@ -2,7 +2,11 @@
 
 from typing import Dict, Optional, cast
 
-from app.gesture_engine.actions.click_action import handle_click, update_click_state
+from app.gesture_engine.actions.click_action import (
+    click_state,
+    handle_click,
+    update_click_state,
+)
 from app.gesture_engine.logger import logger
 
 # deklaracja typu na poziomie modulu
@@ -80,3 +84,41 @@ def handle_gesture_start_hook(gesture_name, landmarks, frame_shape):
 
     if "volume" not in gesture_start_hooks:
         register_gesture_start_hook("volume", volume_start_hook)
+
+
+def reset_hooks_state() -> None:
+    """Resetuje globalne stany hookow/gestow przed nowym uruchomieniem przetwarzania.
+
+    - zwalnia ewentualny aktywny click
+    - zeruje last_gesture_name
+    - ustawia volume w stan idle
+    - czysci wewnetrzne flagi click_state
+    """
+    global last_gesture_name
+    try:
+        # zwalnia click, jesli byl aktywny
+        update_click_state(False)
+        setattr(handle_click, "active", False)
+    except Exception as e:
+        logger.debug("reset_hooks_state: click reset error: %s", e)
+
+    # resetuje strukture click_state (bezpieczne wyzerowanie)
+    try:
+        click_state["start_time"] = None
+        click_state["holding"] = False
+        click_state["mouse_down"] = False
+        click_state["click_sent"] = False
+        click_state["was_active"] = False
+    except Exception as e:
+        logger.debug("reset_hooks_state: click_state reset error: %s", e)
+
+    # resetuje volume
+    try:
+        if volume_state is not None:
+            volume_state["phase"] = "idle"
+            volume_state["_extend_start"] = None
+    except Exception as e:
+        logger.debug("reset_hooks_state: volume reset error: %s", e)
+
+    last_gesture_name = None
+    logger.debug("reset_hooks_state: state cleared")
