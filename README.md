@@ -8,251 +8,154 @@
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?style=for-the-badge&logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 
 
-Nowoczesne sterowanie komputerem za pomocą gestów dłoni wykrywanych w kamerze. Projekt działa lokalnie na Windows i wykorzystuje MediaPipe oraz OpenCV do detekcji dłoni, a następnie mapuje rozpoznane gesty na akcje systemowe.
+Nowoczesne sterowanie komputerem za pomoca gestow dloni wykrywanych w kamerze. Projekt dziala lokalnie na Windows i wykorzystuje MediaPipe oraz OpenCV do detekcji dloni, a nastepnie mapuje rozpoznane gesty na akcje systemowe.
 
 - Dokumentacja pipeline: docs/GESTURE_PIPELINE.md
-- Mapowanie gestów -> akcje i MVP GUI: docs/GESTURE_MAPPING_AND_GUI.md
+- Mapowanie gestow -> akcje i MVP GUI: docs/GESTURE_MAPPING_AND_GUI.md
 - Projektowy TODO (checklista, komentarze): docs/PROJECT_TODO.todo
-- Diagram przypadków użycia: UseCaseDiagram1.png
+- Diagram przypadkow uzycia: UseCaseDiagram1.png
 
 ## Wymagania
 - System: Windows 10/11
 - Python: 3.12
 - Kamera: min. 720p, 30 FPS
 
-## Zależności
-Główne biblioteki używane przez projekt:
-- mediapipe - śledzenie dłoni/landmarków
-- opencv-python (lub opencv-python-headless) - przetwarzanie obrazu i GUI (imshow)
+## Zaleznosci
+Glowne biblioteki uzywane przez projekt:
+- mediapipe - sledzenie dloni/landmarkow
+- opencv-python-headless (lub opencv-python) - przetwarzanie obrazu; w CLI okno podgladu przez imshow
 - numpy - operacje numeryczne
-- pywin32 / comtypes / pycaw - kontrola głośności systemu
-- PyAutoGUI / pynput - sterowanie myszą/klawiaturą
-- pytest - testy jednostkowe
+- scikit-learn - prosty klasyfikator w module trenera
+- Tylko Windows: pycaw, comtypes, pywin32, PyAutoGUI (do glosnosci, okien, myszy)
+- Dev/GUI: PySide6 (MVP GUI), pytest, ruff, mypy, black, bandit, pre-commit
 
-Zobacz plik `requirements.txt` dla pełnej listy i wersji. Jeśli nie potrzebujesz okna podglądu (GUI), możesz użyć wariantu `opencv-python-headless`.
-
-## Nowe: GUI (PySide6)
-Dostępne jest lekkie, eleganckie GUI oparte o PySide6 (Qt), które wykorzystuje istniejący pipeline (MediaPipe + OpenCV) i pozwala sterować działaniem aplikacji.
-
-Funkcje MVP:
-- Wybór kamery (automatyczne wykrywanie dostępnych urządzeń)
-- Start/Stop przetwarzania
-- Przełącznik „Wykonuj akcje” (bezpiecznie domyślnie wyłączony)
-- Przełącznik „Pokaż podgląd” (możliwość ukrycia okna wideo)
-- Wyświetlanie bieżącego gestu, FPS oraz FrameTime
-
-Instalacja (GUI):
-1) Zainstaluj zależności developerskie (zawierają PySide6):
-
-```
-python -m pip install -r requirements-dev.txt
-```
-
-2) Uruchom GUI:
-
-```
-python -m app.gui.ui_app
-```
-
-Uwagi:
-- GUI działa lokalnie na Windows i wykorzystuje kamerę systemową.
-- „Wykonuj akcje” wywołuje zmapowane akcje systemowe (klik, scroll, głośność) – zostaw wyłączone podczas pierwszych testów.
-- Jeśli korzystasz z `opencv-python-headless`, do GUI potrzebny jest pełny `opencv-python`.
+Zobacz `requirements.txt` i `requirements-dev.txt` dla kompletnej listy i wersji. Jesli nie potrzebujesz okna podgladu OpenCV, mozesz uzyc wariantu `opencv-python-headless`.
 
 ## Szybki start (CLI)
-Punkt wejścia: `app/main.py`.
-- Uruchom: `python -m app.main` (z katalogu głównego repo) lub `python app/main.py`.
-- Wyjście: naciśnij ESC w oknie podglądu.
+Punkt wejsciowy CLI: `app/main.py`.
+- Uruchom:
+  - `python -m app.main`
+  - lub: `python app\main.py`
+- Wyjscie: w oknie podgladu nacisnij ESC.
 
-Domyślnie program otwiera okno podglądu (GUI). Jeśli środowisko nie wspiera OpenCV HighGUI, aplikacja sama przełączy się w tryb headless. Możesz też wyłączyć GUI ręcznie (`SHOW_WINDOW = False` w `app/gesture_engine/config.py`).
+Domyslnie program otwiera okno podgladu (OpenCV HighGUI). Jesli srodowisko nie wspiera GUI OpenCV, aplikacja automatycznie przechodzi w tryb headless. Mozesz tez wylaczyc okno recznie (`SHOW_WINDOW = False` w `app/gesture_engine/config.py`).
+
+## GUI (PySide6)
+Dostepne jest lekkie GUI oparte o PySide6, korzystajace z tego samego silnika gestow.
+
+- Instalacja (GUI):
+  - `python -m pip install -r requirements-dev.txt`
+- Uruchom GUI:
+  - `python -m app.gui.ui_app`
+- Funkcje MVP:
+  - wybor kamery (skanowanie okresowe)
+  - start/stop przetwarzania
+  - przelacznik „Wykonuj akcje” (bezpiecznie domyslnie wyl.)
+  - przelacznik „Pokaz podglad” (rysowanie overlay tylko, gdy wlaczone)
+  - podglad gestu, FPS i FrameTime
+
+Uwagi:
+- GUI wymaga PySide6; jesli uzywasz `opencv-python-headless`, GUI nadal dziala (podglad rysuje Visualizer na ramce), ale do okien OpenCV potrzebny bylby pelny `opencv-python`.
 
 ## Konfiguracja
 Plik: `app/gesture_engine/config.py`. Kluczowe opcje:
 - Kamera i obraz:
-  - `CAMERA_INDEX` - indeks kamery (0 domyślnie)
-  - `CAPTURE_WIDTH`, `CAPTURE_HEIGHT` - rozdzielczość przechwytywania (np. 1920x1080)
-  - `DISPLAY_WIDTH`, `DISPLAY_HEIGHT` - rozdzielczość wyświetlania (np. 640x480)
-  - `TARGET_CAMERA_FPS` - docelowa liczba FPS
-  - `SHOW_WINDOW` - włącza/wyłącza okno podglądu
+  - `CAMERA_INDEX` (int lub "video=<NAZWA>")
+  - `CAPTURE_WIDTH`, `CAPTURE_HEIGHT` (np. 1280x720)
+  - `DISPLAY_WIDTH`, `DISPLAY_HEIGHT` (np. 640x480)
+  - `TARGET_CAMERA_FPS`, `PROCESSING_MAX_FPS`
+  - `SHOW_WINDOW` (wlacza/wylacza okno imshow w CLI)
+  - wymuszenia/opt: `CAMERA_SET_BUFFERSIZE`, `CAMERA_BUFFERSIZE`, `CAMERA_FORCE_MJPG`
 - Logowanie i overlay: `LOG_LEVEL`, `DEBUG_MODE`, `SHOW_FPS`, `SHOW_DELAY`
-- Progi gestów: `CLICK_THRESHOLD`, `SCROLL_THRESHOLD`, `VOLUME_THRESHOLD`, `GESTURE_CONFIDENCE_THRESHOLD`, itp.
-- Gesty z JSON (opcjonalnie): `USE_JSON_GESTURES`, `JSON_GESTURE_PATHS`
+- Progi gestow: `CLICK_THRESHOLD`, `HOLD_THRESHOLD`, `SCROLL_*`, `VOLUME_THRESHOLD`, `GESTURE_CONFIDENCE_THRESHOLD`
+- Gesty JSON (opcjonalnie): `USE_JSON_GESTURES`, `JSON_GESTURE_PATHS`
 
-## Gesty i akcje (zaimplementowane)
+## Gesty i akcje
 Mapowanie (zob. `app/gesture_engine/core/handlers.py`):
-- `click` - symulacja kliknięcia
-- `move_mouse` - poruszanie kursorem
-- `scroll` - przewijanie
-- `volume` - regulacja głośności systemu
-- `close_program` - zamykanie aktywnego okna/programu
+- `click` - klik/mouseDown/mouseUp (PyAutoGUI)
+- `move_mouse` - poruszanie kursorem w watku (smoothing, deadzone)
+- `scroll` - przewijanie (Windows user32)
+- `volume` - regulacja glosnosci (Pycaw)
+- `close_program` - zamykanie aktywnego okna (pywin32)
 
-Detekcja landmarków: `app/gesture_engine/detector/hand_tracker.py`
-Prosty klasyfikator gestów: `app/gesture_engine/detector/gesture_detector.py`
-Wizualizacja (landmarki, FPS): `app/gesture_engine/utils/visualizer.py`
-Przechwytywanie wątkiem: `app/gesture_engine/utils/video_capture.py`
+Detekcja i wizualizacja:
+- Detekcja landmarkow: `app/gesture_engine/detector/hand_tracker.py`
+- Ladowanie i wykrywanie gestow: `app/gesture_engine/detector/gesture_detector.py`
+- Rysowanie overlay: `app/gesture_engine/utils/visualizer.py`
+- Przechwytywanie kamery w watku: `app/gesture_engine/utils/video_capture.py`
+- Logi: `reports/logs/app.log` (rotacja), poziom wg `LOG_LEVEL`
 
-## Testy
-Uruchom w katalogu głównym:
-- `python -m pytest -q`
+Gesty z JSON (opcjonalnie):
+- Ustaw `USE_JSON_GESTURES = True` i podaj katalogi w `JSON_GESTURE_PATHS`.
+- Runtime: `app/gesture_engine/core/gesture_runtime.py` (+ `gesture_loader.py`, `gesture_matcher.py`).
+- Wykryte akcje z JSON mapuja sie na istniejace handlery po nazwie akcji (`action.type`).
 
-Raporty coverage generowane są w CI do `reports/coverage.xml`.
+## Trener gestow (eksperymentalny)
+Moduly: `app/gesture_trainer/`
+- `calibrator.py` - zapisuje skale dloni do `app/gesture_trainer/data/calibration.json`
+- `normalizer.py` - przelicza 21 punktow (x,y,z) na wektor 63D wzgledem nadgarstka i skali
+- `recorder.py` - zapisuje probki do `app/gesture_trainer/data/raw_landmarks.json`
+- `classifier.py` - KNN (K=3), zapis modelu do `app/gesture_trainer/data/trained_model.pkl`
+- `manager.py` - mapowanie gest->akcja w `app/gesture_trainer/data/gesture_action_map.json`
 
-## Kontrole lokalne (Windows cmd.exe)
+Zbieranie probek (tryb pomocniczy):
+- `python -m app.train_gesture`
+  - [s] zapisuje aktualna klatke z landmarkami do pliku `.npy`
+  - [q] konczy
+
+Uwaga: kolektor `.npy` sluzy do szybkich eksperymentow. Docelowy przeplyw trenera korzysta z `recorder.py` (JSON) i `classifier.py`.
+
+## Testy i kontrole lokalne
+- Testy: `python -m pytest -q`
 - Lint: `ruff check .`
 - Typy: `mypy .`
 
+Raporty coverage w CI laduja do `reports/coverage.xml`.
+
 ## CI/CD
-- CI (`.github/workflows/ci.yml`): Windows, Python 3.12, testy z pokryciem (pytest-cov), artefakty JUnit i coverage, publikacja do Codecov (repo publiczne - bez tokena lub z CODECOV_TOKEN).
-- CodeQL (`.github/workflows/codeql.yml`): analiza bezpieczeństwa na push/PR (bez harmonogramu tygodniowego).
+- CI: Windows, Python 3.12, pytest+coverage, artefakty JUnit i coverage, Codecov
+- CodeQL: analiza bezpieczenstwa na push/PR
 
-Badge’e u góry wskazują status CI i wykres pokrycia gałęzi `main`.
+Badge u gory pokazuja status CI i pokrycie na galezi `main`.
 
-## Struktura repo (skrót)
+## Struktura repo (skrot)
 - `app/` - kod aplikacji
-  - `main.py` - punkt wejścia (CLI / OpenCV imshow)
-  - `gui/ui_app.py` - punkt wejścia GUI (PySide6)
-  - `gesture_engine/` - silnik gestów (detekcja, klasyfikacja, akcje, utils, konfiguracja)
-- `tests/` - testy jednostkowe
-- `docs/GESTURE_PIPELINE.md` - pipeline przetwarzania gestów
-- `UseCaseDiagram1.png` - diagram przypadków użycia
+  - `main.py` - punkt wejsciowy CLI (OpenCV imshow)
+  - `gui/ui_app.py` - punkt wejsciowy GUI (PySide6)
+  - `gesture_engine/` - silnik gestow
+    - `actions/` - akcje systemowe (mysz, scroll, glosnosc, zamknij)
+    - `detector/` - tracker (MediaPipe), loader detektorow, wykrywanie
+    - `core/` - runtime JSON, hooki, handlery
+    - `utils/` - visualizer, video_capture, performance, geometry, landmarks
+    - `gestures/`, `gestures_json/` - detektory i definicje gestow
+  - `gesture_trainer/` - kalibracja, normalizacja, rejestracja probek, klasyfikacja
+  - `gui/` - okna, obsluga przetwarzania, modele dla UI
+- `tests/` - testy jednostkowe (pytest)
+- `docs/` - dokumenty projektowe
+- `reports/` - logi aplikacji i raporty testow
+
+## Troubleshooting (Windows)
+- Kamera nie otwiera sie:
+  - sprawdz `CAMERA_INDEX` lub uzyj formatu `"video=<NAZWA>"`
+  - sprobuj innych backendow (DirectShow/MSMF) lub odznacz w systemie blokady uprawnien kamery
+- Brak okna podgladu:
+  - OpenCV moze nie wspierac GUI; aplikacja przejdzie w tryb headless
+  - ustaw `SHOW_WINDOW = False` aby wymusic tryb bez okna
+- Brak MediaPipe / OpenCV:
+  - zainstaluj zaleznosci z `requirements.txt`
+- GUI (PySide6) nie startuje:
+  - zainstaluj `requirements-dev.txt`, uruchom `python -m app.gui.ui_app`
+- Akcje systemowe nie dzialaja:
+  - sprawdz zaleznosci Windows-only (pycaw, comtypes, pywin32, PyAutoGUI)
+  - upewnij sie, ze okno docelowe ma focus (scroll/close)
 
 ---
 
-## Specyfikacja i przypadki użycia
+### Specyfikacja i przypadki uzycia (opis funkcjonalny)
 
-### Wymagania sprzętowe
-- Kamerka minimum 30 FPS o rozdzielczości minimum 720p
+- Sterowanie komputerem za pomoca predefiniowanych gestow
+- Rozpoznawanie alfabetu oraz podstawowych slow w jezyku migowym (planowane)
+- Definiowanie wlasnych gestow i przypisywanie akcji (moduly trenera)
+- Zmiana widocznosci podgladu i prostych opcji w GUI
 
-### Opis funkcjonalności
-- Sterowanie komputerem za pomocą predefiniowanych gestów
-- Rozpoznawanie alfabetu oraz podstawowych słów w języku migowym
-- Możliwość definiowania własnych gestów
-- Zmiana motywów graficznych oraz widoczności programu/nakładki podczas korzystania z komputera
-- Prowadzenie statystyk częstotliwości występowania poszczególnych gestów
-
-### Aktorzy
-Jedyny aktor przewidziany jest dla użytkownika; program działa lokalnie, więc nie potrzeba roli administracyjnej.
-
-### Przykładowe gesty
-- lupa - oddalenie od siebie kciuka i palca wskazującego
-- przewijanie w dół - przesunięcie ręki i gest "idź sobie"
-- zmiana głośności - przytrzymanie złączonego kciuka i palca serdecznego, następnie przeliczanie ich odległości na skalę głośności
-- klik - złączone palce i gest puknięcia
-- powrót - machnięcie dłoni w lewo
-
-### Interakcja z programem
-Program w czasie rzeczywistym reaguje na gesty i wykonuje przypisane do nich akcje. Po wykonaniu specjalnego gestu przełączany jest tryb obsługi gestów oraz rozpoznawania języka migowego. W trybie uproszczonym program śledzi położenie specjalnie przeznaczonego do tego przedmiotu i rozpoznaje kształty/gesty.
-
-### Diagram przypadków użycia
-
-![UseCaseDiagram1.png](UseCaseDiagram1.png)
-
-### Przypadki użycia
-| Nazwa:                          | Sterowanie komputerem |
-|---------------------------------|------------------------|
-| Aktorzy:                        | Użytkownik |
-| Krótki opis:                    | Sterowanie komputerem przy pomocy gestów wykonywanych jedną lub obiema rękami oraz gestów rozpoznawanych przez analizę kształtów geometrycznych. |
-| Warunki wstępne:                | Użytkownik musi mieć skonfigurowane urządzenie do rejestrowania gestów (np. kamera) oraz aktywny system rozpoznawania gestów. |
-| Warunki końcowe:                | System poprawnie interpretuje gesty użytkownika jako polecenia i wykonuje odpowiadające im akcje w systemie operacyjnym. |
-| Główny przepływ zdarzeń:        | 1. Użytkownik inicjuje sesję sterowania gestami. <br/>2. System uruchamia moduł rozpoznawania gestów. <br/>3. Użytkownik wykonuje gesty jednoręczne lub oburęczne. <br/>4. System rozpoznaje gest jako jedno z dostępnych poleceń (np. kliknięcie, przewijanie). <br/>5. Użytkownik wykonuje gest geometryczny (np. koło, linia). <br/>6. System interpretuje kształt i wykonuje przypisaną akcję. <br/>7. System informuje użytkownika o wykonaniu akcji (np. dźwiękiem lub ikoną). |
-| Alternatywne przepływy zdarzeń: | 3a. System nie rozpoznaje gestu: wyświetlana jest informacja o błędzie i użytkownik może spróbować ponownie. <br/>4a. Gest jest nieprawidłowy lub niewłaściwie wykonany - brak akcji, system prosi o powtórzenie. |
-| Specjalne wymagania:            | 1. Rozpoznanie gestu nie może trwać dłużej niż 1 sekundę.<br/> 2. System powinien działać w czasie rzeczywistym z opóźnieniem nie większym niż 0.5 sekundy od wykonania gestu do reakcji.<br/> 3. Minimalne oświetlenie 150 luksów. |
-
-| Nazwa:                          | Gesty obsługi dłoni |
-|---------------------------------|----------------------|
-| Aktorzy:                        | Użytkownik |
-| Krótki opis:                    | Umożliwienie użytkownikowi wykonywania poleceń za pomocą gestów jednej lub dwóch dłoni. |
-| Warunki wstępne:                | System musi mieć uruchomione rozpoznawanie gestów i dostęp do kamery. |
-| Warunki końcowe:                | Gesty są poprawnie zinterpretowane i wywołują odpowiednie akcje. |
-| Główny przepływ zdarzeń:        | 1. Użytkownik wykonuje gest dłonią.<br/>2. System analizuje układ i ruch dłoni.<br/>3. Gest zostaje zaklasyfikowany jako jedno- lub oburęczny.<br/>4. System wykonuje odpowiednią akcję. |
-| Alternatywne przepływy zdarzeń: | 2a. Ręka niewidoczna - system zgłasza brak widoczności dłoni.<br/>3a. Niezidentyfikowany gest - użytkownik proszony o powtórzenie. |
-| Specjalne wymagania:            | 1. Minimalna rozdzielczość kamery: 720p.<br/>2. Opóźnienie maksymalne: 0.3 sekundy. |
-
-| Nazwa:                          | Gesty oburącz |
-|---------------------------------|---------------|
-| Aktorzy:                        | Użytkownik |
-| Krótki opis:                    | Rozpoznawanie i interpretacja gestów wykonywanych obiema rękami. |
-| Warunki wstępne:                | Obie ręce muszą być widoczne dla systemu. |
-| Warunki końcowe:                | System poprawnie wykonuje przypisaną akcję do gestu oburęcznego. |
-| Główny przepływ zdarzeń:        | 1. Użytkownik unosi obie ręce i wykonuje gest.<br/>2. System rozpoznaje układ dłoni oraz synchronizację ruchów.<br/>3. Wykonywana jest przypisana operacja systemowa. |
-| Alternatywne przepływy zdarzeń: | 1a. Jedna ręka niewidoczna - system prosi o poprawne wykonanie gestu. |
-| Specjalne wymagania:            | 1. Wymagana synchronizacja rąk z dokładnością do 0.2 sekundy. |
-
-| Nazwa:                          | Gesty jednorącz |
-|---------------------------------|-----------------|
-| Aktorzy:                        | Użytkownik |
-| Krótki opis:                    | Wykonywanie akcji za pomocą gestów jednej dłoni. |
-| Warunki wstępne:                | Widoczność jednej dłoni w kadrze. |
-| Warunki końcowe:                | System wykonuje przypisaną operację. |
-| Główny przepływ zdarzeń:        | 1. Użytkownik wykonuje gest jednoręczny.<br/>2. System analizuje jego kształt, kierunek i dynamikę.<br/>3. Rozpoznany gest powoduje określoną akcję. |
-| Alternatywne przepływy zdarzeń: | 2a. Niezrozumiały gest - prośba o powtórzenie. |
-| Specjalne wymagania:            | Ręka nie może być zasłonięta ani rozmyta. |
-
-| Nazwa:                          | Gesty obsługi za pomocą śledzenia punktu i wykrywania kształtów geometrycznych |
-|---------------------------------|----------------------------------------------------------------------------------|
-| Aktorzy:                        | Użytkownik |
-| Krótki opis:                    | Rozpoznawanie gestów przez śledzenie ruchu punktu (np. palca) i kształtów (np. koła, trójkąta). |
-| Warunki wstępne:                | Aktywny tryb śledzenia punktów. |
-| Warunki końcowe:                | Zidentyfikowany kształt powoduje wykonanie akcji. |
-| Główny przepływ zdarzeń:        | 1. Użytkownik wykonuje rysunek w powietrzu (np. okrąg).<br/>2. System śledzi trajektorię ruchu.<br/>3. Kształt zostaje rozpoznany i zinterpretowany jako polecenie.<br/>4. Wykonywana jest akcja. |
-| Alternatywne przepływy zdarzeń: | 2a. Kształt zbyt nieczytelny - komunikat błędu. |
-| Specjalne wymagania:            | Dopuszczalna tolerancja rozpoznania kształtu: ±10%. |
-
-| Nazwa:                          | Tłumacz migowego |
-|---------------------------------|------------------|
-| Aktorzy:                        | Użytkownik |
-| Krótki opis:                    | Moduł tłumaczący gesty języka migowego na tekst lub mowę. |
-| Warunki wstępne:                | Włączony tryb tłumacza migowego. |
-| Warunki końcowe:                | Gesty przetłumaczone na tekst lub komunikaty dźwiękowe. |
-| Główny przepływ zdarzeń:        | 1. Użytkownik wykonuje gest w języku migowym.<br/>2. System analizuje i identyfikuje gest.<br/>3. Odpowiedni tekst zostaje wyświetlony lub wypowiedziany. |
-| Alternatywne przepływy zdarzeń: | 2a. Brak rozpoznania gestu - użytkownik informowany o błędzie. |
-| Specjalne wymagania:            | Obsługa co najmniej 500 najczęściej używanych gestów. |
-
-| Nazwa:                          | Rozpoznawanie migów pojedynczych słów |
-|---------------------------------|--------------------------------------|
-| Aktorzy:                        | Użytkownik |
-| Krótki opis:                    | Tłumaczenie pojedynczych gestów na konkretne słowa. |
-| Warunki wstępne:                | Tryb tłumaczenia migów aktywny. |
-| Warunki końcowe:                | Każdy gest zostaje przypisany do słowa. |
-| Główny przepływ zdarzeń:        | 1. Użytkownik wykonuje gest odpowiadający konkretnemu słowu.<br/>2. System wyświetla tłumaczenie na ekranie. |
-| Alternatywne przepływy zdarzeń: | 1a. Gest nieznany - komunikat błędu. |
-| Specjalne wymagania:            | Słownik co najmniej 300 słów. |
-
-| Nazwa:                          | Rozpoznawanie migów alfabetu |
-|---------------------------------|-------------------------------|
-| Aktorzy:                        | Użytkownik |
-| Krótki opis:                    | System rozpoznaje litery alfabetu migowego. |
-| Warunki wstępne:                | Aktywny tryb alfabetu. |
-| Warunki końcowe:                | System wyświetla literę odpowiadającą gestowi. |
-| Główny przepływ zdarzeń:        | 1. Użytkownik pokazuje literę w języku migowym.<br/>2. System rozpoznaje ją i dodaje do tekstu. |
-| Alternatywne przepływy zdarzeń: | 1a. Nierozpoznana litera - informacja zwrotna o błędzie. |
-| Specjalne wymagania:            | Obsługa pełnego alfabetu (26 liter). |
-
-| Nazwa:                          | Ustawienia |
-|---------------------------------|-----------|
-| Aktorzy:                        | Użytkownik |
-| Krótki opis:                    | Dostęp do konfiguracji i personalizacji systemu. |
-| Warunki wstępne:                | Użytkownik uruchamia panel ustawień. |
-| Warunki końcowe:                | Zmiany są zapisane i aktywne. |
-| Główny przepływ zdarzeń:        | 1. Użytkownik otwiera ustawienia.<br/>2. Przegląda dostępne opcje konfiguracji.<br/>3. Dokonuje zmian. |
-| Specjalne wymagania:            | Panel musi być dostępny w każdej chwili. |
-
-| Nazwa:                          | Zmiana motywów graficznych |
-|---------------------------------|----------------------------|
-| Aktorzy:                        | Użytkownik |
-| Krótki opis:                    | Zmiana wyglądu interfejsu użytkownika. |
-| Warunki wstępne:                | Użytkownik musi mieć dostęp do ustawień. |
-| Warunki końcowe:                | Motyw zostaje zmieniony i zapisany. |
-| Główny przepływ zdarzeń:        | 1. Użytkownik wchodzi do sekcji „Motywy”.<br/>2. Wybiera preferowany motyw.<br/>3. System natychmiast stosuje nowy wygląd. |
-| Specjalne wymagania:            | Obsługa przynajmniej motywu jasnego i ciemnego. |
-
-| Nazwa:                          | Dodawanie personalizowanych gestów |
-|---------------------------------|-----------------------------------|
-| Aktorzy:                        | Użytkownik |
-| Krótki opis:                    | Użytkownik może definiować własne gesty i przypisywać im funkcje. |
-| Warunki wstępne:                | Aktywny panel personalizacji. |
-| Warunki końcowe:                | Nowy gest jest rozpoznawany przez system i aktywny. |
-| Główny przepływ zdarzeń:        | 1. Użytkownik otwiera panel dodawania gestu.<br/>2. Wykonuje gest próbny.<br/>3. Przypisuje mu określoną funkcję.<br/>4. Zapisuje konfigurację. |
-| Alternatywne przepływy zdarzeń: | 2a. Gest zbyt podobny do istniejącego - system prosi o inny. |
-| Specjalne wymagania:            | Możliwość zapisania co najmniej 20 gestów użytkownika. |
-
+Diagram przypadkow uzycia: `UseCaseDiagram1.png`
