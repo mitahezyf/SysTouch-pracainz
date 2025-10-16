@@ -9,7 +9,11 @@ on:
 
 jobs:
   tests:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,21 +30,33 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          mkdir -p reports
+          python -c "import os; os.makedirs('reports', exist_ok=True)"
           python -m pytest -q --cov=app --cov-report=xml:reports/coverage.xml --junitxml=reports/junit.xml
 
       - name: Upload reports artifact
         uses: actions/upload-artifact@v4
         with:
-          name: test-reports
+          name: test-reports-${{ matrix.os }}
           path: reports/
 
-      - name: Upload coverage to Codecov
+      - name: Upload coverage to Codecov (Linux)
+        if: matrix.os == 'ubuntu-latest'
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: reports/coverage.xml
           slug: mitahezyf/SysTouch-pracainz
-          flags: unittests
+          flags: linux,unittests
+          fail_ci_if_error: false
+          verbose: true
+
+      - name: Upload coverage to Codecov (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: reports/coverage.xml
+          slug: mitahezyf/SysTouch-pracainz
+          flags: windows,unittests
           fail_ci_if_error: false
           verbose: true
