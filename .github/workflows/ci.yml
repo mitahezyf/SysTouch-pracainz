@@ -7,6 +7,10 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   tests:
     runs-on: ${{ matrix.os }}
@@ -43,20 +47,20 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         uses: codecov/codecov-action@v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
           files: reports/coverage.xml
           slug: mitahezyf/SysTouch-pracainz
           flags: linux,unittests
           fail_ci_if_error: false
           verbose: true
+          use_oidc: true
 
       - name: Upload coverage to Codecov (Windows)
         if: matrix.os == 'windows-latest'
         uses: codecov/codecov-action@v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
           files: reports/coverage.xml
           slug: mitahezyf/SysTouch-pracainz
           flags: windows,unittests
           fail_ci_if_error: false
           verbose: true
+          use_oidc: true
