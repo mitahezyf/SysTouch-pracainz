@@ -9,10 +9,11 @@ from app.gesture_engine.actions.close_program_action import handle_close_program
 
 
 # jezeli aktywne okno istnieje powinno zostac zamkniete
-@patch("app.actions.close_program_action.logger")
-@patch("app.actions.close_program_action.win32gui.PostMessage")
+@patch("app.gesture_engine.actions.close_program_action.logger")
+@patch("app.gesture_engine.actions.close_program_action.win32gui.PostMessage")
 @patch(
-    "app.actions.close_program_action.win32gui.GetForegroundWindow", return_value=123
+    "app.gesture_engine.actions.close_program_action.win32gui.GetForegroundWindow",
+    return_value=123,
 )
 def test_handle_close_program_ok(mock_get_hwnd, mock_post, mock_logger):
     handle_close_program(None, None)
@@ -22,9 +23,10 @@ def test_handle_close_program_ok(mock_get_hwnd, mock_post, mock_logger):
 
 
 # jezeli brak aktywnego okna powinien byc warning
-@patch("app.actions.close_program_action.logger")
+@patch("app.gesture_engine.actions.close_program_action.logger")
 @patch(
-    "app.actions.close_program_action.win32gui.GetForegroundWindow", return_value=None
+    "app.gesture_engine.actions.close_program_action.win32gui.GetForegroundWindow",
+    return_value=None,
 )
 def test_handle_close_program_no_window(mock_get_hwnd, mock_logger):
     handle_close_program(None, None)

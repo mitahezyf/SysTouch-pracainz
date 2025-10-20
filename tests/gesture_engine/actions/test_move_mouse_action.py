@@ -9,7 +9,10 @@ import app.gesture_engine.actions.move_mouse_action as move_mouse
 
 
 # handle_move_mouse przelicza pozycje z landmarkow na wspolrzedne ekranu
-@patch("app.actions.move_mouse_action.pyautogui.size", return_value=(1920, 1080))
+@patch(
+    "app.gesture_engine.actions.move_mouse_action.pyautogui.size",
+    return_value=(1920, 1080),
+)
 def test_handle_move_mouse_sets_position(mock_size):
     mock_landmark = MagicMock(x=0.5, y=0.25)
     landmarks = [None] * 21
@@ -22,7 +25,7 @@ def test_handle_move_mouse_sets_position(mock_size):
 
 
 # stop_mouse_thread ustawia running = False i czeka na watek
-@patch("app.actions.move_mouse_action.worker_thread.join")
+@patch("app.gesture_engine.actions.move_mouse_action.worker_thread.join")
 def test_stop_mouse_thread(mock_join):
     move_mouse.running = True
     move_mouse.stop_mouse_thread()

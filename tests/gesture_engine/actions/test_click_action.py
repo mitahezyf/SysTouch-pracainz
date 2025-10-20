@@ -26,8 +26,8 @@ def reset_click_state():
 
 
 # start_click ustawia wartosci poczatkowe
-@patch("app.actions.click_action.logger")
-@patch("app.actions.click_action.time.time", return_value=1234.567)
+@patch("app.gesture_engine.actions.click_action.logger")
+@patch("app.gesture_engine.actions.click_action.time.time", return_value=1234.567)
 def test_start_click(mock_time, _):
     click_action.start_click()
     state = click_action.click_state
@@ -38,9 +38,9 @@ def test_start_click(mock_time, _):
 
 
 # handle_active aktywuje hold i mouseDown po przekroczeniu progu
-@patch("app.actions.click_action.logger")
-@patch("app.actions.click_action.pyautogui.mouseDown")
-@patch("app.actions.click_action.time.time")
+@patch("app.gesture_engine.actions.click_action.logger")
+@patch("app.gesture_engine.actions.click_action.pyautogui.mouseDown")
+@patch("app.gesture_engine.actions.click_action.time.time")
 def test_handle_active_triggers_hold(mock_time, mock_mouse_down, _):
     click_action.click_state["start_time"] = 1000
     mock_time.return_value = 1000 + click_action.HOLD_THRESHOLD + 0.1
@@ -53,9 +53,9 @@ def test_handle_active_triggers_hold(mock_time, mock_mouse_down, _):
 
 
 # release_click wykonuje click() przy krotkim tapie
-@patch("app.actions.click_action.logger")
-@patch("app.actions.click_action.pyautogui.click")
-@patch("app.actions.click_action.time.time")
+@patch("app.gesture_engine.actions.click_action.logger")
+@patch("app.gesture_engine.actions.click_action.pyautogui.click")
+@patch("app.gesture_engine.actions.click_action.time.time")
 def test_release_click_short_tap(mock_time, mock_click, _):
     click_action.click_state.update(
         {
@@ -75,9 +75,9 @@ def test_release_click_short_tap(mock_time, mock_click, _):
 
 
 # release_click wykonuje mouseUp przy holdzie
-@patch("app.actions.click_action.logger")
-@patch("app.actions.click_action.pyautogui.mouseUp")
-@patch("app.actions.click_action.time.time")
+@patch("app.gesture_engine.actions.click_action.logger")
+@patch("app.gesture_engine.actions.click_action.pyautogui.mouseUp")
+@patch("app.gesture_engine.actions.click_action.time.time")
 def test_release_click_hold(mock_time, mock_mouse_up, _):
     click_action.click_state.update(
         {
@@ -95,7 +95,7 @@ def test_release_click_hold(mock_time, mock_mouse_up, _):
 
 
 # release_click ignoruje jesli brak start_time
-@patch("app.actions.click_action.logger")
+@patch("app.gesture_engine.actions.click_action.logger")
 def test_release_click_no_start_time(mock_logger):
     click_action.click_state["start_time"] = None
     click_action.release_click()
@@ -103,8 +103,8 @@ def test_release_click_no_start_time(mock_logger):
 
 
 # update_click_state uruchamia start_click i handle_active
-@patch("app.actions.click_action.handle_active")
-@patch("app.actions.click_action.start_click")
+@patch("app.gesture_engine.actions.click_action.handle_active")
+@patch("app.gesture_engine.actions.click_action.start_click")
 def test_update_click_state_active(mock_start, mock_handle):
     click_action.click_state["was_active"] = False
     click_action.update_click_state(True)
@@ -115,7 +115,7 @@ def test_update_click_state_active(mock_start, mock_handle):
 
 
 # update_click_state nic nie zmienia jesli juz bylo aktywne
-@patch("app.actions.click_action.handle_active")
+@patch("app.gesture_engine.actions.click_action.handle_active")
 def test_update_click_state_repeat_active(mock_handle):
     click_action.click_state["was_active"] = True
     click_action.update_click_state(True)
@@ -123,7 +123,7 @@ def test_update_click_state_repeat_active(mock_handle):
 
 
 # update_click_state wywoluje release_click przy dezaktywacji
-@patch("app.actions.click_action.release_click")
+@patch("app.gesture_engine.actions.click_action.release_click")
 def test_update_click_state_deactivates(mock_release):
     click_action.click_state["was_active"] = True
     click_action.update_click_state(False)
@@ -148,7 +148,7 @@ def test_get_click_state_name():
 
 
 # handle_click ustawia aktywnosc i wywoluje update_click_state
-@patch("app.actions.click_action.update_click_state")
+@patch("app.gesture_engine.actions.click_action.update_click_state")
 def test_handle_click_sets_active(mock_update):
     click_action.handle_click(None, None)
     assert click_action.handle_click.active is True
