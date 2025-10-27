@@ -38,7 +38,7 @@ jobs:
           python -m pytest -q --cov=app --cov-report=xml:reports/coverage.xml --junitxml=reports/junit.xml
 
       - name: Upload reports artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: test-reports-${{ matrix.os }}
           path: reports/
