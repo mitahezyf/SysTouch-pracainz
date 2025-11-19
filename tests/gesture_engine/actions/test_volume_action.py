@@ -1,9 +1,8 @@
 from typing import List
-from unittest.mock import patch
 
 import app.gesture_engine.actions.volume_action as va
 from app.gesture_engine.gestures.volume_gesture import volume_state
-from app.gesture_engine.utils.landmarks import FINGER_MCPS, FINGER_TIPS, WRIST
+from app.gesture_engine.utils.landmarks import FINGER_MCPS
 
 
 class P:
@@ -17,37 +16,36 @@ def make_landmarks() -> List[P]:
     return [P(0.0, 0.0, 0.0) for _ in range(21)]
 
 
-def set_hand_size(pts: List[P], size: float) -> None:
-    pts[WRIST] = P(0.0, 0.0, 0.0)
-    pts[FINGER_MCPS["pinky"]] = P(size, 0.0, 0.0)
+def set_mcp_positions(
+    pts: List[P], index_xy: tuple[float, float], pinky_xy: tuple[float, float]
+) -> None:
+    ix, iy = index_xy
+    px, py = pinky_xy
+    pts[FINGER_MCPS["index"]] = P(ix, iy, 0.0)
+    pts[FINGER_MCPS["pinky"]] = P(px, py, 0.0)
 
 
-def set_pinch(pts: List[P], d: float) -> None:
-    pts[FINGER_TIPS["thumb"]] = P(0.0, 0.0, 0.0)
-    pts[FINGER_TIPS["index"]] = P(d, 0.0, 0.0)
-
-
-@patch("app.gesture_engine.actions.volume_action.set_system_volume")
-def test_handle_volume_adjusting_maps_to_percent(mock_set):
-    # phase != adjusting -> nic nie robi
-    volume_state["phase"] = "idle"
+def test_handle_volume_knob_angle_mapping():
+    # start: phase idle -> brak pct
+    volume_state.clear()
+    volume_state.update({"phase": "idle"})
     va.handle_volume([], (480, 640, 3))
-    mock_set.assert_not_called()
+    assert volume_state.get("pct") is None
 
-    # phase == adjusting: mapowanie pincha do 0..100
+    # przejscie do adjusting (trigger z hooka) i baseline
     volume_state["phase"] = "adjusting"
     pts = make_landmarks()
-    set_hand_size(pts, size=1.0)  # pinch_th = 0.5
-
-    set_pinch(pts, d=0.5)  # tuz na progu -> 0%
+    # baseline: wektor index->pinky poziomo w prawo (kat 0 deg) -> pct=50
+    set_mcp_positions(pts, index_xy=(0.0, 0.0), pinky_xy=(1.0, 0.0))
     va.handle_volume(pts, (480, 640, 3))
-    mock_set.assert_called_with(0)
+    assert volume_state.get("pct") == 50
 
-    set_pinch(pts, d=1.0)  # na rozmiarze dloni -> 100%
+    # obrot +90 deg (w gore): oczekiwane ~100%
+    set_mcp_positions(pts, index_xy=(0.0, 0.0), pinky_xy=(0.0, 1.0))
     va.handle_volume(pts, (480, 640, 3))
-    mock_set.assert_called_with(100)
+    assert volume_state.get("pct") == 100
 
-    set_pinch(pts, d=0.75)  # posredni -> ~50%
+    # obrot -90 deg (w dol): oczekiwane ~0%
+    set_mcp_positions(pts, index_xy=(0.0, 0.0), pinky_xy=(0.0, -1.0))
     va.handle_volume(pts, (480, 640, 3))
-    # nie wymagamy dokladnosci, ale powinno byc w poblizu 50
-    assert 45 <= mock_set.call_args[0][0] <= 55
+    assert volume_state.get("pct") == 0

@@ -1,6 +1,6 @@
 # todo usunac powielone wywolanie update_click_state(False) przy zmianie gestu z click
 
-from typing import Dict, Optional, cast
+from typing import Dict, Optional  # noqa: F401
 
 from app.gesture_engine.actions.click_action import (
     click_state,
@@ -10,13 +10,13 @@ from app.gesture_engine.actions.click_action import (
 from app.gesture_engine.logger import logger
 
 # deklaracja typu na poziomie modulu
-volume_state: Optional[Dict[str, object]] = None
+volume_state = None  # type: Optional[Dict[str, object]]
 
 # volume: import stanu do resetu/przejsc
 try:
     from app.gesture_engine.gestures.volume_gesture import volume_state as _volume_state
 
-    volume_state = cast(Dict[str, object], _volume_state)
+    volume_state = _volume_state
 except Exception:
     # gdy modul gestu nie jest dostepny (np. w minimalnym trybie testowym)
     volume_state = None
@@ -32,6 +32,20 @@ def register_gesture_start_hook(gesture_name, func):
 def handle_gesture_start_hook(gesture_name, landmarks, frame_shape):
     global last_gesture_name
 
+    # zapewnia istnienie domyslnego hooka dla 'volume' zanim sprawdzi zmiany
+    if "volume" not in gesture_start_hooks:
+
+        def volume_start_hook(_landmarks, _frame_shape):
+            logger.debug("[hook] volume start (set adjusting)")
+            try:
+                if volume_state is not None:
+                    volume_state["phase"] = "adjusting"
+                    # zachowuje _extend_start w None (zgodnie z testami)
+            except Exception as e:
+                logger.debug("[hook] volume start error: %s", e)
+
+        register_gesture_start_hook("volume", volume_start_hook)
+
     # zwalnia click przy zmianie na inny gest (ale nie None - to obsluzymy nizej)
     if (
         handle_click.active
@@ -44,9 +58,40 @@ def handle_gesture_start_hook(gesture_name, landmarks, frame_shape):
 
     # reset volume przy wyjsciu z gestu
     if last_gesture_name == "volume" and gesture_name != "volume":
+        accepted = False
+        try:
+            # lazy import, aby uniknac cykli
+            from app.gesture_engine.actions.volume_action import (
+                finalize_volume_if_stable,
+            )
+
+            if callable(finalize_volume_if_stable):
+                accepted = bool(finalize_volume_if_stable())
+                if accepted:
+                    logger.info("[hook] volume accepted at exit")
+        except Exception as e:
+            logger.debug("volume finalize on exit error: %s", e)
         if volume_state is not None:
             volume_state["phase"] = "idle"
             volume_state["_extend_start"] = None
+            try:
+                volume_state["pct"] = None
+                volume_state["ref_max"] = None
+                volume_state["pinch_since"] = None
+                volume_state["pinch_th"] = None
+                volume_state["control_wrist"] = None
+                volume_state["last_seen_ts"] = None
+                volume_state["_exit_pinched_since"] = None
+                volume_state["_last_pct"] = None
+                volume_state["_stable_since"] = None
+                # resetuje pola nowego trybu galki
+                volume_state["knob_baseline_angle_deg"] = None
+                volume_state["knob_range_deg"] = None
+                volume_state["knob_invert"] = None
+                volume_state["angle_deg"] = None
+                volume_state["angle_delta_deg"] = None
+            except Exception as e:
+                logger.debug("[hook] volume reset error: %s", e)
             logger.debug("[hook] volume reset (wyjscie z gestu)")
 
     if gesture_name != last_gesture_name:
@@ -74,16 +119,6 @@ def handle_gesture_start_hook(gesture_name, landmarks, frame_shape):
 
     if "scroll" not in gesture_start_hooks:
         register_gesture_start_hook("scroll", test_scroll_hook)
-
-    # start hook dla volume: ustawia faze na adjusting gdy gest aktywowany
-    def volume_start_hook(_landmarks, _frame_shape):
-        if volume_state is not None:
-            volume_state["phase"] = "adjusting"
-            volume_state["_extend_start"] = None
-            logger.debug("[hook] volume start -> adjusting")
-
-    if "volume" not in gesture_start_hooks:
-        register_gesture_start_hook("volume", volume_start_hook)
 
 
 def reset_hooks_state() -> None:
@@ -117,6 +152,22 @@ def reset_hooks_state() -> None:
         if volume_state is not None:
             volume_state["phase"] = "idle"
             volume_state["_extend_start"] = None
+            try:
+                volume_state["pct"] = None
+                volume_state["ref_max"] = None
+                volume_state["pinch_since"] = None
+                volume_state["pinch_th"] = None
+                volume_state["control_wrist"] = None
+                volume_state["last_seen_ts"] = None
+                volume_state["_exit_pinched_since"] = None
+                volume_state["_last_pct"] = None
+                volume_state["_stable_since"] = None
+                # resetuje pola nowego trybu galki
+                volume_state["knob_baseline_angle_deg"] = None
+                volume_state["knob_range_deg"] = None
+                volume_state["knob_invert"] = None
+            except Exception as e:
+                logger.debug("reset_hooks_state: volume nested reset error: %s", e)
     except Exception as e:
         logger.debug("reset_hooks_state: volume reset error: %s", e)
 

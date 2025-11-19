@@ -1,8 +1,4 @@
-# todo do zrobienia od nowa, pokonalo mnie to
-from time import monotonic
-
-from app.gesture_engine.logger import logger
-from app.gesture_engine.utils.geometry import angle_between, distance
+from app.gesture_engine.utils.geometry import distance
 from app.gesture_engine.utils.landmarks import (
     FINGER_MCPS,
     FINGER_PIPS,
@@ -10,109 +6,61 @@ from app.gesture_engine.utils.landmarks import (
     WRIST,
 )
 
-# globalny stan gestu
-timezone_offset = 0
-volume_state = {
+# minimalna definicja gestu volume: tylko stale i stan dla GUI/akcji
+
+# prog zacisku (ok. 50% dloni); uzywany przy liczeniu pct
+PINCH_RATIO: float = 0.5
+
+# globalny, minimalny stan gestu wykorzystywany przez GUI i testy
+volume_state: dict[str, object] = {
+    # podstawowe pola kontroli
     "phase": "idle",
     "_extend_start": None,
+    # wartosci do obliczen i wizualizacji
+    "pct": None,  # ostatnio policzony procent (0..100)
+    "pinch_th": None,  # nadpisany prog pincha (opcjonalnie)
+    "ref_max": None,  # nadpisany rozstaw dla 100% (opcjonalnie)
 }
-
-# progi i czasy
-PINCH_RATIO = 0.5  # prog zacisku (ok. 50% dloni)
-MIN_REF_RATIO = 0.50  # prog rozwarcia (ok. 50% dloni)
-ANGLE_THRESHOLD = 160.0  # kat [deg] uznawany za wyprostowany palec
-STABLE_DURATION = 0.3  # czas [s], przez ktory kat musi byc stabilny
-
-
-def log_state(phase, hand_size, pinch_th, min_ref, d):
-    logger.debug(
-        f"[volume_gesture] phase={phase:<12} | hand_size={hand_size:.4f} | pinch_th={pinch_th:.4f} | min_ref={min_ref:.4f} | d={d:.4f}"
-    )
-
-
-def is_fingers_extended(landmarks):
-    """
-    sprawdza, czy index, middle, ring, pinky sa wyprostowane,
-    korzystajac z pomiaru kata mcp-pip-tip (angle_between)
-    """
-    for name in ["index", "middle", "ring", "pinky"]:
-        mcp = landmarks[FINGER_MCPS[name]]
-        pip = landmarks[FINGER_PIPS[name]]
-        tip = landmarks[FINGER_TIPS[name]]
-        ang = angle_between(mcp, pip, tip)
-        if ang < ANGLE_THRESHOLD:
-            return False
-    return True
 
 
 def detect_volume_gesture(landmarks):
-    """
-    prosty fsm (przykladowy):
-      idle -> init          : d < pinch_th
-      init -> reference_set : palce wyprostowane stabilnie przez STABLE_DURATION
-      reference_set -> adjusting
-      adjusting -> adjusting
-    reset do idle, gdy d > 1.2 * min_ref
-    """
-    prev = volume_state["phase"]
-    now = monotonic()
+    """Wykrywa gest triggera 'volume' (bez JSON).
 
-    # metryki
-    hand_size = distance(landmarks[WRIST], landmarks[FINGER_MCPS["pinky"]])
-    pinch_th = hand_size * PINCH_RATIO
-    min_ref = hand_size * MIN_REF_RATIO
-    d = distance(landmarks[FINGER_TIPS["thumb"]], landmarks[FINGER_TIPS["index"]])
+    Kryteria (heurystyka):
+    - pinch: odleglosc kciuk-wskazujacy < PINCH_RATIO * hand_size
+    - wskazujacy i srodkowy proste (tip.y < pip.y)
+    - serdeczny i maly zgięte (tip.y - mcp.y > 0)
+    Zwraca ("volume", 1.0) albo None.
+    """
+    try:
+        # wielkosc dloni (od wrist do pinky_mcp)
+        hand_size = distance(landmarks[WRIST], landmarks[FINGER_MCPS["pinky"]])
+        if hand_size <= 0:
+            return None
 
-    # reset
-    if prev in ("init", "reference_set", "adjusting") and d > min_ref * 1.2:
-        volume_state["phase"] = "idle"
-        volume_state["_extend_start"] = None
-        logger.debug(
-            f"[volume_gesture] reset -> d ({d:.4f}) > 1.2*min_ref ({min_ref*1.2:.4f})"
+        # pinch: kciuk + serdeczny (ring)
+        thumb_tip = landmarks[FINGER_TIPS["thumb"]]
+        ring_tip = landmarks[FINGER_TIPS["ring"]]
+        pinch_dist_ring = distance(thumb_tip, ring_tip)
+        pinch_th = float(volume_state.get("pinch_th") or (hand_size * PINCH_RATIO))
+        pinch_ok = pinch_dist_ring < pinch_th
+
+        # anty-konflikt z kliknieciem: kciuk+wskaz nie moga byc blisko
+        index_tip = landmarks[FINGER_TIPS["index"]]
+        pinch_dist_index = distance(thumb_tip, index_tip)
+        not_click = pinch_dist_index > (pinch_th * 1.1)
+
+        index_straight = (
+            landmarks[FINGER_TIPS["index"]].y < landmarks[FINGER_PIPS["index"]].y
         )
-        log_state("idle", hand_size, pinch_th, min_ref, d)
-        return None
+        middle_straight = (
+            landmarks[FINGER_TIPS["middle"]].y < landmarks[FINGER_PIPS["middle"]].y
+        )
 
-    # idle -> init
-    if prev == "idle":
-        if d < pinch_th:
-            volume_state["phase"] = "init"
-            volume_state["_extend_start"] = None
-            logger.debug(
-                f"[volume_gesture] idle -> init (d < pinch_th: {d:.4f} < {pinch_th:.4f})"
-            )
-            log_state("init", hand_size, pinch_th, min_ref, d)
+        if pinch_ok and not_click and index_straight and middle_straight:
             return "volume", 1.0
+    except Exception:
+        # defensywnie pomija bledy danych
         return None
-
-    # init -> reference_set
-    if prev == "init":
-        if is_fingers_extended(landmarks):
-            if volume_state["_extend_start"] is None:
-                volume_state["_extend_start"] = now
-            elif now - volume_state["_extend_start"] >= STABLE_DURATION:
-                volume_state["phase"] = "reference_set"
-                volume_state["_extend_start"] = None
-                logger.debug(
-                    "[volume_gesture] init -> reference_set (palce stabilnie wyprostowane)"
-                )
-                log_state("reference_set", hand_size, pinch_th, min_ref, d)
-                return "volume", 1.0
-        else:
-            volume_state["_extend_start"] = None
-        return None
-
-    # reference_set -> adjusting
-    if prev == "reference_set":
-        volume_state["phase"] = "adjusting"
-        volume_state["_start_time"] = now
-        logger.debug("[volume_gesture] reference_set -> adjusting")
-        log_state("adjusting", hand_size, pinch_th, min_ref, d)
-        return "volume", 1.0
-
-    # adjusting -> adjusting
-    if prev == "adjusting":
-        log_state("adjusting", hand_size, pinch_th, min_ref, d)
-        return "volume", 1.0
 
     return None

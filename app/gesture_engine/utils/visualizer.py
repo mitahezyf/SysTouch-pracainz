@@ -8,6 +8,10 @@ from app.gesture_engine.config import (
     LANDMARK_COLOR,
     LANDMARK_LINE_THICKNESS,
 )
+from app.gesture_engine.logger import logger
+from app.gesture_engine.utils.landmarks import (
+    FINGER_TIPS,  # import indeksow koncowek palcow
+)
 
 # Bezpieczne importy: cv2 i mediapipe moga nie byc dostepne w srodowisku CI.
 try:  # pragma: no cover
@@ -150,3 +154,104 @@ class Visualizer:
                 (255, 255, 0),
                 2,
             )
+
+    # rysuje overlay glosnosci: pasek procentowy i etykiete fazy
+    def draw_volume_overlay(self, frame, pct: int | None, phase: str | None) -> None:
+        # ustawia parametry paska
+        h, w = frame.shape[:2]
+        bar_w = max(180, int(w * 0.25))
+        bar_h = 18
+        margin = 12
+        x0 = margin
+        y0 = h - margin - bar_h - 20  # zostawia miejsce na tekst
+        x1 = x0 + bar_w
+        y1 = y0 + bar_h
+        # obramowanie paska
+        cv2.rectangle(frame, (x0, y0), (x1, y1), (200, 200, 200), 1)
+        # wypelnienie wg pct
+        if pct is not None:
+            pct_clamped = max(0, min(100, int(pct)))
+            fill_w = int(bar_w * (pct_clamped / 100.0))
+            if fill_w > 0:
+                cv2.rectangle(
+                    frame,
+                    (x0 + 1, y0 + 1),
+                    (x0 + fill_w - 1, y1 - 1),
+                    (50, 180, 70),
+                    -1,
+                )
+        # etykieta
+        phase_txt = f" ({phase})" if phase else ""
+        label = f"Volume: {pct if pct is not None else '-'}%{phase_txt}"
+        cv2.putText(
+            frame,
+            label,
+            (x0, y0 - 6),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (255, 255, 255),
+            1,
+        )
+
+    def draw_volume_at_tips(
+        self, frame, hand_landmarks, pct: int | None, phase: str | None
+    ) -> None:
+        """Rysuje wskaznik glosnosci przy opuszkach kciuka i palca serdecznego.
+
+        - laczy kciuk i serdeczny linia tylko w fazie 'adjusting'
+        - zaznacza kropki na opuszkach
+        - wyswietla tekst z procentem przy srodku odcinka
+        """
+        try:
+            h, w = frame.shape[:2]
+            t_idx = FINGER_TIPS["thumb"]
+            r_idx = FINGER_TIPS["ring"]
+            t = hand_landmarks.landmark[t_idx]
+            r = hand_landmarks.landmark[r_idx]
+            x1, y1 = int(t.x * w), int(t.y * h)
+            x2, y2 = int(r.x * w), int(r.y * h)
+            mx, my = (x1 + x2) // 2, (y1 + y2) // 2
+            # kropki na opuszkach
+            cv2.circle(frame, (x1, y1), 5, (0, 255, 0), -1)
+            cv2.circle(frame, (x2, y2), 5, (0, 255, 0), -1)
+            # linia miedzy opuszkami tylko w fazie adjusting
+            if phase == "adjusting":
+                cv2.line(frame, (x1, y1), (x2, y2), (50, 200, 255), 2)
+            # etykieta nad srodkiem
+            pct_txt = "-" if pct is None else str(int(pct))
+            phase_txt = f" ({phase})" if phase else ""
+            label = f"vol: {pct_txt}%{phase_txt}"
+            # tlo pod tekstem dla lepszej czytelnosci
+            (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+            tx = mx - tw // 2
+            ty = max(16, my - 14)
+            # rysuje ciemne tlo (prostokat)
+            x0, y0 = max(0, tx - 4), max(0, ty - th - 4)
+            x1b, y1b = min(w - 1, tx + tw + 4), min(h - 1, ty + 4)
+            overlay = frame.copy()
+            cv2.rectangle(overlay, (x0, y0), (x1b, y1b), (0, 0, 0), -1)
+            # miesza overlay, uzyskujac polprzezroczyste tlo
+            alpha = 0.35
+            cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
+            # bialy tekst z cieniem/obrysem
+            cv2.putText(
+                frame,
+                label,
+                (tx + 1, ty + 1),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                (0, 0, 0),
+                2,
+            )
+            cv2.putText(
+                frame,
+                label,
+                (tx, ty),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                (255, 255, 255),
+                2,
+            )
+        except Exception as e:
+            # nie przerywa renderu w razie braku pol
+            logger.debug("draw_volume_at_tips error: %s", e)

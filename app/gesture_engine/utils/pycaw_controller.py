@@ -52,3 +52,45 @@ def get_system_volume() -> int:
         return 0
     scalar = volume.GetMasterVolumeLevelScalar()
     return int(max(0.0, min(1.0, float(scalar or 0.0))) * 100)
+
+
+def poke_volume_osd() -> None:
+    """Probuje wywolac systemowe OSD glosnosci na Windows bez zmiany stanu.
+
+    Realizuje to przez wyslanie komunikatow WM_APPCOMMAND (UP i DOWN), aby efekt netto byl zerowy.
+    W razie braku win32gui uzywa ctypes. Ciche no-op jesli cokolwiek sie nie powiedzie lub nie-Windows.
+    """
+    if sys.platform != "win32":  # pragma: no cover
+        return
+    try:
+        try:
+            import win32gui
+        except Exception:
+            win32gui = None
+        WM_APPCOMMAND = 0x0319
+        APPCOMMAND_VOLUME_UP = 0x0A
+        APPCOMMAND_VOLUME_DOWN = 0x09
+        lparam_up = APPCOMMAND_VOLUME_UP << 16
+        lparam_down = APPCOMMAND_VOLUME_DOWN << 16
+        hwnd = 0
+        if win32gui is not None:  # pragma: no cover
+            try:
+                hwnd = int(win32gui.GetForegroundWindow())
+                win32gui.PostMessage(hwnd, WM_APPCOMMAND, 0, lparam_up)
+                win32gui.PostMessage(hwnd, WM_APPCOMMAND, 0, lparam_down)
+                return
+            except Exception as e:
+                logger.debug("poke_volume_osd win32gui error: %s", e)
+        # fallback: ctypes
+        try:  # pragma: no cover
+            import ctypes
+
+            user32 = ctypes.windll.user32
+            hwnd = user32.GetForegroundWindow()
+            user32.PostMessageW(hwnd, WM_APPCOMMAND, 0, lparam_up)
+            user32.PostMessageW(hwnd, WM_APPCOMMAND, 0, lparam_down)
+        except Exception:
+            # cichy no-op; nie logujemy na ERROR by nie spamowac
+            logger.debug("poke_volume_osd: PostMessageW failed")
+    except Exception as e:  # pragma: no cover
+        logger.debug("poke_volume_osd error: %s", e)

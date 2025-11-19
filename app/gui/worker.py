@@ -120,6 +120,16 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
                 logger.debug("reset_hooks_state error: %s", e)
             try:
                 reload_gesture_detectors()
+                # po reloadzie detektorow podmienia wskaznik hooks.volume_state na biezacy z modulu gestures
+                try:
+                    from app.gesture_engine.core import hooks as _hooks_mod
+                    from app.gesture_engine.gestures.volume_gesture import (
+                        volume_state as _vs,
+                    )
+
+                    _hooks_mod.volume_state = _vs
+                except Exception as e2:
+                    logger.debug("volume_state rebind after reload error: %s", e2)
             except Exception as e:
                 logger.debug("reload_gesture_detectors error: %s", e)
             super().start()
@@ -145,6 +155,18 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
                 )
 
                 caps = detect_action_capabilities()
+                # automatycznie wlacza sterowanie systemowa glosnoscia, jesli pycaw jest dostepne i akcje sa wlaczone
+                try:
+                    from app.gesture_engine.gestures.volume_gesture import (
+                        volume_state as _vs,
+                    )
+
+                    _vs["apply_system"] = bool(
+                        caps.get("pycaw", (False, ""))[0]
+                    ) and bool(self._actions_enabled)
+                except Exception as e:
+                    logger.debug("set apply_system failed: %s", e)
+
                 missing = [name for name, (ok, _msg) in caps.items() if not ok]
                 if missing:
                     self.status.emit(
@@ -201,6 +223,21 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
                         if now - last_reload >= RELOAD_DETECTORS_SEC:
                             try:
                                 reload_gesture_detectors()
+                                # po reloadzie ponownie podmienia referencje volume_state w hookach
+                                try:
+                                    from app.gesture_engine.core import (
+                                        hooks as _hooks_mod,
+                                    )
+                                    from app.gesture_engine.gestures.volume_gesture import (
+                                        volume_state as _vs,
+                                    )
+
+                                    _hooks_mod.volume_state = _vs
+                                except Exception as e2:
+                                    logger.debug(
+                                        "volume_state rebind after periodic reload error: %s",
+                                        e2,
+                                    )
                             except Exception as e:
                                 logger.debug(
                                     "periodic reload_gesture_detectors error: %s", e
