@@ -29,6 +29,11 @@ Date: 2025-11-23
 - pip check
   - No conflicts reported by `pip check`.
 
+- pip-audit
+  - Output of local `pip-audit`: Found 1 known vulnerability in 1 package
+    - pip 25.1.1 — ID: GHSA-4xh5-x5gv-qwph — Fix versions: 25.3
+  - Recommendation: upgrade pip to >=25.3 in environments (e.g. run `python -m pip install --upgrade pip` in virtualenvs and ensure CI updates pip before installing dependencies). Consider re-running `pip-audit` after upgrades.
+
 - python -m compileall
   - Repository compiled; no syntax errors found. (Output was long; no compile-time exceptions were raised.)
 
