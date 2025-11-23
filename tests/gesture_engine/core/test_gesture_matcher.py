@@ -50,7 +50,7 @@ def test_static_matcher_activates_and_deactivates(monkeypatch, gestures_minimal)
 
     m = StaticGestureMatcher(gestures_minimal)
 
-    # pierwsze wywolanie: aktywacja przynajmniej jednego gestu
+    # pierwsze wywolanie aktywuje co najmniej jeden gest
     monkeypatch.setattr(
         "app.gesture_engine.core.gesture_matcher.curl_score", curl_side_effect
     )

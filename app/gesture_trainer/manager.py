@@ -8,7 +8,7 @@ MAP_PATH = Path(__file__).parent / "data" / "gesture_action_map.json"
 
 
 def assign_action(gesture_name, action_name):
-    """Przypisuje akcję do gestu"""
+    # przypisuje akcje do gestu
     if MAP_PATH.exists():
         with open(MAP_PATH) as f:
             mapping = json.load(f)

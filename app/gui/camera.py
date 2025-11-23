@@ -7,12 +7,10 @@ from app.gesture_engine.logger import logger
 
 
 def discover_cameras(max_index: int = 10) -> list[int]:
-    """Wykrywa dostepne kamery do podanego indeksu.
-
-    - zwraca liste indeksow kamer, ktore dalo sie otworzyc
-    - uzywa cv2 jesli jest dostepne; w przeciwnym razie zwraca pusta liste
-    - na Windows preferuje backend DirectShow (CAP_DSHOW), aby uniknac problemow MSMF
-    """
+    # wykrywa dostepne kamery do podanego indeksu
+    # zwraca liste indeksow kamer ktore udalo sie otworzyc
+    # uzywa cv2 jesli dostepne inaczej zwraca pusta liste
+    # na windows preferuje backend directShow aby uniknac problemow msmf
     try:  # pragma: no cover
         import cv2
     except Exception:
@@ -41,10 +39,8 @@ def discover_cameras(max_index: int = 10) -> list[int]:
 
 
 def _win_list_camera_names() -> list[str]:
-    """pobiera nazwy kamer z WMI (Windows) - best-effort; moze zwrocic pusta liste
-
-    korzysta z pywin32 (win32com.client). brak dodatkowych zaleznosci.
-    """
+    # pobiera nazwy kamer z wmi (windows) best-effort moze zwrocic pusta liste
+    # korzysta z pywin32 win32com.client bez dodatkowych zaleznosci
     try:
         if sys.platform != "win32":
             return []
@@ -79,12 +75,9 @@ def _win_list_camera_names() -> list[str]:
 
 
 def discover_camera_names(max_index: int = 10) -> List[Tuple[int, str]]:
-    """Zwraca liste par (index, nazwa) do wyswietlenia w GUI.
-
-    - na Windows proboje pobrac nazwy urzadzen przez WMI
-    - mapuje nazwy do wykrytych indeksow w kolejnosci, jesli liczba sie zgadza
-    - w przeciwnym razie uzywa domyslnych etykiet "Kamera {idx}"
-    """
+    # zwraca liste par (index nazwa) do wyswietlenia w gui
+    # na windows probuje pobrac nazwy urzadzen przez wmi
+    # mapuje nazwy do wykrytych indeksow gdy liczba sie zgadza inaczej stosuje etykiety "Kamera {idx}"
     indices = discover_cameras(max_index=max_index)
     names: list[str] = []
     if sys.platform == "win32":  # pragma: no cover
@@ -101,12 +94,9 @@ def discover_camera_names(max_index: int = 10) -> List[Tuple[int, str]]:
 
 
 def discover_camera_sources(max_index: int = 10) -> List[Tuple[Union[int, str], str]]:
-    """Zwraca zrodla kamer do GUI: (source, display_name).
-
-    - na Windows uzywa nazw z WMI jako etykiet, ale zrodlem pozostaje indeks
-    - zawsze zwraca indeksy jako source; to jest zgodne z OpenCV
-    - skanowanie indeksow wykonywane tylko gdy worker nie pracuje (steruje GUI)
-    """
+    # zwraca zrodla kamer do gui (source display_name)
+    # na windows uzywa nazw z wmi jako etykiet ale zrodlem pozostaje indeks
+    # zawsze zwraca indeksy jako source zgodne z opencv
     indices = discover_cameras(max_index=max_index)
     names: list[str] = []
     if sys.platform == "win32":  # pragma: no cover

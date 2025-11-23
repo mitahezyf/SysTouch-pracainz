@@ -1,3 +1,4 @@
+# style gui (dark)
 DARK_STYLESHEET = """
 QWidget { background-color: #121212; color: #E0E0E0; }
 QPushButton { background-color: #1F1F1F; border: 1px solid #333; padding: 6px 10px; }

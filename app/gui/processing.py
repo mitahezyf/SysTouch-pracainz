@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Optional, Tuple
+from typing import List, Optional, Protocol, Tuple
 
 from app.gesture_engine.core.handlers import gesture_handlers
 from app.gesture_engine.detector.gesture_detector import detect_gesture
@@ -9,25 +9,38 @@ from app.gesture_engine.utils.visualizer import Visualizer
 from app.gui.models import GestureResult, SingleHandResult
 
 
-def detect_and_draw(
-    frame_bgr, tracker, json_runtime, visualizer: Visualizer, preview_enabled: bool
-) -> Tuple[object, GestureResult, List[SingleHandResult]]:
-    """Wykrywa gesty (dla wielu rak) i rysuje wizualizacje na klatce.
+class TranslatorLike(Protocol):
+    def predict(self, normalized_landmarks: list[float]) -> str: ...
 
-    zwraca: (display_frame, GestureResult dla UI, lista wynikow per reka)
-    """
+
+class NormalizerLike(Protocol):
+    def normalize(self, landmarks) -> list[float]: ...
+
+
+def detect_and_draw(
+    frame_bgr,
+    tracker,
+    json_runtime,
+    visualizer: Visualizer,
+    preview_enabled: bool,
+    mode: str = "gestures",
+    translator: Optional[TranslatorLike] = None,
+    normalizer: Optional[NormalizerLike] = None,
+) -> Tuple[object, GestureResult, List[SingleHandResult]]:
+    # wykrywa gesty dla wielu rak i rysuje wizualizacje na klatce
+    # zwraca tuple: (display_frame, wynik globalny, lista wynikow per reka)
     import cv2  # lokalny import
 
     frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
-    # tworzy kopie tylko gdy rysuje podglad, inaczej zwraca oryginalna ramke
+    # tworzy kopie tylko gdy rysuje podglad inaczej zwraca oryginal
     display_frame = frame_bgr.copy() if preview_enabled else frame_bgr
 
     results = tracker.process(frame_rgb)
 
-    # wyniki per reka
+    # zbiera wyniki per reka
     per_hand: List[SingleHandResult] = []
 
-    # globalny (do UI): wybieramy najlepszy po confidence
+    # wybiera najlepszy gest globalny po confidence
     best_name: Optional[str] = None
     best_conf: float = 0.0
 
@@ -37,29 +50,41 @@ def detect_and_draw(
         for idx, hand_landmarks in enumerate(results.multi_hand_landmarks):
             gesture_name: Optional[str] = None
             confidence: float = 0.0
-
-            # preferuje json_runtime, jesli wlaczony
-            if json_runtime is not None:
-                try:
-                    lm = [
-                        (lm.x, lm.y, getattr(lm, "z", 0.0))
-                        for lm in hand_landmarks.landmark
-                    ]
-                    res = json_runtime.update(lm)
-                except Exception as e:
-                    logger.debug(f"[json] blad matchera: {e}")
-                    res = None
-                if res:
-                    gesture_name = res.get("action", {}).get("type")
-                    confidence = float(res.get("confidence", 1.0))
-
-            if gesture_name is None:
-                gesture = detect_gesture(hand_landmarks.landmark)
-                if gesture:
-                    gesture_name, confidence = gesture
+            points = [
+                (lm.x, lm.y, getattr(lm, "z", 0.0)) for lm in hand_landmarks.landmark
+            ]
+            if mode == "translator":
+                if translator and normalizer:
+                    try:
+                        norm_coords = normalizer.normalize(points)
+                        letter = translator.predict(norm_coords)
+                        gesture_name = letter
+                        confidence = 1.0
+                    except Exception as exc:
+                        logger.debug(f"[translator] wyjatek: {exc}")
+                        gesture_name = None
+                        confidence = 0.0
+                else:
+                    # brak zasobow translatora w trybie translator nie fallbackuje do gestow
+                    logger.debug("[translator] brak modelu/normalizera - pomijam gesty")
+                    gesture_name = None
+                    confidence = 0.0
             else:
-                # jesli json zwrocil typ nieobslugiwany, probuje klasyczny wykrywacz
-                if gesture_name not in gesture_handlers:
+                if json_runtime is not None:
+                    try:
+                        res = json_runtime.update(points)
+                    except Exception as exc:
+                        logger.debug(f"[json] blad matchera: {exc}")
+                        res = None
+                    if res:
+                        gesture_name = res.get("action", {}).get("type")
+                        confidence = float(res.get("confidence", 1.0))
+
+                if gesture_name is None:
+                    gesture = detect_gesture(hand_landmarks.landmark)
+                    if gesture:
+                        gesture_name, confidence = gesture
+                elif gesture_name not in gesture_handlers:
                     alt = detect_gesture(hand_landmarks.landmark)
                     if alt:
                         gesture_name, confidence = alt
@@ -67,9 +92,7 @@ def detect_and_draw(
             handed = None
             try:
                 if handed_list and idx < len(handed_list):
-                    handed = (
-                        handed_list[idx].classification[0].label
-                    )  # "Left" lub "Right"
+                    handed = handed_list[idx].classification[0].label  # Left lub Right
             except Exception:
                 handed = None
 
@@ -87,11 +110,10 @@ def detect_and_draw(
                 best_name = gesture_name
                 best_conf = confidence
 
-            # wizualizacja kazdej reki tylko gdy podglad wlaczony
+            # rysuje wizualizacje kazdej reki gdy podglad wlaczony
             if preview_enabled:
-                label_text = (
-                    f"{gesture_name}: ({confidence * 100:.1f})" if gesture_name else ""
-                )
+                label = gesture_name or ""
+                label_text = f"{label}: ({confidence * 100:.1f})" if label else ""
                 visualizer.draw_landmarks(display_frame, hand_landmarks)
                 visualizer.draw_hand_box(
                     display_frame, hand_landmarks, label=label_text

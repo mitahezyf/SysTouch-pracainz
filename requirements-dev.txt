@@ -18,3 +18,9 @@ chardet==5.2.0
 
 # GUI (MVP)
 PySide6==6.7.2
+
+# ML / PyTorch (CPU)
+# Uwaga: instalacja torch na Windows moze wymagac dopasowania do wersji Pythona i CUDA.
+# Poniżej bezpieczna wersja CPU-only; w razie potrzeby mozna zainstalowac recznie inny wariant z
+# https://pytorch.org/get-started/locally/
+torch==2.4.1

@@ -94,7 +94,7 @@ SMOOTHING_ALPHA = 0.0  # wspolczynnik wygladzania (0 = wyl.)
 PRIMARY_HAND = "Left"  # sterujaca reka: "Left" | "Right" | "Auto"
 LOG_LEVEL = "INFO"  # domyslny poziom logowania
 
-# gesty z json (opcjonalnie)
+# gesty z json (wlaczone gdy USE_JSON_GESTURES=True)
 USE_JSON_GESTURES = False  # wlacznik runtime json
 JSON_GESTURE_PATHS = [
     "app/gesture_engine/gestures_json"  # katalog z wbudowanymi definicjami

@@ -160,13 +160,13 @@ class ThreadedCapture:
 
         self.running = True
 
-        # start nowego watku do pobierania klatek
+        # uruchamia watek pobierajacy klatki z kamery
         self.thread = Thread(target=self.update, daemon=True)
         self.thread.start()
 
-    # aktualizacja ramki - frame
+    # aktualizuje ostatnia klatke (frame) w petli watku
     def update(self):
-        # interwal do docelowego FPS odczytu
+        # oblicza interwal docelowego FPS odczytu
         target_dt = 1.0 / float(TARGET_CAMERA_FPS if TARGET_CAMERA_FPS > 0 else 30)
         while self.running:
             t0 = time.perf_counter()
@@ -175,17 +175,17 @@ class ThreadedCapture:
             except Exception as e:
                 logger.debug(f"Blad odczytu klatki: {e}")
                 self.ret, self.frame = False, None
-            # prosty throttling, aby nie zapychac CPU
+            # ogranicza zuzycie CPU prostym throttlingiem
             elapsed = time.perf_counter() - t0
             sleep_for = target_dt - elapsed
             if sleep_for > 0:
                 time.sleep(sleep_for)
 
-    # zwraca ostatni frame i status
+    # zwraca ostatni frame i status powodzenia odczytu
     def read(self):
         return self.ret, self.frame
 
-    # zatrzymuje watek i zwalnia kamere
+    # zatrzymuje watek i zwalnia zasoby kamery
     def stop(self):
         self.running = False
         self.thread.join()
