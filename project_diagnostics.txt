@@ -1,0 +1,120 @@
+Project diagnostics report
+Date: 2025-11-23
+
+1) Summary (quick)
+- Unit tests: PASS — 107 passed, 0 failed
+- Lint (ruff): initial issues fixed automatically (1 file fixed)
+- Type check (mypy): PASS (no errors) with notes about untyped function bodies
+- Dependency check (pip check): no conflicts reported
+- Syntax/compile (python -m compileall): no syntax errors found
+
+2) Detailed results (collected outputs)
+- pytest
+  - Output: 107 passed, 2 warnings (DeprecationWarning from google._upb)
+  - Duration: ~4.78s
+
+- ruff
+  - Initial run reported 2 issues (imports formatting) in `_diag_import_mediapipe.py`.
+  - After edits and `ruff check . --fix` the remaining issue was fixed (1 fixed).
+  - Current state: no remaining fixable issues from the run that was made.
+
+- mypy
+  - No errors found in 101 source files.
+  - Notes (not errors) reported for untyped-function bodies in several GUI-related files; these are informational suggestions to enable `--check-untyped-defs` if stricter checking is desired.
+  - Files with notes:
+    - app/gui/worker.py
+    - app/gui/main_window.py
+  - Recommendation: add more type annotations for public functions / worker threads to improve static checks.
+
+- pip check
+  - No conflicts reported by `pip check`.
+
+- pip-audit
+  - Output of local `pip-audit`: Found 1 known vulnerability in 1 package
+    - pip 25.1.1 — ID: GHSA-4xh5-x5gv-qwph — Fix versions: 25.3
+  - Recommendation: upgrade pip to >=25.3 in environments (e.g. run `python -m pip install --upgrade pip` in virtualenvs and ensure CI updates pip before installing dependencies). Consider re-running `pip-audit` after upgrades.
+
+- python -m compileall
+  - Repository compiled; no syntax errors found. (Output was long; no compile-time exceptions were raised.)
+
+3) Items fixed automatically by this run
+- `_diag_import_mediapipe.py`: separated imports and formatted import block to satisfy ruff (I001). The file was edited to:
+  import sys
+  import traceback
+  ...
+
+4) Remaining issues / weaknesses / recommendations (actionable)
+Priority: High
+- Remove committed virtual environments from repository
+  - I noticed `.venv` and `.venvst` directories present in the workspace. These should NOT be committed into source control. They bloat the repo and can cause environment confusion.
+  - Action: add `.venv/` and `.venvst/` to `.gitignore` and remove them from the repo (git rm --cached ...). Consider using a minimal `requirements.txt` / lockfile instead.
+
+- Add CI (tests + linters)
+  - There is no CI output here. Add a GitHub Actions workflow or equivalent to run `pytest`, `ruff check`, and `mypy` on PRs to prevent regressions.
+
+- Strengthen type checking
+  - mypy reported untyped-function-body notes. Consider enabling `--check-untyped-defs` on CI, and gradually add type annotations for worker & GUI modules.
+
+Priority: Medium
+- Pin dependencies
+  - `requirements.txt` exists, but ensure versions are pinned (==) and consider adding a lockfile (pip-tools, poetry, or pipenv) to avoid environment drift.
+
+- Security scanning
+  - Run `pip-audit` or `safety` to detect known vulnerabilities in dependencies.
+
+- Add pre-commit hooks
+  - Configure `pre-commit` to run `ruff --fix`, `black`, and basic checks before commits.
+
+- Tests coverage
+  - Unit tests pass, but they likely don't exercise hardware-dependent/integration paths (camera, MediaPipe models, GUI). Add integration tests or mocks for camera input and model loading.
+
+Priority: Low / Informational
+- DEBUG_MODE = True in `app/gesture_engine/config.py`
+  - Consider defaulting to False in production or controlling via environment variable.
+
+- Hardware / environment dependencies
+  - The project depends on packages like `mediapipe`, OpenCV (`cv2`), and PySide6. These can be platform-specific and may require native binaries — document setup steps and environment expectations in README.
+
+- Large vendor files
+  - If large binaries or datasets are required (models, precomputed assets), recommend keeping them out of git and using download scripts or separate storage.
+
+5) Suggested immediate next steps (concrete)
+- Add `.gitignore` entries and remove `.venv`, `.venvst` from repository history (or at least stop tracking them):
+  - git rm -r --cached .venv .venvst
+  - echo ".venv/" >> .gitignore
+  - echo ".venvst/" >> .gitignore
+
+- Add CI workflow (GitHub Actions) to run: `pip install -r requirements-dev.txt`, `pytest -q`, `ruff check .`, `mypy .`.
+
+- Add pre-commit config and enforce formatting/linters locally.
+
+- Gradually add type hints for the GUI worker and main_window modules and enable `--check-untyped-defs` in CI when coverage is sufficient.
+
+- Run `pip-audit` and review any vulnerabilities; pin or upgrade packages accordingly.
+
+6) Commands to reproduce diagnostics locally (Windows cmd.exe)
+
+To run the full diagnostics I executed locally (these commands work in Windows cmd.exe):
+
+```cmd
+pytest -q
+ruff check . --fix
+mypy .
+python -m pip check
+python -m compileall .
+```
+
+7) Requirements coverage mapping
+- Unit tests: Done (107 passed)
+- Lint: Done (ruff issues found and fixed)
+- Typecheck: Done (no errors; notes about untyped bodies)
+- Compile: Done (no syntax errors)
+- Dependency conflicts: Done (no conflicts from pip check)
+
+If you want, mogę now:
+- dodać plik `.gitignore` i usunąć katalogi wirtualnych środowisk z repo (zrób to tylko jeśli chcesz),
+- utworzyć prosty GitHub Actions workflow do uruchamiania testów/linters,
+- przygotować konfigurację `pre-commit` z ruff/black.
+
+---
+Raport wygenerowany automatycznie przez narzędzia uruchomione lokalnie w środowisku developera.

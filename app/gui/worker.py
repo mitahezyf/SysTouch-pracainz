@@ -42,6 +42,7 @@ class ProcessingWorkerProtocol(Protocol):
         camera_index: Union[int, str],
         actions_enabled: bool,
         preview_enabled: bool,
+        mode: str,
     ) -> None: ...
     def set_actions_enabled(self, enabled: bool) -> None: ...
     def set_preview_enabled(self, enabled: bool) -> None: ...
@@ -49,10 +50,13 @@ class ProcessingWorkerProtocol(Protocol):
     def isRunning(self) -> bool: ...
     def start(self) -> None: ...
     def wait(self, msecs: int) -> None: ...
+    def set_mode(
+        self, mode: str, translator: Any | None, normalizer: Any | None
+    ) -> None: ...
 
 
 def create_processing_worker() -> ProcessingWorkerProtocol:
-    """Tworzy i zwraca QThread realizujacy przetwarzanie wideo i rozpoznanie gestow."""
+    # tworzy i zwraca qThread realizujacy przetwarzanie wideo i rozpoznanie gestow
     qtcore = importlib.import_module("PySide6.QtCore")
     qtgui = importlib.import_module("PySide6.QtGui")
 
@@ -60,7 +64,7 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
     Signal = qtcore.Signal
     QImage = qtgui.QImage
 
-    import cv2  # lokalny import, wymagany do konwersji klatek
+    import cv2  # lokalny import wymagany do konwersji klatek
 
     class ProcessingWorker(QThread):  # type: ignore[misc, valid-type]
         frameReady = Signal(QImage)
@@ -77,29 +81,58 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
             self._stop_flag = threading.Event()
             self._actions_enabled = False
             self._preview_enabled = True
-            # wewnetrzne stany do logowania zmian gestow
+            # przechowuje ostatni globalny gest i per reka
             self._last_best: Union[str, None] = None
             self._last_per_hand: dict[int, Union[str, None]] = {}
+            self._mode: str = "gestures"
+            self._translator = None
+            self._normalizer = None
 
         def configure(
             self,
             camera_index: Union[int, str],
             actions_enabled: bool,
             preview_enabled: bool,
+            mode: str,
         ) -> None:
             self._camera_index = camera_index
             self._actions_enabled = bool(actions_enabled)
             self._preview_enabled = bool(preview_enabled)
+            self._mode = mode
 
         def set_actions_enabled(self, enabled: bool) -> None:
             self._actions_enabled = bool(enabled)
             logger.info("[dispatch] actions_enabled=%s", self._actions_enabled)
-            # jesli wlaczono akcje, raportuje capabilities aby uzytkownik widzial ewentualne braki
+            # jesli wlaczono akcje raportuje capabilities aby uzytkownik widzial braki
             if self._actions_enabled:
                 self._report_capabilities()
 
         def set_preview_enabled(self, enabled: bool) -> None:
             self._preview_enabled = bool(enabled)
+
+        def set_mode(
+            self, mode: str, translator: Any | None, normalizer: Any | None
+        ) -> None:
+            # ustawia tryb pracy workera oraz referencje translatora i normalizera (dla trybu translator)
+            try:
+                self._mode = str(mode) if mode else "gestures"
+            except Exception:
+                self._mode = "gestures"
+            self._translator = translator
+            self._normalizer = normalizer
+            logger.info(
+                "[mode] ustawiono mode=%s translator=%s normalizer=%s",
+                self._mode,
+                bool(self._translator),
+                bool(self._normalizer),
+            )
+            if self._mode == "translator" and (
+                self._translator is None or self._normalizer is None
+            ):
+                try:
+                    self.status.emit("Translator niedostepny - brak modelu")
+                except Exception:
+                    pass
 
         def stop(self) -> None:
             self._stop_flag.set()
@@ -109,11 +142,10 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
             try:
                 self._stop_flag.clear()
             except Exception:
-                # w razie gdyby Event zostal podmieniony
                 self._stop_flag = threading.Event()
             self._last_best = None
             self._last_per_hand = {}
-            # reset globalnych hookow i przeladowanie detektorow gestow
+            # resetuje globalne hooki i przeladowuje detektory gestow
             try:
                 reset_hooks_state()
             except Exception as e:
@@ -134,13 +166,13 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
                 logger.debug("reload_gesture_detectors error: %s", e)
             super().start()
 
-        def _create_json_runtime(self):
+        def _create_json_runtime(self) -> Any | None:
             if not USE_JSON_GESTURES:
                 return None
             try:
                 from app.gesture_engine.core.gesture_runtime import GestureRuntime
 
-                rt = GestureRuntime(JSON_GESTURE_PATHS)
+                rt: Any = GestureRuntime(JSON_GESTURE_PATHS)
                 logger.info("[json] runtime gestow json wlaczony")
                 return rt
             except Exception as e:
@@ -202,14 +234,12 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
             json_runtime = self._create_json_runtime()
 
             self.startedOK.emit()
-            # po starcie raportuje capabilities, zeby uzytkownik widzial, czy akcje beda dzialac
+            # po starcie raportuje capabilities aby uzytkownik widzial czy akcje beda dzialac
             self._report_capabilities()
 
-            # licznik do okresowego przeladowania detektorow gestow
             last_reload = time.monotonic()
             failed_reads = 0
 
-            # pacing petli przetwarzania
             target_dt = (
                 1.0 / float(PROCESSING_MAX_FPS) if PROCESSING_MAX_FPS > 0 else 0.0
             )
@@ -217,7 +247,7 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
             try:
                 while not self._stop_flag.is_set():
                     loop_t0 = time.monotonic()
-                    # okresowy hot-reload gestow wg konfiguracji
+                    # okresowo hot-reloaduje gesty wg konfiguracji
                     if RELOAD_DETECTORS_SEC and RELOAD_DETECTORS_SEC > 0:
                         now = loop_t0
                         if now - last_reload >= RELOAD_DETECTORS_SEC:
@@ -247,12 +277,11 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
                     ret, frame = cap.read()
                     if not ret or frame is None:
                         failed_reads += 1
-                        # po dluzszej serii bledow przerywa, aby GUI moglo automatycznie wznowic
+                        # po dluzszej serii bledow przerywa aby gui moglo automatycznie wznowic
                         if failed_reads >= 120:
                             self.status.emit("Brak klatek z kamery - auto stop")
                             break
                         time.sleep(0.005)
-                        # pacing nawet przy braku klatki
                         if target_dt > 0.0:
                             elapsed = time.monotonic() - loop_t0
                             sleep_for = target_dt - elapsed
@@ -264,12 +293,18 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
 
                     frame = cv2.flip(frame, 1)
 
-                    # przetwarzanie + rysowanie w jednej funkcji
                     display_frame, gesture_res, per_hand = detect_and_draw(
-                        frame, tracker, json_runtime, visualizer, self._preview_enabled
+                        frame,
+                        tracker,
+                        json_runtime,
+                        visualizer,
+                        self._preview_enabled,
+                        mode=self._mode,
+                        translator=self._translator,
+                        normalizer=self._normalizer,
                     )
 
-                    # loguje zmiane najlepszego gestu (do UI)
+                    # loguje zmiane najlepszego gestu (do ui)
                     if gesture_res.name != self._last_best:
                         if self._last_best is None and gesture_res.name:
                             logger.info(
@@ -289,7 +324,7 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
                                 )
                         self._last_best = gesture_res.name
 
-                    # obsluga akcji/hookow per reka
+                    # obsluguje akcje i hooki per reka
                     if per_hand:
                         for hand in per_hand:
                             idx = getattr(hand, "index", -1)
@@ -297,7 +332,6 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
                             name = getattr(hand, "name", None)
                             conf = getattr(hand, "confidence", 0.0)
 
-                            # loguje tylko start/end na INFO; zmiany na DEBUG
                             last = self._last_per_hand.get(idx)
                             if last != name:
                                 if last is None and name is not None:
@@ -327,7 +361,6 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
                                         )
                                 self._last_per_hand[idx] = name
 
-                                # informuje hook tylko przy zmianie (takze None)
                                 try:
                                     handle_gesture_start_hook(
                                         name, hand.landmarks, frame.shape
@@ -349,7 +382,6 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
                                     bool(handler),
                                 )
 
-                            # log na DEBUG gdy gest wykryty, ale akcje sa wylaczone lub brak handlera
                             if hand.name and (
                                 not self._actions_enabled or handler is None
                             ):
@@ -365,18 +397,15 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
                                 continue
 
                             try:
-                                # loguje wywolanie akcji tylko na DEBUG i tylko gdy wlaczono logi per-klatka
                                 if LOG_PER_FRAME:
                                     logger.debug("[action] invoke '%s'", hand.name)
                                 handler(hand.landmarks, frame.shape)
                             except Exception as e:
                                 logger.debug(f"[handler] wyjatek: {e}")
 
-                    # metryki i render
                     performance.update()
 
                     if self._preview_enabled:
-                        # tylko gdy podglad wlaczony: resize + rysowanie metryk i konwersja do QImage
                         resized_frame = cv2.resize(
                             cast(Any, display_frame), (DISPLAY_WIDTH, DISPLAY_HEIGHT)
                         )
@@ -396,7 +425,6 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
                     self.hands.emit(per_hand)
                     self.metrics.emit(performance.fps, performance.frametime_ms)
 
-                    # pacing petli przetwarzania
                     if target_dt > 0.0:
                         elapsed = time.monotonic() - loop_t0
                         sleep_for = target_dt - elapsed
@@ -414,4 +442,4 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
                     logger.debug("ProcessingWorker.run: cap.stop error: %s", e)
                 self.stoppedOK.emit()
 
-    return ProcessingWorker()
+    return cast(ProcessingWorkerProtocol, ProcessingWorker())

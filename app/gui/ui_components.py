@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 @dataclass(slots=True)
 class UIRefs:
-    # trzyma referencje do kluczowych widzetow uzywanych przez MainWindow
+    # przechowuje referencje do kluczowych widzetow wykorzystywanych przez mainWindow
     title_label: object
     video_label: object
     camera_combo: object
@@ -15,19 +15,21 @@ class UIRefs:
     stop_btn: object
     exec_actions_chk: object
     preview_chk: object
+    mode_combo: object
     status_label: object
     fps_label: object
     gesture_label: object
     left_hand_label: object
     right_hand_label: object
     central_widget: object
+    # przyciski dla nagrywania alfabetu i treningu modelu jezyka migowego
+    record_btn: object
+    train_btn: object
 
 
 def build_ui(display_width: int, display_height: int) -> UIRefs:
-    """Buduje layout i zwraca referencje do elementow UI.
-
-    importuje PySide6 dynamicznie, aby uniknac zaleznosci przy imporcie modulow
-    """
+    # buduje layout i zwraca referencje do elementow ui
+    # importuje PySide6 dynamicznie aby uniknac twardej zaleznosci przy imporcie modulu
     qtcore = importlib.import_module("PySide6.QtCore")
     qtw = importlib.import_module("PySide6.QtWidgets")
 
@@ -58,6 +60,16 @@ def build_ui(display_width: int, display_height: int) -> UIRefs:
     exec_actions_chk.setChecked(True)
     preview_chk = QCheckBox("Pokaz podglad")
     preview_chk.setChecked(True)
+    mode_label = QLabel("Tryb:")
+    mode_combo = QComboBox()
+    mode_combo.addItem("Gesty", "gestures")
+    mode_combo.addItem("Tlumacz", "translator")
+    mode_combo.setCurrentIndex(0)
+
+    record_btn = QPushButton("Nagraj alfabet")
+    train_btn = QPushButton("Wytrenuj model")
+    record_btn.setToolTip("Rozpoczyna nagrywanie datasetu liter (osobny proces)")
+    train_btn.setToolTip("Trenuje model na nagranym datasiecie (osobny proces)")
 
     status_label = QLabel("Status: gotowe")
     fps_label = QLabel("FPS: 0")
@@ -72,10 +84,14 @@ def build_ui(display_width: int, display_height: int) -> UIRefs:
     top_bar.addStretch(1)
     top_bar.addWidget(exec_actions_chk)
     top_bar.addWidget(preview_chk)
+    top_bar.addWidget(mode_label)
+    top_bar.addWidget(mode_combo)
 
     ctrl_bar = QHBoxLayout()
     ctrl_bar.addWidget(start_btn)
     ctrl_bar.addWidget(stop_btn)
+    ctrl_bar.addWidget(record_btn)
+    ctrl_bar.addWidget(train_btn)
     ctrl_bar.addStretch(1)
     ctrl_bar.addWidget(fps_label)
 
@@ -105,10 +121,13 @@ def build_ui(display_width: int, display_height: int) -> UIRefs:
         stop_btn=stop_btn,
         exec_actions_chk=exec_actions_chk,
         preview_chk=preview_chk,
+        mode_combo=mode_combo,
         status_label=status_label,
         fps_label=fps_label,
         gesture_label=gesture_label,
         left_hand_label=left_hand_label,
         right_hand_label=right_hand_label,
         central_widget=central,
+        record_btn=record_btn,
+        train_btn=train_btn,
     )

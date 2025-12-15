@@ -13,7 +13,6 @@ from app.gui.worker import ProcessingWorkerProtocol, create_processing_worker
 
 class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
     def __new__(cls):  # tworzy instancje realnej klasy QMainWindow z PySide6
-        # qtcore nie jest potrzebne na tym etapie
         qtw = importlib.import_module("PySide6.QtWidgets")
         qtgui = importlib.import_module("PySide6.QtGui")
         qtcore = importlib.import_module("PySide6.QtCore")
@@ -40,35 +39,111 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                 self.stop_btn = ui.stop_btn
                 self.exec_actions_chk = ui.exec_actions_chk
                 self.preview_chk = ui.preview_chk
+                self.mode_combo = ui.mode_combo
                 self.status_label = ui.status_label
                 self.fps_label = ui.fps_label
                 self.gesture_label = ui.gesture_label
                 self.left_hand_label = ui.left_hand_label
                 self.right_hand_label = ui.right_hand_label
+                # przyciski obslugi nagrywania alfabetu i treningu modelu
+                self.record_btn = ui.record_btn
+                self.train_btn = ui.train_btn
                 self.setCentralWidget(ui.central_widget)
 
-                # worker tworzymy dopiero przy starcie, bo QThread nie jest restartowalny
+                # przechowuje referencje do workera; tworzy worker przy starcie (QThread nie jest restartowalny)
                 self.worker: ProcessingWorkerProtocol | None = None
-                # lista znanych zrodel kamer (source, name)
-                self._known_cams: list[tuple[Union[int, str], str]] = []
+                self.mode = "gestures"
+                self._translator_available = False
+                self._translator_error: str | None = None
+                self._normalizer = None
 
+                # podpina sygnaly podstawowych widzetow sterujacych
                 self.start_btn.clicked.connect(self.on_start)
                 self.stop_btn.clicked.connect(self.on_stop)
                 self.refresh_cams_btn.clicked.connect(self.populate_cameras)
                 self.exec_actions_chk.stateChanged.connect(self.on_actions_toggle)
                 self.preview_chk.stateChanged.connect(self.on_preview_toggle)
-                # restartuje przetwarzanie po zmianie kamery
+                self.mode_combo.currentIndexChanged.connect(self.on_mode_changed)
                 self.camera_combo.currentIndexChanged.connect(self.on_camera_changed)
+                # podpina sygnaly przyciskow translatora/nagrywania
+                self.record_btn.clicked.connect(self.on_record_sign_language)
+                self.train_btn.clicked.connect(self.on_train_sign_language)
 
                 self.populate_cameras()
-                # auto-start jesli kamera dostepna
+                # wykonuje auto-start jesli wykryto kamere
                 self._auto_start_if_possible()
 
-                # timer plug-and-play - odswieza liste kamer i auto-startuje/restartuje
+                # uruchamia timer odswiezania listy kamer (hot-plug)
                 self._cams_timer = QTimer(self)
                 self._cams_timer.setInterval(int(CAMERA_SCAN_INTERVAL_MS))
                 self._cams_timer.timeout.connect(self._on_cams_tick)
                 self._cams_timer.start()
+
+                self._init_translator_dependencies()
+
+            def _init_translator_dependencies(self) -> None:
+                try:
+                    sign_language = importlib.import_module(
+                        "app.sign_language.translator"
+                    )
+                    SignTranslator = getattr(sign_language, "SignTranslator")
+                    normalizer_mod = importlib.import_module(
+                        "app.gesture_trainer.normalizer"
+                    )
+                    HandNormalizerCls = getattr(normalizer_mod, "HandNormalizer")
+                    self._normalizer = HandNormalizerCls()
+                    self._translator = SignTranslator()
+                    self._translator_available = True
+                except Exception as exc:  # pragma: no cover
+                    self._translator_available = False
+                    self._translator_error = str(exc)
+                    self.mode_combo.setCurrentIndex(0)
+                    # pozostawia mode_combo aktywne aby pokazac komunikat o niedostepnosci
+                    logger.warning("[translator] niedostepny: %s", exc)
+                    try:
+                        self.status_label.setText(
+                            f"Status: Translator niedostepny ({exc.__class__.__name__})"
+                        )
+                    except Exception:
+                        pass
+
+            def on_record_sign_language(self):
+                # uruchamia proces nagrywania datasetu liter w osobnym procesie pythona
+                import os
+                import subprocess
+                import sys
+
+                try:
+                    base_dir = os.path.dirname(
+                        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                    )
+                    cmd = [sys.executable, "-m", "app.sign_language.recorder"]
+                    subprocess.Popen(cmd, cwd=base_dir)
+                    self.status_label.setText(
+                        "Status: Uruchomiono nagrywanie alfabetu (osobne okno)"
+                    )
+                except Exception as exc:
+                    self.status_label.setText(f"Status: Blad nagrywania: {exc}")
+                    logger.debug("on_record_sign_language error: %s", exc)
+
+            def on_train_sign_language(self):
+                # uruchamia trening modelu liter w osobnym procesie
+                import os
+                import subprocess
+                import sys
+
+                try:
+                    base_dir = os.path.dirname(
+                        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                    )
+                    cmd = [sys.executable, "-m", "app.sign_language.trainer"]
+                    subprocess.Popen(cmd, cwd=base_dir)
+                    self.status_label.setText(
+                        "Status: Uruchomiono trening modelu (sprawdz terminal)"
+                    )
+                except Exception as exc:
+                    self.status_label.setText(f"Status: Blad treningu: {exc}")
+                    logger.debug("on_train_sign_language error: %s", exc)
 
             # zarzadzanie workerem -------------------------------------------------
             def _connect_worker_signals(self, w: ProcessingWorkerProtocol) -> None:
@@ -148,16 +223,27 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
             def _restart_with_camera(self, cam_data: Union[int, str]) -> None:
                 actions_enabled = self.exec_actions_chk.isChecked()
                 preview_enabled = self.preview_chk.isChecked()
+                mode = self.mode_combo.currentData()
                 try:
                     self._destroy_worker()
                 except Exception as e:
                     logger.debug("_restart_with_camera: destroy error: %s", e)
                 self.worker = self._create_worker()
-                self.worker.configure(cam_data, actions_enabled, preview_enabled)
+                self.worker.configure(
+                    cam_data,
+                    actions_enabled,
+                    preview_enabled,
+                    mode if isinstance(mode, str) else "gestures",
+                )
                 # natychmiast ustawia stan akcji/podgladu przed startem
                 try:
                     self.worker.set_actions_enabled(actions_enabled)
                     self.worker.set_preview_enabled(preview_enabled)
+                    self.worker.set_mode(
+                        mode if isinstance(mode, str) else "gestures",
+                        self._translator if self._translator_available else None,
+                        self._normalizer if self._translator_available else None,
+                    )
                 except Exception as e:
                     logger.debug("_restart_with_camera: sync pre-start error: %s", e)
                 self.worker.start()
@@ -281,12 +367,22 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                     return
                 actions_enabled = self.exec_actions_chk.isChecked()
                 preview_enabled = self.preview_chk.isChecked()
+                mode = self.mode_combo.currentData()
                 self.worker = self._create_worker()
-                self.worker.configure(cam_data, actions_enabled, preview_enabled)
-                # natychmiast ustawia stan akcji/podgladu przed startem
+                self.worker.configure(
+                    cam_data,
+                    actions_enabled,
+                    preview_enabled,
+                    mode if isinstance(mode, str) else "gestures",
+                )
                 try:
                     self.worker.set_actions_enabled(actions_enabled)
                     self.worker.set_preview_enabled(preview_enabled)
+                    self.worker.set_mode(
+                        mode if isinstance(mode, str) else "gestures",
+                        self._translator if self._translator_available else None,
+                        self._normalizer if self._translator_available else None,
+                    )
                 except Exception as e:
                     logger.debug("on_start: sync pre-start error: %s", e)
                 self.worker.start()
@@ -328,12 +424,22 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                     logger.debug("on_camera_changed: disconnect error: %s", e)
                 actions_enabled = self.exec_actions_chk.isChecked()
                 preview_enabled = self.preview_chk.isChecked()
+                mode = self.mode_combo.currentData()
                 self.worker = self._create_worker()
-                self.worker.configure(cam_data, actions_enabled, preview_enabled)
-                # natychmiast ustawia stan akcji/podgladu przed startem
+                self.worker.configure(
+                    cam_data,
+                    actions_enabled,
+                    preview_enabled,
+                    mode if isinstance(mode, str) else "gestures",
+                )
                 try:
                     self.worker.set_actions_enabled(actions_enabled)
                     self.worker.set_preview_enabled(preview_enabled)
+                    self.worker.set_mode(
+                        mode if isinstance(mode, str) else "gestures",
+                        self._translator if self._translator_available else None,
+                        self._normalizer if self._translator_available else None,
+                    )
                 except Exception as e:
                     logger.debug("on_camera_changed: sync pre-start error: %s", e)
                 self.worker.start()
@@ -341,48 +447,96 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                     "Status: Przetwarzanie uruchomione (nowa kamera)"
                 )
 
-            def on_actions_toggle(self, state):
-                qtcore = importlib.import_module("PySide6.QtCore")
+            def on_actions_toggle(self, _state: int):
+                enabled = self.exec_actions_chk.isChecked()
+                worker = self.worker
+                worker_running = worker is not None and worker.isRunning()
+                if worker_running and worker is not None:  # mypy guard
+                    try:
+                        worker.set_actions_enabled(enabled)
+                    except Exception as e:
+                        logger.debug("on_actions_toggle: worker sync error: %s", e)
+                status = (
+                    "Status: Akcje włączone" if enabled else "Status: Akcje wyłączone"
+                )
+                if not worker_running:
+                    status += " (zmiana zadziała przy starcie)"
+                self.status_label.setText(status)
+
+            def on_preview_toggle(self, _state: int):
+                enabled = self.preview_chk.isChecked()
+                worker = self.worker
+                worker_running = worker is not None and worker.isRunning()
+                if worker_running and worker is not None:  # mypy guard
+                    try:
+                        worker.set_preview_enabled(enabled)
+                    except Exception as e:
+                        logger.debug("on_preview_toggle: worker sync error: %s", e)
+                status = (
+                    "Status: Podgląd włączony"
+                    if enabled
+                    else "Status: Podgląd wyłączony"
+                )
+                if not worker_running:
+                    status += " (zmiana zadziała przy starcie)"
+                self.status_label.setText(status)
+
+            def on_mode_changed(self, index: int):
+                mode = self.mode_combo.itemData(index)
+                # pozwalamy pozostac w trybie translator nawet jesli niedostepny, tylko informujemy
+                if mode == "translator" and not self._translator_available:
+                    err = self._translator_error or "Model pjm niedostepny"
+                    try:
+                        self.status_label.setText(f"Status: {err}")
+                    except Exception:
+                        pass
+                try:
+                    self.mode = str(mode)
+                except Exception:
+                    self.mode = "gestures"
                 if self.worker is not None:
                     try:
-                        is_checked = state == qtcore.Qt.CheckState.Checked
-                    except Exception:
-                        is_checked = state == qtcore.Qt.Checked
-                    self.worker.set_actions_enabled(is_checked)
-                # status UI
+                        self.worker.set_mode(
+                            self.mode,
+                            self._translator if self._translator_available else None,
+                            self._normalizer if self._translator_available else None,
+                        )
+                    except Exception as e:
+                        logger.debug("on_mode_changed: worker.set_mode error: %s", e)
+                    else:
+                        # komunikat trybu zawsze, ale gdy brak translatora, poprzedni status bledu zostaje
+                        if not (
+                            mode == "translator" and not self._translator_available
+                        ):
+                            self.status_label.setText(
+                                f"Status: Tryb {'tłumacz' if self.mode == 'translator' else 'gesty'}"
+                            )
+
+            def on_frame(self, qimg):
+                # aktualizuje podglad wideo w etykiecie
                 try:
-                    checked_now = self.exec_actions_chk.isChecked()
-                    self.status_label.setText(
-                        f"Status: Akcje {'wlaczone' if checked_now else 'wylaczone'}"
-                    )
+                    self.video_label.setPixmap(QPixmap.fromImage(qimg))
                 except Exception as e:
-                    logger.debug("on_actions_toggle: status update error: %s", e)
+                    logger.debug("on_frame: setPixmap error: %s", e)
 
-            def on_preview_toggle(self, state):
-                qtcore = importlib.import_module("PySide6.QtCore")
+            def on_status(self, text: str):
+                # aktualizuje status w ui
                 try:
-                    enabled = state == qtcore.Qt.CheckState.Checked
-                except Exception:
-                    enabled = state == qtcore.Qt.Checked
-                if self.worker is not None:
-                    self.worker.set_preview_enabled(enabled)
-                self.video_label.setVisible(enabled)
-                if not enabled:
-                    self.video_label.setText("Podglad ukryty")
-                else:
-                    self.status_label.setText("Status: Podglad wlaczony")
+                    self.status_label.setText(f"Status: {text}")
+                except Exception as e:
+                    logger.debug("on_status: setText error: %s", e)
 
-            def on_frame(self, img):
-                # QPixmap importowane na gorze przez qtgui
-                self.video_label.setPixmap(QPixmap.fromImage(img))
-
-            def on_status(self, text):
-                self.status_label.setText(f"Status: {text}")
-
-            def on_metrics(self, fps, frametime_ms):
-                self.fps_label.setText(f"FPS: {fps} | FrameTime: {frametime_ms} ms")
+            def on_metrics(self, fps: int, frametime_ms: int):
+                # aktualizuje metryki fps i frametime
+                try:
+                    self.fps_label.setText(f"FPS: {fps} ({frametime_ms} ms)")
+                except Exception as e:
+                    logger.debug("on_metrics: setText error: %s", e)
 
             def on_gesture(self, result):
+                if self.mode == "translator" and result.name:
+                    self.gesture_label.setText(f"Translator: {result.name}")
+                    return
                 if result.name:
                     self.gesture_label.setText(
                         f"Gesture (best): {result.name} ({int(result.confidence * 100)}%)"

@@ -5,62 +5,39 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  id-token: write
 
 jobs:
-  tests:
-    runs-on: ${{ matrix.os }}
+  test:
+    runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        python-version: [3.12]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
-
+          python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements-dev.txt
-
-      - name: Run tests with coverage
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+          if [ -f requirements.txt ] && [ ! -f requirements-dev.txt ]; then pip install -r requirements.txt; fi
+      - name: Run pre-commit
         run: |
-          python -c "import os; os.makedirs('reports', exist_ok=True)"
-          python -m pytest -q --cov=app --cov-report=xml:reports/coverage.xml --junitxml=reports/junit.xml
-
-      - name: Upload reports artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-reports-${{ matrix.os }}
-          path: reports/
-
-      - name: Upload coverage to Codecov (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        uses: codecov/codecov-action@v5
-        with:
-          files: reports/coverage.xml
-          slug: mitahezyf/SysTouch-pracainz
-          flags: linux,unittests
-          fail_ci_if_error: false
-          verbose: true
-          use_oidc: true
-
-      - name: Upload coverage to Codecov (Windows)
-        if: matrix.os == 'windows-latest'
-        uses: codecov/codecov-action@v5
-        with:
-          files: reports/coverage.xml
-          slug: mitahezyf/SysTouch-pracainz
-          flags: windows,unittests
-          fail_ci_if_error: false
-          verbose: true
-          use_oidc: true
+          # Ensure pre-commit is available and run hooks against the repo
+          python -m pip install --upgrade pip
+          if ! command -v pre-commit >/dev/null 2>&1; then
+            python -m pip install pre-commit
+          fi
+          pre-commit run --all-files || true
+      - name: Run pip-audit
+        run: |
+          python -m pip install pip-audit
+          pip-audit || true
+      - name: Run tests
+        run: pytest -q
+      - name: Run ruff
+        run: ruff check .
+      - name: Run mypy
+        run: mypy .

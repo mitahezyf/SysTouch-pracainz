@@ -5,11 +5,8 @@ import sys
 
 
 def main() -> None:
-    """Uruchamia aplikacje GUI oparta o PySide6.
-
-    - sprawdza dostepnosc PySide6
-    - tworzy glowne okno i uruchamia petle zdarzen Qt
-    """
+    # uruchamia aplikacje gui oparta o pyside6
+    # sprawdza dostepnosc pyside6 tworzy glowne okno i uruchamia petle zdarzen qt
     try:
         qtw = importlib.import_module("PySide6.QtWidgets")
     except Exception as e:  # pragma: no cover - srodowiska bez PySide6

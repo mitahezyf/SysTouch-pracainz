@@ -116,6 +116,20 @@ class Visualizer:
             frame, text, (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1
         )
 
+    def draw_gesture_label(
+        self, frame, gesture_name
+    ):  # kompatybilnosc z kodem wywolujacym
+        if gesture_name:
+            cv2.putText(
+                frame,
+                f"Gesture: {gesture_name}",
+                (10, 60),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                (255, 255, 0),
+                1,
+            )
+
     # rysuje polaczenia i punkty na dloni
     def draw_landmarks(self, frame, hand_landmarks):
         mp_drawing.draw_landmarks(

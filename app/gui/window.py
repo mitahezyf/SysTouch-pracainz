@@ -4,5 +4,5 @@ from app.gui.main_window import MainWindow
 
 
 def create_main_window():
-    """Zwraca instancje wlasciwego QMainWindow zdefiniowanego dynamicznie."""
+    # zwraca instancje qMainWindow zdefiniowanego dynamicznie
     return MainWindow()

@@ -5,13 +5,13 @@ from typing import Optional, Tuple
 from app.gesture_engine.config import MOUSE_DEADZONE_PX, MOUSE_MOVING_SMOOTHING
 from app.gesture_engine.logger import logger
 
-# leniwy import pyautogui z no-op stubem
+# leniwy import pyautogui z no-op stubem (zapobiega awarii gdy brak zaleznosci)
 try:  # pragma: no cover
     import pyautogui as _pyautogui
 except Exception:  # pragma: no cover
 
     class _PyAutoGuiStub:
-        FAILSAFE: bool = False  # dodany atrybut dla zgodnosci z mypy
+        FAILSAFE: bool = False  # udostepnia atrybut dla zgodnosci z kodem
 
         def moveTo(self, *_args, **_kwargs) -> None:
             pass
@@ -23,7 +23,7 @@ except Exception:  # pragma: no cover
     pyautogui = _PyAutoGuiStub()
 else:
     pyautogui = _pyautogui
-    # wylacza failsafe (ruch do (0,0) nie powinien zatrzymywac akcji)
+    # wylacza failsafe (ruch do (0,0) nie zatrzymuje akcji)
     try:  # pragma: no cover
         pyautogui.FAILSAFE = False
     except Exception as e:
@@ -31,7 +31,7 @@ else:
 
 from app.gesture_engine.utils.landmarks import FINGER_TIPS
 
-# ostatnia zadana pozycja (cel) oraz pozycja wygladzona
+# ostatnia zadana pozycja kursora oraz pozycja wygladzona
 latest_position: Optional[Tuple[int, int]] = None
 _smoothed_position: Optional[Tuple[float, float]] = None
 
@@ -57,27 +57,27 @@ def move_worker():
             target = latest_position
 
         if target is None:
-            # brak nowego celu, odczekuje krotko
+            # brak celu – odczekuje krotko i kontynuuje
             time.sleep(0.005)
             continue
 
         tx, ty = target
 
         if _smoothed_position is None:
-            # inicjalizuje pozycje wygladzona od razu celem
+            # inicjalizuje pozycje wygladzona jako aktualny cel
             _smoothed_position = (float(tx), float(ty))
         else:
             sx, sy = _smoothed_position
             dx = tx - sx
             dy = ty - sy
 
-            # stosuje deadzone w pikselach
+            # stosuje strefe martwa (deadzone) w pikselach
             if abs(dx) < MOUSE_DEADZONE_PX and abs(dy) < MOUSE_DEADZONE_PX:
-                # ruch zbyt maly - pomija, ale nadal usypia aby nie obciazac CPU
+                # ruch zbyt maly – pomija
                 time.sleep(0.005)
                 continue
 
-            # wygladzanie eksponencjalne: nowa = alpha*stara + (1-alpha)*cel
+            # wygladza eksponencjalnie: nowa = alpha*stara + (1-alpha)*cel
             _smoothed_position = (
                 alpha * sx + (1.0 - alpha) * tx,
                 alpha * sy + (1.0 - alpha) * ty,
@@ -89,7 +89,7 @@ def move_worker():
         try:
             pyautogui.moveTo(mx, my, duration=0)
         except Exception as e:  # pragma: no cover
-            # nie przerywa watku w razie bledow pyautogui (np. failsafe)
+            # kontynuuje w razie bledow pyautogui (np. failsafe)
             logger.debug("[mouse] moveTo wyjatek: %s", e)
         else:
             if not first_move_logged:
@@ -110,7 +110,7 @@ def handle_move_mouse(landmarks, frame_shape):
     index_tip = landmarks[FINGER_TIPS["index"]]
     screen_w, screen_h = pyautogui.size()
 
-    # przelicza wspolrzedne na ekran i ogranicza do zakresu
+    # przelicza wspolrzedne czubka palca na koordynaty ekranu w zakresie
     screen_x = _clamp(int(index_tip.x * screen_w), 0, screen_w - 1)
     screen_y = _clamp(int(index_tip.y * screen_h), 0, screen_h - 1)
 

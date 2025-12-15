@@ -18,3 +18,13 @@ def normalize_landmarks(landmarks):
         vector.extend([dx, dy, dz])
 
     return vector  # zwraca finalny wektor 63-wymiarowy
+
+
+class HandNormalizer:
+    # wrapper klasowy zapewnia zgodnosc z recorder.py oczekuje metody normalize
+    # klasa owija funkcje normalize_landmarks bez zmiany jej logiki
+    def normalize(self, landmarks):
+        return normalize_landmarks(landmarks)
+
+
+__all__ = ["normalize_landmarks", "HandNormalizer"]

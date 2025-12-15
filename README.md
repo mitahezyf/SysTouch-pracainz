@@ -3,7 +3,7 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/mitahezyf/SysTouch-pracainz/ci.yml?branch=main&style=for-the-badge&logo=github)](https://github.com/mitahezyf/SysTouch-pracainz/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/codecov/c/github/mitahezyf/SysTouch-pracainz?branch=main&style=for-the-badge&logo=codecov)](https://codecov.io/gh/mitahezyf/SysTouch-pracainz)
 ![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![Windows](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white) 
+![Windows](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)
 [![CodeQL](https://img.shields.io/github/actions/workflow/status/mitahezyf/SysTouch-pracainz/codeql.yml?branch=main&label=CodeQL&style=for-the-badge&logo=github)](https://github.com/mitahezyf/SysTouch-pracainz/actions/workflows/codeql.yml)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?style=for-the-badge&logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 
