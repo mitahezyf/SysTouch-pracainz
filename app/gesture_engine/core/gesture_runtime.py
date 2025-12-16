@@ -19,11 +19,11 @@ class GestureRuntime:
     def update(
         self, frame: List[Tuple[float, float, float]]
     ) -> Optional[Dict[str, Any]]:
-        # wybiera najlepszy gest z matchera statycznego i sekwencji
+        """Wybiera gest o najwyzszym priorytecie lub confidence."""
         s = self.static.update(frame)
         q = self.seq.update(frame)
         if s and q:
-            # wybor po priorytecie lub confidence
+            # porownuje priorytet i confidence
             if int(q.get("priority", 0)) > int(s.get("priority", 0)):
                 return q
             if float(q.get("confidence", 0.0)) > float(s.get("confidence", 0.0)):

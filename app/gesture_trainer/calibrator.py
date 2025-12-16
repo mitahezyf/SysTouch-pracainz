@@ -1,4 +1,4 @@
-# oblicza wielkosc dloni (skale) na podstawie dystansu miedzy punktami landmarkow
+# mierzy wymiary dloni z landmarkow MediaPipe
 import json
 from pathlib import Path
 
@@ -9,6 +9,7 @@ CALIBRATION_PATH = Path(__file__).parent / "data" / "calibration.json"
 
 
 def calibrate(hand_landmarks):
+    """Mierzy rozmiar i szerokosc dloni z landmarkow i zapisuje do pliku."""
     wrist = hand_landmarks[WRIST]
     middle_tip = hand_landmarks[MIDDLE_TIP]
     index_mcp = hand_landmarks[INDEX_MCP]
@@ -30,6 +31,7 @@ def calibrate(hand_landmarks):
 
 
 def load_calibration():
+    """Wczytuje dane kalibracji z pliku."""
     if not CALIBRATION_PATH.exists():
         return None
     with open(CALIBRATION_PATH) as f:

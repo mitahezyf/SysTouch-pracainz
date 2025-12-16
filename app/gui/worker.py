@@ -382,6 +382,15 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
                                     bool(handler),
                                 )
 
+                            # pomijaj akcje w trybie translator (tylko rozpoznawanie liter)
+                            if self._mode == "translator":
+                                if LOG_PER_FRAME:
+                                    logger.debug(
+                                        "[action] skip '%s' (tryb translator - tylko litery)",
+                                        hand.name,
+                                    )
+                                continue
+
                             if hand.name and (
                                 not self._actions_enabled or handler is None
                             ):

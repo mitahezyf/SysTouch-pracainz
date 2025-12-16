@@ -207,6 +207,103 @@ class Visualizer:
             1,
         )
 
+    def draw_pjm_letter(
+        self, frame, letter: str, confidence: float, time_held_ms: float
+    ) -> None:
+        """
+        Rysuje duza litere PJM w prawym gornym rogu ekranu z tlem.
+
+        Args:
+            frame: klatka wideo do rysowania
+            letter: litera PJM do wyswietlenia
+            confidence: pewnosc rozpoznania (0.0-1.0)
+            time_held_ms: czas trzymania litery w milisekundach
+        """
+        try:
+            h, w = frame.shape[:2]
+
+            # formatuj tekst
+            main_text = str(letter)
+            conf_text = f"{int(confidence * 100)}%"
+            time_text = f"{int(time_held_ms)}ms"
+
+            # parametry pozycji (prawy gorny rog z marginesem)
+            margin = 20
+            font_scale_main = 2.5
+            font_scale_info = 0.7
+            thickness_main = 4
+            thickness_info = 2
+
+            # oblicz rozmiary tekstow
+            (tw_main, th_main), _ = cv2.getTextSize(
+                main_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale_main, thickness_main
+            )
+            (tw_conf, th_conf), _ = cv2.getTextSize(
+                conf_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale_info, thickness_info
+            )
+            (tw_time, th_time), _ = cv2.getTextSize(
+                time_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale_info, thickness_info
+            )
+
+            # pozycja x (prawy rog)
+            x_main = w - tw_main - margin
+            x_conf = w - tw_conf - margin
+            x_time = w - tw_time - margin
+
+            # pozycje y
+            y_main = margin + th_main
+            y_conf = y_main + 10 + th_conf
+            y_time = y_conf + 5 + th_time
+
+            # rysuj ciemne tlo (prostokat)
+            padding = 10
+            bg_x0 = x_main - padding
+            bg_y0 = margin - padding
+            bg_x1 = w - margin + padding
+            bg_y1 = y_time + padding
+
+            overlay = frame.copy()
+            cv2.rectangle(overlay, (bg_x0, bg_y0), (bg_x1, bg_y1), (0, 0, 0), -1)
+            # polprzezroczyste tlo
+            alpha = 0.6
+            cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
+
+            # rysuj duza litere (zielony kolor jak w panelu)
+            cv2.putText(
+                frame,
+                main_text,
+                (x_main, y_main),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                font_scale_main,
+                (76, 175, 80),  # zielony #4CAF50
+                thickness_main,
+            )
+
+            # rysuj confidence (bialy)
+            cv2.putText(
+                frame,
+                conf_text,
+                (x_conf, y_conf),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                font_scale_info,
+                (255, 255, 255),
+                thickness_info,
+            )
+
+            # rysuj czas (szary)
+            cv2.putText(
+                frame,
+                time_text,
+                (x_time, y_time),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                font_scale_info,
+                (136, 136, 136),
+                thickness_info,
+            )
+
+        except Exception as e:
+            logger.debug("draw_pjm_letter error: %s", e)
+
     def draw_volume_at_tips(
         self, frame, hand_landmarks, pct: int | None, phase: str | None
     ) -> None:

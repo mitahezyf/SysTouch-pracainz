@@ -10,7 +10,8 @@ from app.gui.models import GestureResult, SingleHandResult
 
 
 class TranslatorLike(Protocol):
-    def predict(self, normalized_landmarks: list[float]) -> str: ...
+    def process_frame(self, normalized_landmarks: list[float]) -> Optional[str]: ...
+    def get_state(self) -> dict: ...
 
 
 class NormalizerLike(Protocol):
@@ -54,22 +55,32 @@ def detect_and_draw(
                 (lm.x, lm.y, getattr(lm, "z", 0.0)) for lm in hand_landmarks.landmark
             ]
             if mode == "translator":
+                # tryb translator - wykrywa tylko litery PJM, nie gesty sterowania
                 if translator and normalizer:
                     try:
                         norm_coords = normalizer.normalize(points)
-                        letter = translator.predict(norm_coords)
-                        gesture_name = letter
-                        confidence = 1.0
+                        letter = translator.process_frame(norm_coords)
+
+                        if letter:
+                            gesture_name = letter
+                            state = translator.get_state()
+                            confidence = state["confidence"]
+                        else:
+                            gesture_name = None
+                            confidence = 0.0
                     except Exception as exc:
                         logger.debug(f"[translator] wyjatek: {exc}")
                         gesture_name = None
                         confidence = 0.0
                 else:
                     # brak zasobow translatora w trybie translator nie fallbackuje do gestow
-                    logger.debug("[translator] brak modelu/normalizera - pomijam gesty")
+                    logger.debug(
+                        "[translator] brak modelu/normalizera - pomijam wykrywanie"
+                    )
                     gesture_name = None
                     confidence = 0.0
             else:
+                # tryb gestures - wykrywa gesty sterowania (json + detect_gesture)
                 if json_runtime is not None:
                     try:
                         res = json_runtime.update(points)
@@ -110,7 +121,7 @@ def detect_and_draw(
                 best_name = gesture_name
                 best_conf = confidence
 
-            # rysuje wizualizacje kazdej reki gdy podglad wlaczony
+            # rysuje landmarki i ramke dla kazdej wykrytej reki
             if preview_enabled:
                 label = gesture_name or ""
                 label_text = f"{label}: ({confidence * 100:.1f})" if label else ""
@@ -118,5 +129,15 @@ def detect_and_draw(
                 visualizer.draw_hand_box(
                     display_frame, hand_landmarks, label=label_text
                 )
+
+    # rysuje duza litere PJM w prawym gornym rogu dla trybu translator
+    if mode == "translator" and preview_enabled and best_name and translator:
+        try:
+            state = translator.get_state()
+            visualizer.draw_pjm_letter(
+                display_frame, best_name, state["confidence"], state["time_held_ms"]
+            )
+        except Exception as exc:
+            logger.debug(f"[translator] blad rysowania litery: {exc}")
 
     return display_frame, GestureResult(best_name, best_conf), per_hand

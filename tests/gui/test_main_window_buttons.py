@@ -42,5 +42,5 @@ def test_main_window_has_record_and_train_buttons(monkeypatch):
     assert called["record"] is True
     assert called["train"] is True
 
-    # czyszczenie: zamyka okno bez wygaszania aplikacji (nie wywoluje app.quit())
+    # zamyka okno bez wygaszania aplikacji
     win.close()

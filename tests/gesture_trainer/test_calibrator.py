@@ -30,14 +30,14 @@ def test_calibrate_and_load(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     data = cal.calibrate(landmarks)
 
     assert tmp_file.exists()
-    # sprawdza wartosci w pliku
+    # weryfikuje wartosci zapisane w pliku
     on_disk = json.loads(tmp_file.read_text())
     assert pytest.approx(on_disk["hand_size"], rel=1e-6) == 10.0
     assert pytest.approx(on_disk["hand_width"], rel=1e-6) == 4.0
 
-    # zwraca te same dane co zapisane
+    # sprawdza czy zwraca te same dane co zapisal
     assert data == on_disk
 
-    # load_calibration zwraca to samo
+    # sprawdza czy load_calibration wczytuje poprawne dane
     loaded = cal.load_calibration()
     assert loaded == on_disk

@@ -92,7 +92,7 @@ def release_click():
     click_state["start_time"] = None
     click_state["holding"] = False
     click_state["mouse_down"] = False
-    # nie zeruje click_sent, bo test ma to zweryfikowac
+    # zachowuje click_sent dla weryfikacji w testach
     setattr(handle_click, "active", False)
 
 

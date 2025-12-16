@@ -83,6 +83,6 @@ def test_detect_and_draw_without_preview(monkeypatch):
 
     assert gesture_res.name == "click"
     assert len(per_hand) == 1
-    # rysowanie wylaczone
+    # sprawdza czy rysowanie bylo wylaczone
     assert visualizer.drawn["landmarks"] == 0
     assert visualizer.drawn["boxes"] == 0

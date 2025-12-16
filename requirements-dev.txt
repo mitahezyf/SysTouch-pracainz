@@ -24,3 +24,4 @@ PySide6==6.7.2
 # Poniżej bezpieczna wersja CPU-only; w razie potrzeby mozna zainstalowac recznie inny wariant z
 # https://pytorch.org/get-started/locally/
 torch==2.4.1
+pandas>=2.0,<3  # dla datasetu PJM

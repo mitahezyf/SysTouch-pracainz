@@ -6,7 +6,7 @@ from app.gesture_engine.gestures.volume_gesture import volume_state
 from app.gesture_engine.logger import logger
 from app.gesture_engine.utils.landmarks import FINGER_MCPS
 
-try:  # opcjonalne; tylko Windows
+try:  # importuje kontroler glosnosci dla Windows
     from app.gesture_engine.utils.pycaw_controller import (
         poke_volume_osd,
         set_system_volume,

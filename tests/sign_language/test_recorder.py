@@ -7,7 +7,7 @@ import types
 import numpy as np
 
 # testuje sign language recorder (unikalna nazwa funkcji aby uniknac konfliktu z gesture_trainer)
-# uzywa sztucznego modułu cv2 wstrzykiwanego bezposrednio do recorder_mod.cv2 (bo recorder importuje cv2 zanim test patchuje sys.modules)
+# uzywa sztucznego modulu cv2 wstrzykiwanego bezposrednio do recorder_mod.cv2 (bo recorder importuje cv2 zanim test patchuje sys.modules)
 # stateful waitKey pozwala zapisac jedna probke potem zwraca ESC aby wyjsc z petli
 
 
@@ -74,7 +74,7 @@ def test_sign_language_recorder_csv(monkeypatch):
             def get_landmarks(self):
                 return [[(0.1, 0.2, 0.0) for _ in range(21)]]
 
-        # wstrzykuje sztuczne cv2 do modułu recorder
+        # wstrzykuje sztuczne cv2 do modulu recorder
         fake_cv2.VideoCapture = VideoCapture
         fake_cv2.cvtColor = cvtColor
         fake_cv2.putText = putText

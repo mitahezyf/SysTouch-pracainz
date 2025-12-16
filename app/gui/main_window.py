@@ -48,6 +48,19 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                 # przyciski obslugi nagrywania alfabetu i treningu modelu
                 self.record_btn = ui.record_btn
                 self.train_btn = ui.train_btn
+                # panel PJM
+                self.pjm_group = ui.pjm_group
+                self.pjm_letter_label = ui.pjm_letter_label
+                self.pjm_conf_label = ui.pjm_conf_label
+                self.pjm_time_label = ui.pjm_time_label
+                self.pjm_total_label = ui.pjm_total_label
+                self.pjm_rate_label = ui.pjm_rate_label
+                self.pjm_unique_label = ui.pjm_unique_label
+                self.pjm_top_label = ui.pjm_top_label
+                self.pjm_clear_btn = ui.pjm_clear_btn
+                self.pjm_export_btn = ui.pjm_export_btn
+                self.pjm_history_edit = ui.pjm_history_edit
+                self.pjm_copy_history_btn = ui.pjm_copy_history_btn
                 self.setCentralWidget(ui.central_widget)
 
                 # przechowuje referencje do workera; tworzy worker przy starcie (QThread nie jest restartowalny)
@@ -56,6 +69,7 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                 self._translator_available = False
                 self._translator_error: str | None = None
                 self._normalizer = None
+                self._translator = None
 
                 # podpina sygnaly podstawowych widzetow sterujacych
                 self.start_btn.clicked.connect(self.on_start)
@@ -68,6 +82,10 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                 # podpina sygnaly przyciskow translatora/nagrywania
                 self.record_btn.clicked.connect(self.on_record_sign_language)
                 self.train_btn.clicked.connect(self.on_train_sign_language)
+                # podpina sygnaly panelu PJM
+                self.pjm_clear_btn.clicked.connect(self.on_pjm_clear_stats)
+                self.pjm_export_btn.clicked.connect(self.on_pjm_export_stats)
+                self.pjm_copy_history_btn.clicked.connect(self.on_pjm_copy_history)
 
                 self.populate_cameras()
                 # wykonuje auto-start jesli wykryto kamere
@@ -82,27 +100,37 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                 self._init_translator_dependencies()
 
             def _init_translator_dependencies(self) -> None:
+                # inicjalizuje translator PJM i normalizer
                 try:
                     sign_language = importlib.import_module(
                         "app.sign_language.translator"
                     )
                     SignTranslator = getattr(sign_language, "SignTranslator")
                     normalizer_mod = importlib.import_module(
-                        "app.gesture_trainer.normalizer"
+                        "app.sign_language.normalizer"
                     )
-                    HandNormalizerCls = getattr(normalizer_mod, "HandNormalizer")
-                    self._normalizer = HandNormalizerCls()
+                    MediaPipeNormalizerCls = getattr(
+                        normalizer_mod, "MediaPipeNormalizer"
+                    )
+                    self._normalizer = MediaPipeNormalizerCls()
                     self._translator = SignTranslator()
                     self._translator_available = True
+                    logger.info(
+                        "[PJM] Translator zainicjalizowany: %d klas, buffer=%d",
+                        len(self._translator.classes),
+                        self._translator.buffer_size,
+                    )
                 except Exception as exc:  # pragma: no cover
                     self._translator_available = False
                     self._translator_error = str(exc)
+                    self._translator = None
+                    self._normalizer = None
                     self.mode_combo.setCurrentIndex(0)
                     # pozostawia mode_combo aktywne aby pokazac komunikat o niedostepnosci
-                    logger.warning("[translator] niedostepny: %s", exc)
+                    logger.warning("[PJM] Translator niedostepny: %s", exc)
                     try:
                         self.status_label.setText(
-                            f"Status: Translator niedostepny ({exc.__class__.__name__})"
+                            f"Status: Translator PJM niedostepny ({exc.__class__.__name__})"
                         )
                     except Exception:
                         pass
@@ -144,6 +172,126 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                 except Exception as exc:
                     self.status_label.setText(f"Status: Blad treningu: {exc}")
                     logger.debug("on_train_sign_language error: %s", exc)
+
+            def on_pjm_copy_history(self):
+                # kopiuje historie liter do schowka
+                if not self._translator:
+                    return
+
+                try:
+                    history = self._translator.get_history(format_groups=False)
+                    if history:
+                        from PySide6.QtWidgets import QApplication
+
+                        QApplication.clipboard().setText(history)
+                        self.status_label.setText(
+                            f"Status: Skopiowano {len(history)} liter do schowka"
+                        )
+                        logger.info("[PJM] Historia skopiowana: %d liter", len(history))
+                    else:
+                        self.status_label.setText("Status: Historia jest pusta")
+                except Exception as exc:
+                    self.status_label.setText(f"Status: Blad kopiowania: {exc}")
+                    logger.error("[PJM] Blad kopiowania historii: %s", exc)
+
+            def on_pjm_clear_stats(self):
+                # czysci statystyki translatora
+                if self._translator:
+                    self._translator.reset(keep_stats=False)
+                    self._update_pjm_stats_display()
+                    self.status_label.setText("Status: Statystyki PJM wyczyszczone")
+                    logger.info("[PJM] Statystyki wyczyszczone")
+
+            def on_pjm_export_stats(self):
+                # eksportuje statystyki do pliku CSV
+                if not self._translator:
+                    return
+
+                import csv
+                import datetime
+                from pathlib import Path
+
+                try:
+                    stats = self._translator.get_statistics()
+
+                    # generuj nazwe pliku z timestamp
+                    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                    filename = f"pjm_stats_{timestamp}.csv"
+                    filepath = Path("reports") / filename
+                    filepath.parent.mkdir(exist_ok=True)
+
+                    with open(filepath, "w", newline="", encoding="utf-8") as f:
+                        writer = csv.writer(f)
+                        writer.writerow(["Litera", "Liczba_wykryc"])
+
+                        for letter, count in stats["most_common"]:
+                            writer.writerow([letter, count])
+
+                        # dodaj podsumowanie
+                        writer.writerow([])
+                        writer.writerow(["PODSUMOWANIE", ""])
+                        writer.writerow(
+                            ["Calkowite wykrycia", stats["total_detections"]]
+                        )
+                        writer.writerow(["Unikalne litery", stats["unique_letters"]])
+                        writer.writerow(
+                            ["Czas sesji (s)", f"{stats['session_duration_s']:.1f}"]
+                        )
+                        writer.writerow(
+                            ["Wykryc/min", f"{stats['detections_per_minute']:.1f}"]
+                        )
+
+                    self.status_label.setText(
+                        f"Status: Statystyki wyeksportowane do {filename}"
+                    )
+                    logger.info("[PJM] Statystyki wyeksportowane: %s", filepath)
+                except Exception as exc:
+                    self.status_label.setText(f"Status: Blad eksportu: {exc}")
+                    logger.error("[PJM] Blad eksportu statystyk: %s", exc)
+
+            def _update_pjm_stats_display(self):
+                # aktualizuje wyswietlanie statystyk w panelu PJM
+                if not self._translator:
+                    return
+
+                state = self._translator.get_state()
+
+                # aktualna litera
+                if state["current_letter"]:
+                    self.pjm_letter_label.setText(state["current_letter"])
+                    self.pjm_conf_label.setText(
+                        f"Pewnosc: {state['confidence']*100:.0f}%"
+                    )
+                    self.pjm_time_label.setText(f"Czas: {state['time_held_ms']:.0f}ms")
+                else:
+                    self.pjm_letter_label.setText("--")
+                    self.pjm_conf_label.setText("Pewnosc: --%")
+                    self.pjm_time_label.setText("Czas: 0ms")
+
+                # historia liter
+                history = self._translator.get_history(format_groups=True)
+                self.pjm_history_edit.setText(history)
+                # przewin do konca
+                self.pjm_history_edit.setCursorPosition(len(history))
+
+                # statystyki sesji
+                self.pjm_total_label.setText(
+                    f"Wykryto liter: {state['total_detections']}"
+                )
+                self.pjm_rate_label.setText(
+                    f"Wykryc/min: {state['detections_per_minute']:.1f}"
+                )
+                self.pjm_unique_label.setText(f"Unikalne: {state['unique_letters']}")
+
+                # top 5 liter
+                if self._translator.letter_stats:
+                    top5 = self._translator.letter_stats.most_common(5)
+                    top_str = ", ".join(
+                        [f"{letter}({count})" for letter, count in top5]
+                    )
+                    self.pjm_top_label.setText(f"Top 5: {top_str}")
+                else:
+                    self.pjm_top_label.setText("Top 5: --")
 
             # zarzadzanie workerem -------------------------------------------------
             def _connect_worker_signals(self, w: ProcessingWorkerProtocol) -> None:
@@ -494,6 +642,20 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                     self.mode = str(mode)
                 except Exception:
                     self.mode = "gestures"
+
+                # pokaz/ukryj panel PJM w zaleznosci od trybu
+                is_translator_mode = self.mode == "translator"
+                self.pjm_group.setVisible(is_translator_mode)
+
+                # ukryj Left/Right w trybie translator (pokazywaly gesty, nie litery)
+                self.left_hand_label.setVisible(not is_translator_mode)
+                self.right_hand_label.setVisible(not is_translator_mode)
+
+                if is_translator_mode and self._translator:
+                    # reset stanu ale zachowaj statystyki
+                    self._translator.reset(keep_stats=True)
+                    self._update_pjm_stats_display()
+
                 if self.worker is not None:
                     try:
                         self.worker.set_mode(
@@ -536,6 +698,8 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
             def on_gesture(self, result):
                 if self.mode == "translator" and result.name:
                     self.gesture_label.setText(f"Translator: {result.name}")
+                    # aktualizuj panel PJM
+                    self._update_pjm_stats_display()
                     return
                 if result.name:
                     self.gesture_label.setText(
