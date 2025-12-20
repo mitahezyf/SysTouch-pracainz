@@ -59,6 +59,7 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                 self.pjm_top_label = ui.pjm_top_label
                 self.pjm_clear_btn = ui.pjm_clear_btn
                 self.pjm_export_btn = ui.pjm_export_btn
+                self.pjm_reload_btn = ui.pjm_reload_btn
                 self.pjm_history_edit = ui.pjm_history_edit
                 self.pjm_copy_history_btn = ui.pjm_copy_history_btn
                 self.setCentralWidget(ui.central_widget)
@@ -85,6 +86,7 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                 # podpina sygnaly panelu PJM
                 self.pjm_clear_btn.clicked.connect(self.on_pjm_clear_stats)
                 self.pjm_export_btn.clicked.connect(self.on_pjm_export_stats)
+                self.pjm_reload_btn.clicked.connect(self.on_pjm_reload_model)
                 self.pjm_copy_history_btn.clicked.connect(self.on_pjm_copy_history)
 
                 self.populate_cameras()
@@ -247,6 +249,78 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                     logger.info("[PJM] Statystyki wyeksportowane: %s", filepath)
                 except Exception as exc:
                     self.status_label.setText(f"Status: Blad eksportu: {exc}")
+
+            def on_pjm_reload_model(self):
+                # przeladowuje model PJM z dysku (hot-reload)
+                logger.info("[PJM] Rozpoczynam przeladowanie modelu...")
+                self.status_label.setText("Status: Przeladowanie modelu PJM...")
+
+                try:
+                    # wymus odswiezenie importow (usuwa cache modulu)
+                    import sys
+
+                    if "app.sign_language.translator" in sys.modules:
+                        del sys.modules["app.sign_language.translator"]
+                    if "app.sign_language.normalizer" in sys.modules:
+                        del sys.modules["app.sign_language.normalizer"]
+
+                    # przeladuj translator i normalizer
+                    sign_language = importlib.import_module(
+                        "app.sign_language.translator"
+                    )
+                    SignTranslator = getattr(sign_language, "SignTranslator")
+                    normalizer_mod = importlib.import_module(
+                        "app.sign_language.normalizer"
+                    )
+                    MediaPipeNormalizerCls = getattr(
+                        normalizer_mod, "MediaPipeNormalizer"
+                    )
+
+                    # zapisz stare referencje (na wypadek bledu)
+                    old_translator = self._translator
+                    old_normalizer = self._normalizer
+
+                    # stworz nowe instancje
+                    self._normalizer = MediaPipeNormalizerCls()
+                    self._translator = SignTranslator()
+
+                    logger.info(
+                        "[PJM] Model przeladowany: %d klas, input_size=%d, buffer=%d",
+                        len(self._translator.classes),
+                        self._translator.model_input_size,
+                        self._translator.buffer_size,
+                    )
+
+                    # jesli worker istnieje i pracuje, zaktualizuj jego referencje
+                    if self.worker and self.mode == "translator":
+                        self.worker.set_mode(
+                            mode="translator",
+                            translator=self._translator,
+                            normalizer=self._normalizer,
+                        )
+                        logger.info("[PJM] Worker zaktualizowany z nowym modelem")
+
+                    self.status_label.setText(
+                        f"Status: Model przeladowany (input={self._translator.model_input_size}D, klasy={len(self._translator.classes)})"
+                    )
+
+                    # wyswietl informacje o usuniętych cechach
+                    if len(self._translator.zero_var_indices) > 0:
+                        logger.info(
+                            "[PJM] Model usunal %d cech z zerowa wariancja: %s",
+                            len(self._translator.zero_var_indices),
+                            list(self._translator.zero_var_indices),
+                        )
+
+                except Exception as exc:
+                    logger.error("[PJM] Blad przeladowania modelu: %s", exc)
+                    self.status_label.setText(
+                        f"Status: Blad przeladowania modelu: {exc}"
+                    )
+                    # przywroc stare referencje jesli sa
+                    if "old_translator" in locals():
+                        self._translator = old_translator
+                        self._normalizer = old_normalizer
                     logger.error("[PJM] Blad eksportu statystyk: %s", exc)
 
             def _update_pjm_stats_display(self):

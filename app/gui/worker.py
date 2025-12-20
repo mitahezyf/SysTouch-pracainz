@@ -187,15 +187,25 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
                 )
 
                 caps = detect_action_capabilities()
+                logger.info("[capabilities] Wykryte: %s", caps)
+
                 # automatycznie wlacza sterowanie systemowa glosnoscia, jesli pycaw jest dostepne i akcje sa wlaczone
                 try:
                     from app.gesture_engine.gestures.volume_gesture import (
                         volume_state as _vs,
                     )
 
-                    _vs["apply_system"] = bool(
-                        caps.get("pycaw", (False, ""))[0]
-                    ) and bool(self._actions_enabled)
+                    pycaw_ok = bool(caps.get("pycaw", (False, ""))[0])
+                    actions_on = bool(self._actions_enabled)
+                    apply_val = pycaw_ok and actions_on
+
+                    _vs["apply_system"] = apply_val
+                    logger.info(
+                        "[volume] apply_system=%s (pycaw=%s, actions=%s)",
+                        apply_val,
+                        pycaw_ok,
+                        actions_on,
+                    )
                 except Exception as e:
                     logger.debug("set apply_system failed: %s", e)
 

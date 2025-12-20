@@ -45,6 +45,12 @@ SHOW_DELAY = True
 # kontrola logow per-klatka (False = ogranicza tylko do start/end i kluczowych zdarzen)
 LOG_PER_FRAME = False
 
+# tryb developera (odblokowuje zaawansowane funkcje)
+# - dodawanie wlasnych datasetow migowych
+# - debugowanie modelu
+# - zaawansowana konfiguracja
+DEVELOPER_MODE = False
+
 
 # progi gestow
 CLICK_THRESHOLD = 0.5

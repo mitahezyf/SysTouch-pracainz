@@ -1,3 +1,4 @@
+import json
 import time
 from collections import Counter, deque
 from pathlib import Path
@@ -13,6 +14,7 @@ from app.sign_language.model import SignLanguageMLP
 _BASE_DIR = Path(__file__).parent
 _DEFAULT_MODEL_PATH = str(_BASE_DIR / "models" / "pjm_model.pth")
 _DEFAULT_CLASSES_PATH = str(_BASE_DIR / "models" / "classes.npy")
+_DEFAULT_META_PATH = str(_BASE_DIR / "models" / "model_meta.json")
 
 
 class SignTranslator:
@@ -56,24 +58,59 @@ class SignTranslator:
         except Exception as e:  # pragma: no cover
             raise RuntimeError(f"Nie mozna wczytac klas z: {classes_path}: {e}") from e
 
+        # wczytanie metadanych modelu (jesli istnieja) - info o usuniętych cechach
+        self.zero_var_indices = np.array([], dtype=int)
+        self.model_input_size = 63  # domyslny rozmiar
+        meta_path = Path(model_path).parent / "model_meta.json"
+
+        if meta_path.exists():
+            try:
+                with open(meta_path, "r") as f:
+                    model_meta = json.load(f)
+
+                self.model_input_size = model_meta.get("input_size", 63)
+                zero_var_list = model_meta.get("zero_var_indices", [])
+                if zero_var_list:
+                    self.zero_var_indices = np.array(zero_var_list, dtype=int)
+                    logger.debug(
+                        "Zaladowano info o %d usuniętych cechach",
+                        len(self.zero_var_indices),
+                    )
+            except Exception as e:
+                logger.warning("Nie mozna wczytac metadanych modelu: %s", e)
+
         # Wczytanie state_dict aby dynamicznie dopasowac hidden_size (testy moga miec inne niz domyslne 128)
         try:
-            state_dict = torch.load(model_path, map_location=self.device)
+            state_dict = torch.load(
+                model_path, map_location=self.device, weights_only=False
+            )
         except FileNotFoundError as e:
             raise FileNotFoundError(f"Brak pliku modelu: {model_path}") from e
         except Exception as e:  # pragma: no cover
             raise RuntimeError(f"Nie mozna wczytac modelu z: {model_path}: {e}") from e
 
-        # proba inferencji hidden_size z pierwszej warstwy
+        # proba inferencji hidden_size i input_size z pierwszej warstwy
         hidden_size = None
         w0 = state_dict.get("network.0.weight")
         if w0 is not None and hasattr(w0, "shape") and len(w0.shape) == 2:
             hidden_size = int(w0.shape[0])
+            # sprawdz input_size z wag (shape[1] to liczba wejsc)
+            inferred_input_size = int(w0.shape[1])
+            if inferred_input_size != self.model_input_size:
+                logger.warning(
+                    "Input size z metadanych (%d) != input size z wag (%d), uzywam wag",
+                    self.model_input_size,
+                    inferred_input_size,
+                )
+                self.model_input_size = inferred_input_size
+
         if hidden_size is None:
             hidden_size = 128  # fallback gdy nie znaleziono
 
         self.model = SignLanguageMLP(
-            input_size=63, hidden_size=hidden_size, num_classes=len(self.classes)
+            input_size=self.model_input_size,
+            hidden_size=hidden_size,
+            num_classes=len(self.classes),
         )
 
         # Proba strict load, a gdy brak kluczy -> strict=False + ostrzezenie
@@ -165,6 +202,12 @@ class SignTranslator:
 
         # smoothing: mediana z bufora (redukcja szumu)
         smoothed = np.median(np.array(self.frame_buffer), axis=0)
+
+        # usun cechy z zerowa wariancja (jesli model byl trenowany bez nich)
+        if len(self.zero_var_indices) > 0:
+            mask = np.ones(len(smoothed), dtype=bool)
+            mask[self.zero_var_indices] = False
+            smoothed = smoothed[mask]
 
         # predykcja na wygladzonym wektorze
         input_tensor = torch.tensor(smoothed, dtype=torch.float32).unsqueeze(0)

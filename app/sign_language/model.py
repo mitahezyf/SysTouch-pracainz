@@ -9,9 +9,10 @@ class SignLanguageMLP(nn.Module):
         self.network = nn.Sequential(
             nn.Linear(input_size, hidden_size),
             nn.ReLU(),
-            nn.Dropout(0.2),  # redukuje overtraining na malym zbiorze danych
+            nn.Dropout(0.35),  # zwiekszony dropout (bylo 0.2)
             nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
+            nn.Dropout(0.25),  # dodatkowy dropout przed wyjsciem
             nn.Linear(hidden_size, num_classes),
         )
 

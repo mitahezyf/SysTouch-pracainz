@@ -36,6 +36,7 @@ class UIRefs:
     pjm_top_label: object
     pjm_clear_btn: object
     pjm_export_btn: object
+    pjm_reload_btn: object
     pjm_history_edit: object
     pjm_copy_history_btn: object
 
@@ -193,8 +194,11 @@ def build_ui(display_width: int, display_height: int) -> UIRefs:
     pjm_buttons_layout = QHBoxLayout()
     pjm_clear_btn = QPushButton("Wyczysc")
     pjm_export_btn = QPushButton("Eksportuj")
+    pjm_reload_btn = QPushButton("Przeladuj Model")
+    pjm_reload_btn.setToolTip("Przeladowuje model PJM z dysku (po przetrenowaniu)")
     pjm_buttons_layout.addWidget(pjm_clear_btn)
     pjm_buttons_layout.addWidget(pjm_export_btn)
+    pjm_buttons_layout.addWidget(pjm_reload_btn)
     pjm_layout.addLayout(pjm_buttons_layout)
 
     pjm_group.setLayout(pjm_layout)
@@ -254,6 +258,7 @@ def build_ui(display_width: int, display_height: int) -> UIRefs:
         pjm_top_label=pjm_top_label,
         pjm_clear_btn=pjm_clear_btn,
         pjm_export_btn=pjm_export_btn,
+        pjm_reload_btn=pjm_reload_btn,
         pjm_history_edit=pjm_history_edit,
         pjm_copy_history_btn=pjm_copy_history_btn,
     )

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import List, Optional, Protocol, Tuple
 
+import numpy as np
+
 from app.gesture_engine.core.handlers import gesture_handlers
 from app.gesture_engine.detector.gesture_detector import detect_gesture
 from app.gesture_engine.logger import logger
@@ -10,12 +12,63 @@ from app.gui.models import GestureResult, SingleHandResult
 
 
 class TranslatorLike(Protocol):
+    _last_logged_letter: Optional[str]
+
     def process_frame(self, normalized_landmarks: list[float]) -> Optional[str]: ...
     def get_state(self) -> dict: ...
 
 
 class NormalizerLike(Protocol):
     def normalize(self, landmarks) -> list[float]: ...
+
+
+def log_landmark_stats(points, normalized, letter, confidence):
+    """loguje statystyki landmarkow dla debugowania wykrywania liter"""
+    # raw landmarks
+    points_arr = np.array(points)
+    logger.debug(
+        "[landmarks] RAW: shape=%s, mean=(%.3f, %.3f, %.3f), std=(%.3f, %.3f, %.3f)",
+        points_arr.shape,
+        np.mean(points_arr[:, 0]),
+        np.mean(points_arr[:, 1]),
+        np.mean(points_arr[:, 2]),
+        np.std(points_arr[:, 0]),
+        np.std(points_arr[:, 1]),
+        np.std(points_arr[:, 2]),
+    )
+
+    # normalized
+    norm_arr = np.array(normalized)
+    logger.debug(
+        "[landmarks] NORMALIZED: shape=%s, mean=%.3f, std=%.3f, min=%.3f, max=%.3f",
+        norm_arr.shape,
+        np.mean(norm_arr),
+        np.std(norm_arr),
+        np.min(norm_arr),
+        np.max(norm_arr),
+    )
+
+    # sprawdz czy cechy 3,4,5 faktycznie sa zerem
+    if len(norm_arr) >= 6:
+        logger.debug(
+            "[landmarks] Cechy [3,4,5] (powinny byc ~0): [%.6f, %.6f, %.6f]",
+            norm_arr[3],
+            norm_arr[4],
+            norm_arr[5],
+        )
+
+    # pokaz pierwsze 10 cech dla analizy
+    if len(norm_arr) >= 10:
+        logger.debug(
+            "[landmarks] Pierwsze 10 cech: %s",
+            ", ".join([f"{norm_arr[i]:.3f}" for i in range(10)]),
+        )
+
+    logger.info(
+        "[landmarks] DETECTED: letter=%s, confidence=%.2f%%",
+        letter,
+        confidence * 100,
+    )
 
 
 def detect_and_draw(
@@ -65,6 +118,17 @@ def detect_and_draw(
                             gesture_name = letter
                             state = translator.get_state()
                             confidence = state["confidence"]
+
+                            # loguj landmarks tylko przy pierwszym wykryciu litery lub zmianie
+                            # aby nie zasmiecac logow
+                            if not hasattr(translator, "_last_logged_letter"):
+                                translator._last_logged_letter = None
+
+                            if translator._last_logged_letter != letter:
+                                log_landmark_stats(
+                                    points, norm_coords, letter, confidence
+                                )
+                                translator._last_logged_letter = letter
                         else:
                             gesture_name = None
                             confidence = 0.0

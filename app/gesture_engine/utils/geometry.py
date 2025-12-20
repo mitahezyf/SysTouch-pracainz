@@ -21,3 +21,33 @@ def angle_between(p1, p2, p3):
     cos_theta = dot / (mag1 * mag2)
     cos_theta = max(min(cos_theta, 1.0), -1.0)
     return math.degrees(math.acos(cos_theta))
+
+
+def calculate_hand_roll(landmarks) -> float:
+    """oblicza kat obrotu (roll) dloni w stopniach.
+
+    metoda: mierzy kat wektora wrist->middle_mcp wzgledem osi poziomej
+    obrot w prawo (clockwise) -> dodatni, w lewo (counter-clockwise) -> ujemny
+
+    Args:
+        landmarks: lista landmarkow MediaPipe (21 punktow)
+
+    Returns:
+        kat obrotu w stopniach [-180, 180]
+    """
+    from app.gesture_engine.utils.landmarks import FINGER_MCPS, WRIST
+
+    wrist = landmarks[WRIST]
+    middle_mcp = landmarks[FINGER_MCPS["middle"]]
+
+    # wektor od wrist do middle_mcp
+    dx = middle_mcp.x - wrist.x
+    dy = middle_mcp.y - wrist.y
+
+    # kat w radianach, potem konwersja na stopnie
+    # atan2 zwraca kat wzgledem osi X (poziomej)
+    # dodatni kat = reka obrocona w prawo (w dol), ujemny = w lewo (w gore)
+    angle_rad = math.atan2(dy, dx)
+    angle_deg = math.degrees(angle_rad)
+
+    return angle_deg

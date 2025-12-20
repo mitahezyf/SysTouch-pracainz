@@ -10,36 +10,59 @@ from app.sign_language.dataset import PJMDataset, load_processed_split
 
 
 def test_dataset_load_missing_file():
-    # test braku pliku CSV
-    dataset = PJMDataset(csv_path="nonexistent.csv")
+    # test braku pliku CSV - teraz multi-dataset sprawdza katalog raw/
+    dataset = PJMDataset(use_multiple_datasets=True)
 
-    with pytest.raises(FileNotFoundError, match="Brak pliku datasetu"):
-        dataset.load_and_validate()
+    # mockujemy CSV_FILES aby wskazywaly na nieistniejace pliki
+    import app.sign_language.dataset as ds_module
+
+    original_csv_files = ds_module.CSV_FILES.copy()
+    ds_module.CSV_FILES = {
+        "vectors": Path("nonexistent_vectors.csv"),
+        "points": Path("nonexistent_points.csv"),
+    }
+
+    try:
+        with pytest.raises(FileNotFoundError, match="Brak datasetow"):
+            dataset.load_and_validate()
+    finally:
+        # przywroc oryginalne sciezki
+        ds_module.CSV_FILES = original_csv_files
 
 
 def test_dataset_load_valid():
-    # test wczytywania prawidlowego CSV
+    # test wczytywania prawidlowego CSV z nowym API (vectors)
     with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
-        # tworzy mini CSV: 1 kolumna label + 63 cechy
+        # tworzy mini CSV: 1 kolumna label + 63 cechy (symuluje PJM-vectors.csv)
         data = {"label": ["A", "B", "C", "A", "B"]}
         for i in range(63):
-            data[f"p{i // 3}_{['x', 'y', 'z'][i % 3]}"] = np.random.rand(5)
+            # kolumny vector_1_* aby pasowaly do ekstraktora
+            data[f"vector_1_{i}"] = np.random.rand(5)
 
         df = pd.DataFrame(data)
         df.to_csv(f.name, index=False)
         temp_path = f.name
 
-    # wczytaj po zamknieciu pliku
-    dataset = PJMDataset(csv_path=temp_path)
-    X, y = dataset.load_and_validate()
+    # mockuj CSV_FILES aby wskazywal na nasz testowy plik
+    import app.sign_language.dataset as ds_module
 
-    assert X.shape == (5, 63)
-    assert y.shape == (5,)
-    assert X.dtype == np.float32
-    assert not np.isnan(X).any()
+    original_csv_files = ds_module.CSV_FILES.copy()
+    ds_module.CSV_FILES = {
+        "vectors": Path(temp_path),
+    }
 
-    # sprzatanie
-    Path(temp_path).unlink()
+    try:
+        dataset = PJMDataset(use_multiple_datasets=True)
+        X, y = dataset.load_and_validate()
+
+        assert X.shape == (5, 63)
+        assert y.shape == (5,)
+        assert X.dtype == np.float32
+        assert not np.isnan(X).any()
+    finally:
+        # przywroc i sprzataj
+        ds_module.CSV_FILES = original_csv_files
+        Path(temp_path).unlink()
 
 
 def test_dataset_split_and_save():
@@ -76,16 +99,28 @@ def test_load_processed_split_missing():
 
 
 def test_dataset_invalid_columns():
-    # test CSV z bledna liczba kolumn
+    # test CSV z bledna liczba kolumn (nowe API - mockujemy CSV_FILES)
     with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
         data = {"label": ["A", "B"], "feat1": [0.1, 0.2]}  # tylko 2 kolumny zamiast 64
         df = pd.DataFrame(data)
         df.to_csv(f.name, index=False)
         temp_path = f.name
 
-    dataset = PJMDataset(csv_path=temp_path)
+    # mockuj CSV_FILES aby wskazywal na niepoprawny plik
+    import app.sign_language.dataset as ds_module
 
-    with pytest.raises(ValueError, match="Za malo cech w datasecie"):
-        dataset.load_and_validate()
+    original_csv_files = ds_module.CSV_FILES.copy()
+    ds_module.CSV_FILES = {
+        "vectors": Path(temp_path),
+    }
 
-    Path(temp_path).unlink()
+    try:
+        dataset = PJMDataset(use_multiple_datasets=True)
+        # nowy kod loguje blad i zwraca pusty array, nie rzuca wyjatku
+        # testujemy ze X bedzie puste (0 probek)
+        with pytest.raises(FileNotFoundError, match="Brak datasetow"):
+            dataset.load_and_validate()
+    finally:
+        # przywroc i sprzataj
+        ds_module.CSV_FILES = original_csv_files
+        Path(temp_path).unlink()

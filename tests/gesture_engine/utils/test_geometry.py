@@ -7,7 +7,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.gesture_engine.utils.geometry import angle_between, distance
+from app.gesture_engine.utils.geometry import (
+    angle_between,
+    calculate_hand_roll,
+    distance,
+)
 
 
 # prosty obiekt punktu z atrybutami x, y, z
@@ -51,3 +55,31 @@ def test_angle_between_zero_length_vector():
     p2 = make_point(1, 1, 1)
     p3 = make_point(2, 2, 2)
     assert angle_between(p1, p2, p3) == 0
+
+
+def test_calculate_hand_roll():
+    """testuje obliczanie kata obrotu dloni"""
+    from app.gesture_engine.utils.landmarks import FINGER_MCPS, WRIST
+
+    pts = [make_point(0.0, 0.0, 0.0) for _ in range(21)]
+
+    # poziomo w prawo (0 deg)
+    pts[WRIST] = make_point(0.0, 0.0, 0.0)
+    pts[FINGER_MCPS["middle"]] = make_point(1.0, 0.0, 0.0)
+    roll = calculate_hand_roll(pts)
+    assert abs(roll - 0.0) < 1.0
+
+    # pionowo w dol (90 deg)
+    pts[FINGER_MCPS["middle"]] = make_point(0.0, 1.0, 0.0)
+    roll = calculate_hand_roll(pts)
+    assert abs(roll - 90.0) < 1.0
+
+    # pionowo w gore (-90 deg)
+    pts[FINGER_MCPS["middle"]] = make_point(0.0, -1.0, 0.0)
+    roll = calculate_hand_roll(pts)
+    assert abs(roll - (-90.0)) < 1.0
+
+    # w lewo (-180 deg lub 180 deg)
+    pts[FINGER_MCPS["middle"]] = make_point(-1.0, 0.0, 0.0)
+    roll = calculate_hand_roll(pts)
+    assert abs(abs(roll) - 180.0) < 1.0

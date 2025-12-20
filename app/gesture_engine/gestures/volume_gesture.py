@@ -1,3 +1,4 @@
+from app.gesture_engine.logger import logger
 from app.gesture_engine.utils.geometry import distance
 from app.gesture_engine.utils.landmarks import (
     FINGER_MCPS,
@@ -27,9 +28,9 @@ def detect_volume_gesture(landmarks):
     """Wykrywa gest triggera 'volume' (bez JSON).
 
     Kryteria (heurystyka):
-    - pinch: odleglosc kciuk-wskazujacy < PINCH_RATIO * hand_size
+    - pinch: odleglosc kciuk-serdeczny < PINCH_RATIO * hand_size
     - wskazujacy i srodkowy proste (tip.y < pip.y)
-    - serdeczny i maly zgięte (tip.y - mcp.y > 0)
+    - anty-konflikt: kciuk-wskazujacy daleko (nie click)
     Zwraca ("volume", 1.0) albo None.
     """
     try:
@@ -48,7 +49,7 @@ def detect_volume_gesture(landmarks):
         # anty-konflikt z kliknieciem: kciuk+wskaz nie moga byc blisko
         index_tip = landmarks[FINGER_TIPS["index"]]
         pinch_dist_index = distance(thumb_tip, index_tip)
-        not_click = pinch_dist_index > (pinch_th * 1.1)
+        not_click = pinch_dist_index > (pinch_th * 1.5)
 
         index_straight = (
             landmarks[FINGER_TIPS["index"]].y < landmarks[FINGER_PIPS["index"]].y
@@ -57,10 +58,21 @@ def detect_volume_gesture(landmarks):
             landmarks[FINGER_TIPS["middle"]].y < landmarks[FINGER_PIPS["middle"]].y
         )
 
+        # logowanie diagnostyczne (tylko gdy blisko spełnienia warunkow)
+        if pinch_dist_ring < pinch_th * 1.2:  # blisko progu
+            logger.debug(
+                "[volume_detect] pinch=%.3f/%.3f, not_click=%s, index_str=%s, middle_str=%s",
+                pinch_dist_ring,
+                pinch_th,
+                not_click,
+                index_straight,
+                middle_straight,
+            )
+
         if pinch_ok and not_click and index_straight and middle_straight:
             return "volume", 1.0
-    except Exception:
-        # defensywnie pomija bledy danych
+    except Exception as e:
+        logger.debug("[volume_detect] error: %s", e)
         return None
 
     return None

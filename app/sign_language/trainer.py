@@ -21,6 +21,8 @@ def train(
     lr: float = 0.001,
     hidden_size: int = 128,
     batch_size: int = 32,
+    augment_low_accuracy: bool = False,
+    augment_multiplier: int = 10,
 ) -> dict:
     """
     Trenuje model MLP na datasecie PJM.
@@ -32,6 +34,8 @@ def train(
         lr: learning rate
         hidden_size: rozmiar warstwy ukrytej
         batch_size: rozmiar batcha (opcjonalnie mini-batch)
+        augment_low_accuracy: czy augmentowac litery z niska accuracy (T, H, Y, I)
+        augment_multiplier: ile razy zwiekszyc liczbe probek dla augmentowanych liter
 
     Returns:
         slownik z metrykami: accuracy, loss, num_classes
@@ -57,6 +61,35 @@ def train(
     logger.info("Test: %d probek", len(X_test))
     logger.info("Klasy: %s", list(classes))
 
+    # augmentacja dla problematycznych liter (jesli wlaczona)
+    if augment_low_accuracy:
+        logger.info(
+            "Augmentacja liter T, H, Y, I (multiplier=%d)...", augment_multiplier
+        )
+        from app.sign_language.augmenter import augment_class_samples
+
+        # mapowanie liter na indeksy klas
+        low_accuracy_letters = ["T", "H", "Y", "I"]
+        for letter in low_accuracy_letters:
+            if letter in classes:
+                class_idx = int(np.where(classes == letter)[0][0])
+                before_count = len(X_train)
+                X_train, y_train = augment_class_samples(
+                    X_train, y_train, class_idx, augment_multiplier
+                )
+                after_count = len(X_train)
+                logger.info(
+                    "Augmentowano klase %s: %d -> %d probek (+%d)",
+                    letter,
+                    before_count,
+                    after_count,
+                    after_count - before_count,
+                )
+
+        logger.info(
+            "Augmentacja zakonczona. Nowy rozmiar train: %d probek", len(X_train)
+        )
+
     # zapisuje klasy
     Path(classes_path).parent.mkdir(parents=True, exist_ok=True)
     np.save(classes_path, classes)
@@ -78,6 +111,11 @@ def train(
 
     logger.info("Model: input=%d, hidden=%d, output=%d", 63, hidden_size, num_classes)
 
+    # early stopping
+    from app.sign_language.early_stopping import EarlyStopping
+
+    early_stopping = EarlyStopping(patience=15, delta=0.005, verbose=True)
+
     # trening
     best_val_acc = 0.0
     last_loss = 0.0
@@ -96,6 +134,7 @@ def train(
             model.eval()
             with torch.no_grad():
                 val_outputs = model(X_val_t)
+                val_loss = criterion(val_outputs, y_val_t)
                 _, val_predicted = torch.max(val_outputs, 1)
                 val_acc = (val_predicted == y_val_t).sum().item() / y_val_t.size(0)
 
@@ -103,12 +142,18 @@ def train(
                     best_val_acc = val_acc
 
             logger.info(
-                "Epoch [%d/%d], Loss: %.4f, Val Acc: %.2f%%",
+                "Epoch [%d/%d], Loss: %.4f, Val Loss: %.4f, Val Acc: %.2f%%",
                 epoch + 1,
                 epochs,
                 last_loss,
+                val_loss.item(),
                 val_acc * 100,
             )
+
+            # sprawdz early stopping
+            if early_stopping(val_loss.item()):
+                logger.info("Early stopping triggered at epoch %d", epoch + 1)
+                break
 
     # ewaluuje ostateczny model na zbiorze testowym
     model.eval()
@@ -147,9 +192,52 @@ def train(
 
 
 def main():
-    # punkt wejsciowy CLI
+    # punkt wejsciowy CLI z obsluga argumentow
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Trening modelu PJM")
+    parser.add_argument(
+        "--epochs", type=int, default=100, help="liczba epok (default: 100)"
+    )
+    parser.add_argument(
+        "--lr", type=float, default=0.001, help="learning rate (default: 0.001)"
+    )
+    parser.add_argument(
+        "--hidden-size",
+        type=int,
+        default=128,
+        help="rozmiar warstwy ukrytej (default: 128)",
+    )
+    parser.add_argument(
+        "--augment",
+        action="store_true",
+        help="augmentuj litery T, H, Y, I (10x wiecej probek)",
+    )
+    parser.add_argument(
+        "--augment-multiplier",
+        type=int,
+        default=10,
+        help="mnoznik augmentacji dla slabych klas (default: 10)",
+    )
+
+    args = parser.parse_args()
+
     logger.info("Rozpoczynam trening modelu PJM...")
-    metrics = train(epochs=100, lr=0.001, hidden_size=128)
+    logger.info(
+        "Parametry: epochs=%d, lr=%.4f, hidden_size=%d, augment=%s",
+        args.epochs,
+        args.lr,
+        args.hidden_size,
+        args.augment,
+    )
+
+    metrics = train(
+        epochs=args.epochs,
+        lr=args.lr,
+        hidden_size=args.hidden_size,
+        augment_low_accuracy=args.augment,
+        augment_multiplier=args.augment_multiplier,
+    )
     logger.info("Trening zakonczony. Metryki: %s", metrics)
 
 

@@ -1,10 +1,12 @@
 import sys
-from math import atan2, degrees
+from collections import deque
+from statistics import median
 from time import monotonic
+from typing import cast
 
 from app.gesture_engine.gestures.volume_gesture import volume_state
 from app.gesture_engine.logger import logger
-from app.gesture_engine.utils.landmarks import FINGER_MCPS
+from app.gesture_engine.utils.geometry import calculate_hand_roll
 
 try:  # importuje kontroler glosnosci dla Windows
     from app.gesture_engine.utils.pycaw_controller import (
@@ -16,22 +18,37 @@ except Exception:  # pragma: no cover
     set_system_volume = None  # type: ignore[assignment]
 
 
-def _angle_index_pinky(landmarks) -> float:
-    # oblicza kat (radiany) wektora MCP index -> MCP pinky w plaszczyznie obrazu
-    a = landmarks[FINGER_MCPS["index"]]
-    b = landmarks[FINGER_MCPS["pinky"]]
-    # wektor od index do pinky
-    vx = b.x - a.x
-    vy = b.y - a.y
-    return atan2(vy, vx)
+def _get_smoothed_roll(landmarks) -> float:
+    """oblicza roll dloni z smoothingiem (mediana z ostatnich 5 wartosci)"""
+    roll = calculate_hand_roll(landmarks)
+
+    # inicjalizuj bufor jesli nie istnieje
+    if "roll_buffer" not in volume_state:
+        volume_state["roll_buffer"] = deque(maxlen=5)
+
+    buffer = cast(deque[float], volume_state["roll_buffer"])
+    buffer.append(roll)
+
+    # jesli bufor niepelny, zwroc surowa wartosc
+    if len(buffer) < 3:
+        return roll
+
+    # zwroc mediane (odporna na outliers)
+    return median(buffer)
 
 
-def _normalize_delta_deg(delta_deg: float) -> float:
-    # normalizuje kat do przedzialu [-180, 180]
+def _normalize_delta_deg(delta_deg: float, apply_dead_zone: bool = True) -> float:
+    # normalizuje kat do przedzialu [-180, 180] i opcjonalnie dodaje dead zone
     while delta_deg > 180.0:
         delta_deg -= 360.0
     while delta_deg < -180.0:
         delta_deg += 360.0
+
+    # dead zone: ±5 stopni od baseline nie zmienia wartosci
+    # tylko dla malych odchylen (nie redukujemy duzych katow)
+    if apply_dead_zone and abs(delta_deg) < 5.0:
+        return 0.0
+
     return delta_deg
 
 
@@ -42,8 +59,7 @@ def _map_angle_to_percent(delta_deg: float, range_deg: float, invert: bool) -> i
     half = max(1.0, range_deg / 2.0)
     raw = 50.0 + (delta_deg / half) * 50.0
     pct = int(max(0.0, min(100.0, raw)))
-    # kwantyzacja 5%
-    pct = int(round(pct / 5.0) * 5)
+    # kwantyzacja 1% (bylo 5%, teraz lepsza precyzja)
     return pct
 
 
@@ -52,7 +68,9 @@ def _maybe_apply_system_volume(pct: int) -> None:
     try:
         if sys.platform != "win32":  # pragma: no cover
             return
-        if not bool(volume_state.get("apply_system", False)):
+        # domyslnie True - jesli pycaw dostepny, stosuj glosnosc
+        # _report_capabilities() moze to wylaczyc jesli brak pycaw
+        if not bool(volume_state.get("apply_system", True)):
             return
         # rate limit w ms (domyslnie 50 ms)
         rate_ms = 50.0
@@ -85,44 +103,54 @@ def _maybe_apply_system_volume(pct: int) -> None:
 
 
 def handle_volume(landmarks, frame_shape):
-    """Odczytuje procent glosnosci na bazie odchylenia kata MCP index->pinky.
+    """ustawia glosnosc na bazie kata obrotu dloni (roll).
 
-    Wymagane: volume_state['phase'] == 'adjusting' (ustawiane przez hook).
-    Testy zakladaja brak modyfikacji gdy phase != 'adjusting'.
+    Prosty model bez faz - dziala jak move_mouse:
+    wykryto gest -> oblicz kat -> ustaw glosnosc NATYCHMIAST.
     """
     try:
-        if volume_state.get("phase") != "adjusting":
-            return
-        # inicjalizacja baseline
-        if volume_state.get("knob_baseline_angle_deg") is None:
-            ang0 = _angle_index_pinky(landmarks)
-            ang0_deg = degrees(ang0)
-            volume_state["knob_baseline_angle_deg"] = ang0_deg
-            volume_state["angle_deg"] = ang0_deg
-            volume_state["angle_delta_deg"] = 0.0
+        # oblicz kat obrotu dloni
+        roll = _get_smoothed_roll(landmarks)
+
+        # inicjalizacja baseline przy pierwszym wywolaniu
+        if volume_state.get("hand_roll_baseline_deg") is None:
+            volume_state["hand_roll_baseline_deg"] = roll
+            volume_state["hand_roll_deg"] = roll
+            volume_state["hand_roll_delta_deg"] = 0.0
             volume_state["pct"] = 50
-            logger.debug("[volume_action] baseline set %.2f deg -> pct=50" % ang0_deg)
+            logger.info("[volume] INIT baseline=%.2f -> pct=50", roll)
+            _maybe_apply_system_volume(50)  # ustaw na srodku od razu
             return
-        # kolejne wywolania: liczy delta
-        ang = _angle_index_pinky(landmarks)
-        ang_deg = degrees(ang)
-        base_deg = float(volume_state.get("knob_baseline_angle_deg") or 0.0)
-        delta = _normalize_delta_deg(ang_deg - base_deg)
-        volume_state["angle_deg"] = ang_deg
-        volume_state["angle_delta_deg"] = delta
+
+        # oblicz delta od baseline
+        base_deg = float(volume_state.get("hand_roll_baseline_deg") or 0.0)
+        delta = _normalize_delta_deg(roll - base_deg)
+
+        # mapuj na procent
         pct = _map_angle_to_percent(
             delta,
-            float(volume_state.get("knob_range_deg") or 180.0),
-            bool(volume_state.get("knob_invert") or False),
+            float(volume_state.get("roll_range_deg") or 90.0),
+            bool(volume_state.get("roll_invert") or False),
         )
+
+        # zapisz stan
+        volume_state["hand_roll_deg"] = roll
+        volume_state["hand_roll_delta_deg"] = delta
         volume_state["pct"] = pct
-        logger.debug(
-            "[volume_action] ang=%.2f base=%.2f delta=%.2f pct=%d"
-            % (ang_deg, base_deg, delta, pct)
+
+        logger.info(
+            "[volume] roll=%.2f base=%.2f delta=%.2f -> pct=%d",
+            roll,
+            base_deg,
+            delta,
+            pct,
         )
+
+        # USTAW GLOSNOSC NATYCHMIAST (nie czekaj na zadne fazy)
         _maybe_apply_system_volume(pct)
+
     except Exception as e:
-        logger.debug("[volume_action] error: %s" % e)
+        logger.error("[volume] error: %s", e)
 
 
 def finalize_volume_if_stable() -> bool:
