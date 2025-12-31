@@ -115,12 +115,26 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                         normalizer_mod, "MediaPipeNormalizer"
                     )
                     self._normalizer = MediaPipeNormalizerCls()
-                    self._translator = SignTranslator()
+
+                    # Translator z ZBALANSOWANYMI progami - dobra precyzja i responsywnosc
+                    # buffer_size: 7 -> wystarczajaca stabilizacja
+                    # min_hold_ms: 600 -> rozumny delay pomiedzy literami
+                    # confidence_entry: 0.70 -> dopasowane do sredniej confidence modelu (88%)
+                    # confidence_exit: 0.55 -> stabilne utrzymanie
+                    self._translator = SignTranslator(
+                        buffer_size=7,
+                        min_hold_ms=600,
+                        confidence_entry=0.70,
+                        confidence_exit=0.55,
+                        enable_dynamic_gestures=True,
+                    )
                     self._translator_available = True
                     logger.info(
-                        "[PJM] Translator zainicjalizowany: %d klas, buffer=%d",
+                        "[PJM] Translator zainicjalizowany: %d klas, buffer=%d, min_hold=%dms, conf_entry=%.2f",
                         len(self._translator.classes),
                         self._translator.buffer_size,
+                        self._translator.min_hold_ms,
+                        self._translator.confidence_entry,
                     )
                 except Exception as exc:  # pragma: no cover
                     self._translator_available = False
@@ -837,6 +851,14 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                     logger.debug("on_stopped: cams_timer.start error: %s", e)
 
             def closeEvent(self, event):  # noqa: N802
+                # zatrzymuje timer skanowania kamer
+                try:
+                    if hasattr(self, "_cams_timer") and self._cams_timer is not None:
+                        self._cams_timer.stop()
+                        logger.debug("MainWindow.closeEvent: cams_timer zatrzymany")
+                except Exception as e:
+                    logger.debug("MainWindow.closeEvent: timer stop error: %s", e)
+                # niszczy worker i zwalnia zasoby
                 try:
                     self._destroy_worker()
                 except Exception as e:

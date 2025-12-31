@@ -4,11 +4,13 @@ import time
 from typing import Any, Tuple
 
 import cv2
+import numpy as np
 
 # importuje konfiguracje i narzedzia z projektu
 from app.gesture_engine.config import (
     CAPTURE_HEIGHT,
     CAPTURE_WIDTH,
+    DEBUG_MODE,
     DISPLAY_HEIGHT,
     DISPLAY_WIDTH,
     JSON_GESTURE_PATHS,
@@ -82,7 +84,7 @@ def main() -> None:
         display_size=(DISPLAY_WIDTH, DISPLAY_HEIGHT),
     )
 
-    normalizer = _create_normalizer()
+    _create_normalizer()
     translator, translator_available = _create_translator()
     _json_runtime = _load_json_gestures()  # runtime gestow json (obecnie nieuzywany)
 
@@ -139,10 +141,24 @@ def main() -> None:
                 current_hands_ids.add(hand_id)
 
                 if translator_mode:
-                    if normalizer is not None and translator is not None:
+                    if translator is not None:
                         try:
-                            norm_coords = normalizer.normalize(hand_landmarks)
-                            predicted_letter = translator.predict(norm_coords)
+                            # Konwersja landmarkow do numpy (jesli to obiekty MediaPipe)
+                            if hasattr(hand_landmarks, "landmark"):
+                                # MediaPipe NormalizedLandmarkList
+                                lms_np = np.array(
+                                    [
+                                        [lm.x, lm.y, lm.z]
+                                        for lm in hand_landmarks.landmark
+                                    ]
+                                )
+                            else:
+                                # Lista obiektow lub krotek
+                                lms_np = np.array(
+                                    [[lm.x, lm.y, lm.z] for lm in hand_landmarks]
+                                )
+
+                            predicted_letter = translator.process_landmarks(lms_np)
                         except Exception as e:
                             predicted_letter = None
                             logger.debug(f"blad predykcji translatora: {e}")
@@ -183,7 +199,8 @@ def main() -> None:
                 resized = cv2.resize(display_frame, (DISPLAY_WIDTH, DISPLAY_HEIGHT))
                 cv2.imshow("SysTouch", resized)
             except Exception as e:
-                logger.debug(f"blad wyswietlania okna: {e}")
+                if DEBUG_MODE:
+                    logger.debug(f"blad wyswietlania okna: {e}")
                 display_enabled = False
         else:
             time.sleep(0.01)

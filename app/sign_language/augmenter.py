@@ -37,7 +37,8 @@ def rotate_landmarks(landmarks: np.ndarray, angle_deg: float) -> np.ndarray:
     # przesun z powrotem
     result = rotated + centroid
 
-    return result.flatten().astype(original_dtype)
+    flattened = result.flatten().astype(original_dtype)
+    return np.asarray(flattened, dtype=original_dtype)
 
 
 def translate_landmarks(landmarks: np.ndarray, shift_ratio: float) -> np.ndarray:
@@ -60,7 +61,8 @@ def translate_landmarks(landmarks: np.ndarray, shift_ratio: float) -> np.ndarray
 
     shifted = points + shift
 
-    return shifted.flatten()
+    result_flat: np.ndarray = shifted.flatten()
+    return result_flat
 
 
 def scale_landmarks(landmarks: np.ndarray, scale_ratio: float) -> np.ndarray:
@@ -84,7 +86,8 @@ def scale_landmarks(landmarks: np.ndarray, scale_ratio: float) -> np.ndarray:
     scaled = centered * scale_factor
     result = scaled + centroid
 
-    return result.flatten()
+    flattened_result: np.ndarray = result.flatten()
+    return flattened_result
 
 
 def add_gaussian_noise(landmarks: np.ndarray, noise_std: float) -> np.ndarray:
@@ -107,7 +110,8 @@ def add_gaussian_noise(landmarks: np.ndarray, noise_std: float) -> np.ndarray:
 
     noisy = points + noise
 
-    return noisy.flatten()
+    flattened = noisy.flatten()
+    return np.asarray(flattened, dtype=flattened.dtype)
 
 
 def augment_sample(
@@ -120,7 +124,7 @@ def augment_sample(
     """stosuje losowa kombinacje transformacji augmentacyjnych.
 
     Args:
-        landmarks: tablica shape (63,)
+        landmarks: tablica shape (63,) lub (88,) - cechy relatywne
         rotation_deg: maksymalny kat obrotu
         translation_ratio: maksymalny stosunek przesuniecia
         scale_ratio: maksymalny stosunek skalowania
@@ -129,23 +133,59 @@ def augment_sample(
     Returns:
         augmentowane landmarki
     """
-    result = landmarks.copy()
+    # dla cech 88D, wyciagamy pierwsze 63 (surowe landmarks)
+    # reszta (25 cech) to pochodne: katy, odleglosci, roll
+    if len(landmarks) == 88:
+        # ekstrahuj surowe landmarks (63D)
+        raw_landmarks = landmarks[:63].copy()
 
-    # losowy wybor transformacji (80% szansa na kazda)
-    if np.random.rand() > 0.2:
-        angle = (np.random.rand() * 2 - 1) * rotation_deg
-        result = rotate_landmarks(result, angle)
+        # augmentuj surowe landmarks
+        result = raw_landmarks.copy()
 
-    if np.random.rand() > 0.2:
-        result = translate_landmarks(result, translation_ratio)
+        # losowy wybor transformacji (80% szansa na kazda)
+        if np.random.rand() > 0.2:
+            angle = (np.random.rand() * 2 - 1) * rotation_deg
+            result = rotate_landmarks(result, angle)
 
-    if np.random.rand() > 0.2:
-        result = scale_landmarks(result, scale_ratio)
+        if np.random.rand() > 0.2:
+            result = translate_landmarks(result, translation_ratio)
 
-    if np.random.rand() > 0.2:
-        result = add_gaussian_noise(result, noise_std)
+        if np.random.rand() > 0.2:
+            result = scale_landmarks(result, scale_ratio)
 
-    return result
+        if np.random.rand() > 0.2:
+            result = add_gaussian_noise(result, noise_std)
+
+        # ponownie ekstrahuj cechy 88D z augmentowanych landmarks
+        from app.sign_language.feature_extractor import FeatureExtractor
+
+        extractor = FeatureExtractor()
+        result_reshaped = result.reshape(21, 3)
+        return extractor.extract(result_reshaped)
+
+    elif len(landmarks) == 63:
+        # legacy - 63D
+        result = landmarks.copy()
+
+        # losowy wybor transformacji (80% szansa na kazda)
+        if np.random.rand() > 0.2:
+            angle = (np.random.rand() * 2 - 1) * rotation_deg
+            result = rotate_landmarks(result, angle)
+
+        if np.random.rand() > 0.2:
+            result = translate_landmarks(result, translation_ratio)
+
+        if np.random.rand() > 0.2:
+            result = scale_landmarks(result, scale_ratio)
+
+        if np.random.rand() > 0.2:
+            result = add_gaussian_noise(result, noise_std)
+
+        return result
+    else:
+        raise ValueError(
+            f"Nieobslugiwany wymiar cech: {len(landmarks)}, oczekiwano 63 lub 88"
+        )
 
 
 def augment_class_samples(
@@ -157,7 +197,7 @@ def augment_class_samples(
     """augmentuje probki danej klasy.
 
     Args:
-        X: dane wejsciowe shape (N, 63)
+        X: dane wejsciowe shape (N, 63) lub (N, 88)
         y: etykiety shape (N,)
         class_label: indeks klasy do augmentacji
         multiplier: ile razy zwiekszyc liczbe probek tej klasy

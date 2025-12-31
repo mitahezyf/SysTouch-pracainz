@@ -1,0 +1,6 @@
+[bandit]
+# konfig bandit - security linter
+exclude_dirs = /tests/,/KOSZ/,.venv/,__pycache__/,.git/,.pytest_cache/
+skips = B101,B601
+# B101 - assert_used (OK w testach)
+# B601 - paramiko_calls (nie uzywamy)

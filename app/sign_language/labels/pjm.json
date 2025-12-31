@@ -6,5 +6,37 @@
     "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T",
     "U", "V", "W", "X", "Y", "Z"
   ],
-  "num_classes": 26
+  "num_classes": 26,
+  "gesture_types": {
+    "A": "static",
+    "B": "static",
+    "C": "static",
+    "D": "static",
+    "E": "static",
+    "F": "static",
+    "G": "static",
+    "H": "static",
+    "I": "static",
+    "J": "dynamic",
+    "K": "static",
+    "L": "static",
+    "M": "static",
+    "N": "static",
+    "O": "static",
+    "P": "static",
+    "Q": "static",
+    "R": "static",
+    "S": "static",
+    "T": "static",
+    "U": "static",
+    "V": "static",
+    "W": "static",
+    "X": "static",
+    "Y": "static",
+    "Z": "dynamic"
+  },
+  "sequences": {
+    "CH": ["C", "H"],
+    "RZ": ["R", "Z"]
+  }
 }

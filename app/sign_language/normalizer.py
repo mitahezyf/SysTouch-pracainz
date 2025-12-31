@@ -70,7 +70,7 @@ class MediaPipeNormalizer:
             logger.error("Normalizacja wygenerowala NaN lub Inf, zwracam wektor zerowy")
             return np.zeros(63, dtype=np.float32)
 
-        return result.astype(np.float32)
+        return np.asarray(result.astype(np.float32), dtype=np.float32)
 
     def normalize_batch(self, landmarks_batch: np.ndarray) -> np.ndarray:
         """
@@ -113,7 +113,7 @@ class MediaPipeNormalizer:
             invalid_mask = np.isnan(result).any(axis=1) | np.isinf(result).any(axis=1)
             result[invalid_mask] = 0.0
 
-        return result.astype(np.float32)
+        return np.asarray(result.astype(np.float32), dtype=np.float32)
 
 
 # zapewnia kompatybilnosc z API gesture_trainer.normalizer

@@ -5,9 +5,9 @@ line-length = 88
  target-version = "py312"
 
 [lint]
-select = ["E", "F", "I"]
+select = ["E", "F", "I", "T20"]  # T20 = flake8-print (zakaz printow)
 ignore = [
-  # dlugie linie – trzymamy sie formatera, nie lintera
+  # dlugie linie - trzymamy sie formatera, nie lintera
   "E501",
 ]
 fixable = ["ALL"]
@@ -19,6 +19,11 @@ known-first-party = ["app"]
 [lint.per-file-ignores]
 # W testach dopuszczamy modyfikacje sys.path przed importami
 "tests/**/*.py" = ["E402"]
+# Scripts i interactive CLI tools moga uzywac print
+"scripts/**/*.py" = ["T201"]
+"app/sign_language/recorder.py" = ["T201"]
+"tests/sign_language/test_pjm_translator.py" = ["T201"]
+"tests/utils/test_pycaw_quick.py" = ["T201"]
 
 [format]
 # Ruff format jest zgodny z Black; nie wymuszamy zmiany cudzyslowow

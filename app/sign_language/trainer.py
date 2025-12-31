@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 
+from app.gesture_engine.config import DEBUG_MODE
 from app.gesture_engine.logger import logger
 from app.sign_language.dataset import load_processed_split
 from app.sign_language.model import SignLanguageMLP
@@ -19,7 +20,7 @@ def train(
     classes_path: str = CLASSES_PATH,
     epochs: int = 100,
     lr: float = 0.001,
-    hidden_size: int = 128,
+    hidden_size: int = 256,
     batch_size: int = 32,
     augment_low_accuracy: bool = False,
     augment_multiplier: int = 10,
@@ -103,13 +104,16 @@ def train(
     y_test_t = torch.tensor(y_test, dtype=torch.long)
 
     # model i optymalizator
+    input_dim = X_train.shape[1]  # dynamicznie z danych (88D)
     model = SignLanguageMLP(
-        input_size=63, hidden_size=hidden_size, num_classes=num_classes
+        input_size=input_dim, hidden_size=hidden_size, num_classes=num_classes
     )
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
-    logger.info("Model: input=%d, hidden=%d, output=%d", 63, hidden_size, num_classes)
+    logger.info(
+        "Model: input=%d, hidden=%d, output=%d", input_dim, hidden_size, num_classes
+    )
 
     # early stopping
     from app.sign_language.early_stopping import EarlyStopping
@@ -176,12 +180,27 @@ def train(
 
     # confusion matrix
     cm = confusion_matrix(y_test_t.numpy(), test_predicted.numpy())
-    logger.debug("Confusion Matrix:\n%s", cm)
+    if DEBUG_MODE:
+        logger.debug("Confusion Matrix:\n%s", cm)
 
     # zapis modelu
     Path(model_path).parent.mkdir(parents=True, exist_ok=True)
     torch.save(model.state_dict(), model_path)
     logger.info("Model zapisany: %s", model_path)
+
+    # zapis metadanych modelu (input_size dla kompatybilnosci z translatorem)
+    import json
+
+    meta_path = Path(model_path).parent / "model_meta.json"
+    model_meta = {
+        "input_size": input_dim,
+        "hidden_size": hidden_size,
+        "num_classes": num_classes,
+        "version": "2.0_relative_features",
+    }
+    with open(meta_path, "w") as f:
+        json.dump(model_meta, f, indent=2)
+    logger.info("Metadane zapisane: %s", meta_path)
 
     return {
         "accuracy": float(test_acc),
@@ -205,8 +224,8 @@ def main():
     parser.add_argument(
         "--hidden-size",
         type=int,
-        default=128,
-        help="rozmiar warstwy ukrytej (default: 128)",
+        default=256,
+        help="rozmiar warstwy ukrytej (default: 256)",
     )
     parser.add_argument(
         "--augment",

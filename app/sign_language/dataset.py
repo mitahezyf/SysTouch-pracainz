@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 
 from app.gesture_engine.logger import logger
-from app.sign_language.normalizer import MediaPipeNormalizer
+from app.sign_language.feature_extractor import FeatureExtractor
 
 # sciezki domyslne
 DATA_DIR = Path(__file__).parent / "data"
@@ -37,7 +37,10 @@ class PJMDataset:
         self.use_multiple = use_multiple_datasets
         self.label_encoder = LabelEncoder()
         self.expected_classes = self._load_expected_classes()
-        self.normalizer = MediaPipeNormalizer()
+        self.gesture_types: dict[str, str] = {}
+        self.sequences: dict[str, list[str]] = {}
+        self._load_gesture_metadata()
+        self.feature_extractor = FeatureExtractor()
 
     def _load_expected_classes(self) -> list[str]:
         # wczytuje oczekiwane klasy z pjm.json
@@ -57,23 +60,51 @@ class PJMDataset:
                 else list("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
             )
 
+    def _load_gesture_metadata(self) -> None:
+        # wczytuje metadane typow gestow (static/dynamic) oraz sekwencji
+        if not self.labels_path.exists():
+            logger.warning("Brak pliku etykiet, wszystkie gesty domyslnie statyczne")
+            self.gesture_types = {c: "static" for c in self.expected_classes}
+            self.sequences = {}
+            return
+
+        with open(self.labels_path, encoding="utf-8") as f:
+            labels_config = json.load(f)
+
+            # gesture_types: mapa litera -> "static" lub "dynamic"
+            types_raw = labels_config.get("gesture_types", {})
+            self.gesture_types = {
+                c: types_raw.get(c, "static") for c in self.expected_classes
+            }
+
+            # sequences: dwuznaki i ich komponenty (np. CH -> [C, H])
+            self.sequences = labels_config.get("sequences", {})
+
+            logger.info(
+                "Zaladowano typy gestow: %d statycznych, %d dynamicznych",
+                sum(1 for t in self.gesture_types.values() if t == "static"),
+                sum(1 for t in self.gesture_types.values() if t == "dynamic"),
+            )
+            if self.sequences:
+                logger.info("Zaladowano sekwencje: %s", list(self.sequences.keys()))
+
     def _load_single_csv(
         self, csv_path: Path, dataset_type: str
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Wczytuje pojedynczy plik CSV i ekstrahuje cechy 63D.
+        Wczytuje pojedynczy plik CSV i ekstrahuje cechy (88D).
 
         Args:
             csv_path: sciezka do pliku CSV
             dataset_type: typ datasetu ('vectors', 'points')
 
         Returns:
-            X: macierz cech [N, 63]
+            X: macierz cech [N, 88]
             y_raw: wektor etykiet string [N]
         """
         if not csv_path.exists():
             logger.warning("Plik %s nie istnieje, pomijam", csv_path)
-            return np.array([]).reshape(0, 63), np.array([])
+            return np.array([]).reshape(0, 88), np.array([])
 
         logger.info("Wczytuje %s z %s", dataset_type, csv_path)
         df = pd.read_csv(csv_path)
@@ -86,9 +117,14 @@ class PJMDataset:
             label_col = "label"
         else:
             logger.error("Brak kolumny etykiet w %s, pomijam", csv_path)
-            return np.array([]).reshape(0, 63), np.array([])
+            empty_X = np.array([]).reshape(0, 88)
+            empty_y: np.ndarray = np.array([], dtype=object)
+            return empty_X, empty_y
 
         y_raw = df[label_col].values
+
+        # konwersja do numpy array z explicit typem
+        y_raw_array: np.ndarray = np.asarray(y_raw, dtype=object)
 
         # ekstrahuj cechy w zaleznosci od typu
         if dataset_type == "vectors":
@@ -107,13 +143,13 @@ class PJMDataset:
                     "Usunieto %d wierszy z NaN/Inf z %s", invalid_count, dataset_type
                 )
                 X = X[valid_mask]
-                y_raw = y_raw[valid_mask]
+                y_raw_array = y_raw_array[valid_mask]
 
         logger.info("Zaladowano %d probek z %s", len(X), dataset_type)
-        return X, y_raw
+        return X, y_raw_array
 
     def _extract_vectors(self, df: pd.DataFrame, label_col: str) -> np.ndarray:
-        """Ekstrahuje gotowe wektory 63D z PJM-vectors.csv"""
+        """Ekstrahuje cechy z PJM-vectors.csv (re-processing do 88D)"""
         # kolumny vector_hand_1_* lub vector_1_*
         hand1_cols = [
             col
@@ -132,10 +168,17 @@ class PJMDataset:
             logger.error(
                 "Za malo cech w PJM-vectors: %d (oczekiwano 63)", len(feature_cols)
             )
-            return np.array([]).reshape(0, 63)
+            return np.array([]).reshape(0, 88)
 
         X = df[feature_cols].values.astype(np.float32)
-        return X
+
+        # Reshape do (N, 21, 3) i ekstrakcja nowych cech
+        try:
+            X_reshaped = X.reshape(-1, 21, 3)
+            return self.feature_extractor.extract_batch(X_reshaped)
+        except Exception as e:
+            logger.error(f"Blad re-ekstrakcji cech z wektorow: {e}")
+            return np.array([]).reshape(0, 88)
 
     def _extract_and_normalize_points(
         self, df: pd.DataFrame, label_col: str
@@ -151,30 +194,30 @@ class PJMDataset:
             logger.error(
                 "Brak wymaganych kolumn point w PJM-points: %s", missing_cols[:5]
             )
-            return np.array([]).reshape(0, 63)
+            return np.array([]).reshape(0, 88)
 
         # wczytaj raw landmarki
-        raw_landmarks = df[point_cols].values.astype(np.float32)
+        raw_landmarks_flat = df[point_cols].values.astype(np.float32)
 
         # reshape do [N, 21, 3]
         try:
-            raw_landmarks = raw_landmarks.reshape(-1, 21, 3)
+            raw_landmarks = raw_landmarks_flat.reshape(-1, 21, 3)
         except ValueError as e:
             logger.error("Nie mozna przeksztalcic do (N, 21, 3): %s", e)
-            return np.array([]).reshape(0, 63)
+            return np.array([]).reshape(0, 88)
 
-        # normalizuj batch
-        logger.info("Normalizuje %d probek z PJM-points", len(raw_landmarks))
-        X_normalized = self.normalizer.normalize_batch(raw_landmarks)
+        # normalizuj batch i ekstrahuj cechy
+        logger.info("Ekstrahuje cechy z %d probek z PJM-points", len(raw_landmarks))
+        X_features = self.feature_extractor.extract_batch(raw_landmarks)
 
-        return X_normalized
+        return X_features
 
     def load_and_validate(self) -> Tuple[np.ndarray, np.ndarray]:
         """
         Wczytuje wszystkie dostepne CSV i laczy dane.
 
         Returns:
-            X: macierz cech [N, 63], dtype=float32
+            X: macierz cech [N, 88], dtype=float32
             y: wektor etykiet [N], dtype=int64 (zakodowane)
         """
         X_list = []
@@ -293,7 +336,7 @@ def load_processed_split(split: str = "train") -> Tuple[np.ndarray, np.ndarray, 
         split: nazwa splitu ('train', 'val', 'test')
 
     Returns:
-        X: macierz cech [N, 63]
+        X: macierz cech [N, 88]
         y: wektor etykiet [N]
         meta: slownik metadanych
     """

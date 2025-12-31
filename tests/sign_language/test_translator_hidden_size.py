@@ -32,13 +32,14 @@ def test_translator_fallback_hidden_size():
         classes = np.array(list("AB"))
         classes_path = os.path.join(td, "classes.npy")
         np.save(classes_path, classes)
-        # sztuczny state_dict bez network.0.weight -> fallback na 128
+        # sztuczny state_dict bez network.0.weight -> fallback na 256
+        # nowa architektura: network.12 to warstwa output (po 3 hidden + batchnorm)
         fake_state = {
-            "network.5.weight": torch.randn(len(classes), 128),
-            "network.5.bias": torch.randn(len(classes)),
+            "network.12.weight": torch.randn(len(classes), 128),  # output layer
+            "network.12.bias": torch.randn(len(classes)),
         }
         model_path = os.path.join(td, "model.pth")
         torch.save(fake_state, model_path)
         tr = SignTranslator(model_path=model_path, classes_path=classes_path)
         first_linear = tr.model.network[0]
-        assert first_linear.out_features == 128  # fallback
+        assert first_linear.out_features == 256  # fallback (bylo 128, teraz 256)

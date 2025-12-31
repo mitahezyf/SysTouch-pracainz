@@ -23,9 +23,17 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
           if [ -f requirements.txt ] && [ ! -f requirements-dev.txt ]; then pip install -r requirements.txt; fi
+      - name: Run ruff
+        run: ruff check .
+      - name: Run mypy
+        run: mypy .
+      - name: Run bandit security scan
+        run: |
+          mkdir -p reports
+          bandit -r app/ -f json -o reports/bandit-report.json || true
+          bandit -r app/ || true
       - name: Run pre-commit
         run: |
-          # Ensure pre-commit is available and run hooks against the repo
           python -m pip install --upgrade pip
           if ! command -v pre-commit >/dev/null 2>&1; then
             python -m pip install pre-commit
@@ -35,9 +43,15 @@ jobs:
         run: |
           python -m pip install pip-audit
           pip-audit || true
-      - name: Run tests
-        run: pytest -q
-      - name: Run ruff
-        run: ruff check .
-      - name: Run mypy
-        run: mypy .
+      - name: Run tests with coverage
+        run: |
+          pytest -q --cov=app --cov-report=xml:reports/coverage.xml --cov-report=term || pytest -q --no-cov
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: ./reports/coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}

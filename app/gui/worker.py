@@ -8,6 +8,7 @@ from typing import Any, Protocol, Union, cast
 from app.gesture_engine.config import (
     CAPTURE_HEIGHT,
     CAPTURE_WIDTH,
+    DEBUG_MODE,
     DISPLAY_HEIGHT,
     DISPLAY_WIDTH,
     JSON_GESTURE_PATHS,
@@ -220,7 +221,8 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
                 else:
                     self.status.emit("Akcje: wszystkie zaleznosci OK")
             except Exception as e:
-                logger.debug("capabilities check error: %s", e)
+                if DEBUG_MODE:
+                    logger.debug("capabilities check error: %s", e)
 
         def run(self) -> None:  # noqa: C901
             if self._camera_index is None:
@@ -458,7 +460,8 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
                 try:
                     cap.stop()
                 except Exception as e:
-                    logger.debug("ProcessingWorker.run: cap.stop error: %s", e)
+                    if DEBUG_MODE:
+                        logger.debug("ProcessingWorker.run: cap.stop error: %s", e)
                 self.stoppedOK.emit()
 
     return cast(ProcessingWorkerProtocol, ProcessingWorker())

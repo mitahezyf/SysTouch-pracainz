@@ -15,6 +15,7 @@ class TranslatorLike(Protocol):
     _last_logged_letter: Optional[str]
 
     def process_frame(self, normalized_landmarks: list[float]) -> Optional[str]: ...
+    def process_landmarks(self, landmarks: np.ndarray) -> Optional[str]: ...
     def get_state(self) -> dict: ...
 
 
@@ -109,10 +110,13 @@ def detect_and_draw(
             ]
             if mode == "translator":
                 # tryb translator - wykrywa tylko litery PJM, nie gesty sterowania
-                if translator and normalizer:
+                if translator:
                     try:
-                        norm_coords = normalizer.normalize(points)
-                        letter = translator.process_frame(norm_coords)
+                        # konwersja punktow do numpy array (21, 3)
+                        landmarks_array = np.array(points, dtype=np.float32)
+
+                        # translator.process_landmarks robi automatycznie ekstrakcje cech 88D
+                        letter = translator.process_landmarks(landmarks_array)
 
                         if letter:
                             gesture_name = letter
@@ -125,8 +129,12 @@ def detect_and_draw(
                                 translator._last_logged_letter = None
 
                             if translator._last_logged_letter != letter:
+                                # dla logow stworz dummy norm_coords (translator juz ma 88D wewnetrznie)
                                 log_landmark_stats(
-                                    points, norm_coords, letter, confidence
+                                    points,
+                                    landmarks_array.flatten()[:63],
+                                    letter,
+                                    confidence,
                                 )
                                 translator._last_logged_letter = letter
                         else:
@@ -138,9 +146,7 @@ def detect_and_draw(
                         confidence = 0.0
                 else:
                     # brak zasobow translatora w trybie translator nie fallbackuje do gestow
-                    logger.debug(
-                        "[translator] brak modelu/normalizera - pomijam wykrywanie"
-                    )
+                    logger.debug("[translator] brak modelu - pomijam wykrywanie")
                     gesture_name = None
                     confidence = 0.0
             else:

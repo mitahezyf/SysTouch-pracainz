@@ -7,7 +7,10 @@ from typing import Optional, Sequence
 import numpy as np
 import torch
 
+from app.gesture_engine.config import DEBUG_MODE
 from app.gesture_engine.logger import logger
+from app.sign_language.feature_extractor import FeatureExtractor
+from app.sign_language.gesture_logic import GestureManager
 from app.sign_language.model import SignLanguageMLP
 
 # sciezki absolutne bazujace na lokalizacji tego pliku
@@ -15,6 +18,7 @@ _BASE_DIR = Path(__file__).parent
 _DEFAULT_MODEL_PATH = str(_BASE_DIR / "models" / "pjm_model.pth")
 _DEFAULT_CLASSES_PATH = str(_BASE_DIR / "models" / "classes.npy")
 _DEFAULT_META_PATH = str(_BASE_DIR / "models" / "model_meta.json")
+_DEFAULT_LABELS_PATH = str(_BASE_DIR / "labels" / "pjm.json")
 
 
 class SignTranslator:
@@ -37,6 +41,7 @@ class SignTranslator:
         confidence_entry: float = 0.7,
         confidence_exit: float = 0.5,
         max_history: int = 500,
+        enable_dynamic_gestures: bool = True,
     ):
         # uzywaj sciezek absolutnych jako domyslnych
         if model_path is None:
@@ -49,6 +54,10 @@ class SignTranslator:
         self.min_hold_ms = min_hold_ms
         self.confidence_entry = confidence_entry
         self.confidence_exit = confidence_exit
+        self.enable_dynamic_gestures = enable_dynamic_gestures
+
+        # Inicjalizacja ekstraktora cech
+        self.feature_extractor = FeatureExtractor(device="cpu")
 
         # wczytanie klas - jawna obsluga bledu
         try:
@@ -60,7 +69,9 @@ class SignTranslator:
 
         # wczytanie metadanych modelu (jesli istnieja) - info o usuniętych cechach
         self.zero_var_indices = np.array([], dtype=int)
-        self.model_input_size = 63  # domyslny rozmiar
+        self.model_input_size = (
+            63  # domyslny rozmiar (zostanie nadpisany przez meta/wagi)
+        )
         meta_path = Path(model_path).parent / "model_meta.json"
 
         if meta_path.exists():
@@ -78,6 +89,25 @@ class SignTranslator:
                     )
             except Exception as e:
                 logger.warning("Nie mozna wczytac metadanych modelu: %s", e)
+
+        # wczytanie metadanych gestow (typy, sekwencje) dla GestureManager
+        gesture_types: dict[str, str] = {}
+        sequences: dict[str, list[str]] = {}
+
+        labels_path = Path(_DEFAULT_LABELS_PATH)
+        if labels_path.exists():
+            try:
+                with open(labels_path, "r", encoding="utf-8") as f:
+                    labels_config = json.load(f)
+                    gesture_types = labels_config.get("gesture_types", {})
+                    sequences = labels_config.get("sequences", {})
+                    logger.debug(
+                        "Zaladowano metadane gestow: %d typow, %d sekwencji",
+                        len(gesture_types),
+                        len(sequences),
+                    )
+            except Exception as e:
+                logger.warning("Nie mozna wczytac metadanych gestow: %s", e)
 
         # Wczytanie state_dict aby dynamicznie dopasowac hidden_size (testy moga miec inne niz domyslne 128)
         try:
@@ -105,7 +135,7 @@ class SignTranslator:
                 self.model_input_size = inferred_input_size
 
         if hidden_size is None:
-            hidden_size = 128  # fallback gdy nie znaleziono
+            hidden_size = 256  # fallback gdy nie znaleziono (bylo 128)
 
         self.model = SignLanguageMLP(
             input_size=self.model_input_size,
@@ -129,7 +159,7 @@ class SignTranslator:
                 raise
         self.model.eval()
 
-        # bufor klatek (wektor 63D)
+        # bufor klatek (wektor cech)
         self.frame_buffer: deque = deque(maxlen=buffer_size)
 
         # stan translatora
@@ -147,13 +177,32 @@ class SignTranslator:
         self.letter_history: list[str] = []
         self.max_history: int = max_history
 
+        # inicjalizacja GestureManager (warstwa 2 - logika dynamiczna)
+        self.gesture_manager: Optional[GestureManager] = None
+        if self.enable_dynamic_gestures and (gesture_types or sequences):
+            self.gesture_manager = GestureManager(
+                buffer_size=30,  # wiekszy bufor niz translator (analiza ruchu)
+                motion_threshold=0.05,
+                sequence_max_gap_ms=1500,
+                gesture_types=gesture_types,
+                sequences=sequences,
+            )
+            logger.info(
+                "GestureManager zainicjalizowany: %d typow gestow, %d sekwencji",
+                len(gesture_types),
+                len(sequences),
+            )
+        else:
+            logger.info("GestureManager wylaczony (enable_dynamic_gestures=False)")
+
         logger.info(
-            "SignTranslator zainicjalizowany: buffer=%d, min_hold=%dms, conf_entry=%.2f, conf_exit=%.2f, max_history=%d",
+            "SignTranslator zainicjalizowany: buffer=%d, min_hold=%dms, conf_entry=%.2f, conf_exit=%.2f, max_history=%d, input_size=%d",
             buffer_size,
             min_hold_ms,
             confidence_entry,
             confidence_exit,
             max_history,
+            self.model_input_size,
         )
 
     def reset(self, keep_stats: bool = False) -> None:
@@ -175,21 +224,73 @@ class SignTranslator:
             self.total_detections = 0
             self.session_start_time = time.time()
 
+        # resetuj GestureManager
+        if self.gesture_manager:
+            self.gesture_manager.reset()
+
         logger.debug("SignTranslator zresetowany (keep_stats=%s)", keep_stats)
 
-    def process_frame(self, normalized_landmarks: Sequence[float]) -> Optional[str]:
+    def process_landmarks(self, landmarks: np.ndarray) -> Optional[str]:
         """
-        Przetwarza pojedyncza klatke i zwraca stabilna litere.
+        Przetwarza surowe landmarki (21x3), ekstrahuje cechy i dokonuje predykcji.
 
         Args:
-            normalized_landmarks: wektor 63D znormalizowanych landmarkow
+            landmarks: np.ndarray (21, 3)
+
+        Returns:
+            stabilna litera lub None
+        """
+        try:
+            features = self.feature_extractor.extract(landmarks)
+
+            # warstwa 1: klasyfikator statyczny (PyTorch)
+            static_result = self.process_frame(features)
+
+            # warstwa 2: logika dynamiczna (GestureManager)
+            if self.gesture_manager and static_result:
+                # przekaz do menedzera gestow
+                gesture_result = self.gesture_manager.process(
+                    static_letter=static_result,
+                    confidence=self.current_confidence,
+                    landmarks=landmarks,
+                )
+
+                if gesture_result:
+                    # jesli menedzer zwrocil inny wynik (np. sekwencje), uzyj go
+                    if gesture_result.name != static_result:
+                        logger.debug(
+                            "GestureManager nadpisal: %s -> %s (type=%s)",
+                            static_result,
+                            gesture_result.name,
+                            gesture_result.gesture_type,
+                        )
+                        # aktualizuj statystyki dla nowej litery
+                        self._register_detection(gesture_result.name)
+                        return gesture_result.name
+
+            return static_result
+
+        except Exception as e:
+            logger.error(f"Blad przetwarzania landmarkow: {e}")
+            return self.current_letter
+
+    def process_frame(
+        self, normalized_landmarks: Sequence[float] | np.ndarray
+    ) -> Optional[str]:
+        """
+        Przetwarza pojedyncza klatke (wektor cech) i zwraca stabilna litere.
+
+        Args:
+            normalized_landmarks: wektor cech (dlugosc zgodna z model_input_size)
 
         Returns:
             aktualna stabilna litera lub None jesli brak stabilizacji
         """
-        if len(normalized_landmarks) != 63:
+        if len(normalized_landmarks) != self.model_input_size:
             logger.warning(
-                "Oczekiwano wektora 63D, otrzymano %d", len(normalized_landmarks)
+                "Oczekiwano wektora %dD, otrzymano %d",
+                self.model_input_size,
+                len(normalized_landmarks),
             )
             return self.current_letter
 
@@ -371,4 +472,5 @@ class SignTranslator:
     def clear_history(self) -> None:
         """Czysci historie wykrytych liter."""
         self.letter_history.clear()
-        logger.debug("[history] Historia wyczyszczona")
+        if DEBUG_MODE:
+            logger.debug("[history] Historia wyczyszczona")

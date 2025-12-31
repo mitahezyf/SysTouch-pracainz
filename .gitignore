@@ -23,3 +23,15 @@ Thumbs.db
 # Dokumentacja pomocnicza / notatki
 markdown/
 app/docs/*
+
+# Pliki testow / reportow / logow (generowane automatycznie)
+*.log
+junit.xml
+coverage.xml
+.coverage
+reports/
+logs_debug/
+analyze_output.txt
+
+# Kosz - pliki do usuniecia
+KOSZ/

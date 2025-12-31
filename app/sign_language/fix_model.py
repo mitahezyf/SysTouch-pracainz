@@ -8,6 +8,7 @@ import torch.optim as optim
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.utils.class_weight import compute_class_weight
 
+from app.gesture_engine.config import DEBUG_MODE
 from app.gesture_engine.logger import logger
 from app.sign_language.dataset import load_processed_split
 from app.sign_language.model import SignLanguageMLP
@@ -70,7 +71,8 @@ def compute_class_weights_array(y_train, num_classes):
         if cls_idx in unique_classes:
             logger.info("  Klasa %d: %.4f", cls_idx, class_weights[cls_idx])
         else:
-            logger.debug("  Klasa %d: brak w datasecie (weight=1.0)", cls_idx)
+            if DEBUG_MODE:
+                logger.debug("  Klasa %d: brak w datasecie (weight=1.0)", cls_idx)
 
     return torch.tensor(class_weights, dtype=torch.float32)
 

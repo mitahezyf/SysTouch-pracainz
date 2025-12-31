@@ -109,14 +109,18 @@ Uwaga: kolektor `.npy` sluzy do szybkich eksperymentow. Docelowy przeplyw trener
 - Testy: `python -m pytest -q`
 - Lint: `ruff check .`
 - Typy: `mypy .`
+- Security: `bandit -r app/ -ll`
 
-Raporty coverage w CI laduja do `reports/coverage.xml`.
+Raporty coverage w CI laduja do `reports/coverage.xml` i Codecov.
 
 ## CI/CD
-- CI: Windows, Python 3.12, pytest+coverage, artefakty JUnit i coverage, Codecov
+- CI: Ubuntu, Python 3.12, pytest+coverage, ruff, mypy, bandit, pre-commit
+- Coverage: automatyczny upload do Codecov (wymaga CODECOV_TOKEN w GitHub Secrets)
 - CodeQL: analiza bezpieczenstwa na push/PR
+- Bandit: skanowanie kodu pod katem problemow security (13 Low issues - akceptowalne)
 
-Badge u gory pokazuja status CI i pokrycie na galezi `main`.
+Badge u gory pokazuja status CI, pokrycie testami i security na galezi `main`.
+Instrukcja konfiguracji Codecov: `CODECOV_SETUP.md`
 
 ## Struktura repo (skrot)
 - `app/` - kod aplikacji
@@ -158,4 +162,4 @@ Badge u gory pokazuja status CI i pokrycie na galezi `main`.
 - Definiowanie wlasnych gestow i przypisywanie akcji (moduly trenera)
 - Zmiana widocznosci podgladu i prostych opcji w GUI
 
-Diagram przypadkow uzycia: `UseCaseDiagram1.png`
+Diagram przypadkow uzycia: `markdown/UseCaseDiagram1.png`

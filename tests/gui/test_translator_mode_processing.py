@@ -40,9 +40,15 @@ class DummyTranslator:
     def __init__(self):
         self.calls = 0
 
-    def process_frame(self, normalized_landmarks):  # noqa: D401
+    def process_landmarks(self, landmarks):  # noqa: D401
+        # landmarks to np.ndarray shape (21, 3)
         self.calls += 1
         # symuluje litery na przemian
+        return "A" if self.calls % 2 else "B"
+
+    def process_frame(self, normalized_landmarks):  # noqa: D401
+        # deprecated, ale zachowane dla kompatybilnosci
+        self.calls += 1
         return "A" if self.calls % 2 else "B"
 
     def get_state(self):  # noqa: D401

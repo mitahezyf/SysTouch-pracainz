@@ -55,7 +55,7 @@ def test_dataset_load_valid():
         dataset = PJMDataset(use_multiple_datasets=True)
         X, y = dataset.load_and_validate()
 
-        assert X.shape == (5, 63)
+        assert X.shape == (5, 88)  # zmieniono z 63 na 88 (cechy relatywne)
         assert y.shape == (5,)
         assert X.dtype == np.float32
         assert not np.isnan(X).any()
