@@ -39,7 +39,8 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                 self.stop_btn = ui.stop_btn
                 self.exec_actions_chk = ui.exec_actions_chk
                 self.preview_chk = ui.preview_chk
-                self.mode_combo = ui.mode_combo
+                self.mode_switch = ui.mode_switch
+                self.mode_text_label = ui.mode_text_label
                 self.status_label = ui.status_label
                 self.fps_label = ui.fps_label
                 self.gesture_label = ui.gesture_label
@@ -78,7 +79,7 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                 self.refresh_cams_btn.clicked.connect(self.populate_cameras)
                 self.exec_actions_chk.stateChanged.connect(self.on_actions_toggle)
                 self.preview_chk.stateChanged.connect(self.on_preview_toggle)
-                self.mode_combo.currentIndexChanged.connect(self.on_mode_changed)
+                self.mode_switch.toggled.connect(self.on_mode_changed)
                 self.camera_combo.currentIndexChanged.connect(self.on_camera_changed)
                 # podpina sygnaly przyciskow translatora/nagrywania
                 self.record_btn.clicked.connect(self.on_record_sign_language)
@@ -141,8 +142,8 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                     self._translator_error = str(exc)
                     self._translator = None
                     self._normalizer = None
-                    self.mode_combo.setCurrentIndex(0)
-                    # pozostawia mode_combo aktywne aby pokazac komunikat o niedostepnosci
+                    self.mode_switch.setChecked(False)  # ustaw na tryb Gesty
+                    # pozostawia mode_switch aktywny aby pokazac komunikat o niedostepnosci
                     logger.warning("[PJM] Translator niedostepny: %s", exc)
                     try:
                         self.status_label.setText(
@@ -459,7 +460,7 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
             def _restart_with_camera(self, cam_data: Union[int, str]) -> None:
                 actions_enabled = self.exec_actions_chk.isChecked()
                 preview_enabled = self.preview_chk.isChecked()
-                mode = self.mode_combo.currentData()
+                mode = "translator" if self.mode_switch.isChecked() else "gestures"
                 try:
                     self._destroy_worker()
                 except Exception as e:
@@ -469,7 +470,7 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                     cam_data,
                     actions_enabled,
                     preview_enabled,
-                    mode if isinstance(mode, str) else "gestures",
+                    mode,
                 )
                 # natychmiast ustawia stan akcji/podgladu przed startem
                 try:
@@ -603,13 +604,13 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                     return
                 actions_enabled = self.exec_actions_chk.isChecked()
                 preview_enabled = self.preview_chk.isChecked()
-                mode = self.mode_combo.currentData()
+                mode = "translator" if self.mode_switch.isChecked() else "gestures"
                 self.worker = self._create_worker()
                 self.worker.configure(
                     cam_data,
                     actions_enabled,
                     preview_enabled,
-                    mode if isinstance(mode, str) else "gestures",
+                    mode,
                 )
                 try:
                     self.worker.set_actions_enabled(actions_enabled)
@@ -660,19 +661,19 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                     logger.debug("on_camera_changed: disconnect error: %s", e)
                 actions_enabled = self.exec_actions_chk.isChecked()
                 preview_enabled = self.preview_chk.isChecked()
-                mode = self.mode_combo.currentData()
+                mode = "translator" if self.mode_switch.isChecked() else "gestures"
                 self.worker = self._create_worker()
                 self.worker.configure(
                     cam_data,
                     actions_enabled,
                     preview_enabled,
-                    mode if isinstance(mode, str) else "gestures",
+                    mode,
                 )
                 try:
                     self.worker.set_actions_enabled(actions_enabled)
                     self.worker.set_preview_enabled(preview_enabled)
                     self.worker.set_mode(
-                        mode if isinstance(mode, str) else "gestures",
+                        mode,
                         self._translator if self._translator_available else None,
                         self._normalizer if self._translator_available else None,
                     )
@@ -717,8 +718,22 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                     status += " (zmiana zadziała przy starcie)"
                 self.status_label.setText(status)
 
-            def on_mode_changed(self, index: int):
-                mode = self.mode_combo.itemData(index)
+            def on_mode_changed(self, checked: bool):
+                # checked = True -> Tlumacz, False -> Gesty
+                mode = "translator" if checked else "gestures"
+
+                # aktualizuj tekst i kolor labela
+                if checked:
+                    self.mode_text_label.setText("Tlumacz")
+                    self.mode_text_label.setStyleSheet(
+                        "font-weight: bold; color: #2196F3;"
+                    )
+                else:
+                    self.mode_text_label.setText("Gesty")
+                    self.mode_text_label.setStyleSheet(
+                        "font-weight: bold; color: #4CAF50;"
+                    )
+
                 # pozwalamy pozostac w trybie translator nawet jesli niedostepny, tylko informujemy
                 if mode == "translator" and not self._translator_available:
                     err = self._translator_error or "Model pjm niedostepny"

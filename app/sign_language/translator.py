@@ -9,8 +9,7 @@ import torch
 
 from app.gesture_engine.config import DEBUG_MODE
 from app.gesture_engine.logger import logger
-from app.sign_language.feature_extractor import FeatureExtractor
-from app.sign_language.gesture_logic import GestureManager
+from app.sign_language.features import FeatureExtractor
 from app.sign_language.model import SignLanguageMLP
 
 # sciezki absolutne bazujace na lokalizacji tego pliku
@@ -57,7 +56,7 @@ class SignTranslator:
         self.enable_dynamic_gestures = enable_dynamic_gestures
 
         # Inicjalizacja ekstraktora cech
-        self.feature_extractor = FeatureExtractor(device="cpu")
+        self.feature_extractor = FeatureExtractor()
 
         # wczytanie klas - jawna obsluga bledu
         try:
@@ -178,22 +177,10 @@ class SignTranslator:
         self.max_history: int = max_history
 
         # inicjalizacja GestureManager (warstwa 2 - logika dynamiczna)
-        self.gesture_manager: Optional[GestureManager] = None
-        if self.enable_dynamic_gestures and (gesture_types or sequences):
-            self.gesture_manager = GestureManager(
-                buffer_size=30,  # wiekszy bufor niz translator (analiza ruchu)
-                motion_threshold=0.05,
-                sequence_max_gap_ms=1500,
-                gesture_types=gesture_types,
-                sequences=sequences,
-            )
-            logger.info(
-                "GestureManager zainicjalizowany: %d typow gestow, %d sekwencji",
-                len(gesture_types),
-                len(sequences),
-            )
-        else:
-            logger.info("GestureManager wylaczony (enable_dynamic_gestures=False)")
+        # UWAGA: modul gesture_logic.py zostal usuniety - funkcjonalnosc wylaczona
+        self.gesture_manager: Optional[object] = None
+        # kod wylaczony - GestureManager nie istnieje
+        logger.info("GestureManager wylaczony (modul nie istnieje)")
 
         logger.info(
             "SignTranslator zainicjalizowany: buffer=%d, min_hold=%dms, conf_entry=%.2f, conf_exit=%.2f, max_history=%d, input_size=%d",
@@ -226,7 +213,7 @@ class SignTranslator:
 
         # resetuj GestureManager
         if self.gesture_manager:
-            self.gesture_manager.reset()
+            self.gesture_manager.reset()  # type: ignore[attr-defined]
 
         logger.debug("SignTranslator zresetowany (keep_stats=%s)", keep_stats)
 
@@ -249,7 +236,7 @@ class SignTranslator:
             # warstwa 2: logika dynamiczna (GestureManager)
             if self.gesture_manager and static_result:
                 # przekaz do menedzera gestow
-                gesture_result = self.gesture_manager.process(
+                gesture_result = self.gesture_manager.process(  # type: ignore[attr-defined]
                     static_letter=static_result,
                     confidence=self.current_confidence,
                     landmarks=landmarks,
@@ -266,7 +253,7 @@ class SignTranslator:
                         )
                         # aktualizuj statystyki dla nowej litery
                         self._register_detection(gesture_result.name)
-                        return gesture_result.name
+                        return str(gesture_result.name)
 
             return static_result
 

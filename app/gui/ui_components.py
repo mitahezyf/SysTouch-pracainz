@@ -4,6 +4,109 @@ import importlib
 from dataclasses import dataclass
 
 
+class SwitchToggle:
+    """Android-style switch toggle widget"""
+
+    def __new__(cls, width: int = 60, height: int = 28):
+        qtcore = importlib.import_module("PySide6.QtCore")
+        qtgui = importlib.import_module("PySide6.QtGui")
+        qtw = importlib.import_module("PySide6.QtWidgets")
+
+        QWidget = qtw.QWidget
+        QPropertyAnimation = qtcore.QPropertyAnimation
+        QEasingCurve = qtcore.QEasingCurve
+        Qt = qtcore.Qt
+        pyqtSignal = qtcore.Signal
+        pyqtProperty = qtcore.Property
+        QPainter = qtgui.QPainter
+        QColor = qtgui.QColor
+        QBrush = qtgui.QBrush
+        QPen = qtgui.QPen
+
+        class _SwitchToggle(QWidget):  # type: ignore[valid-type, misc]
+            toggled = pyqtSignal(bool)
+
+            def __init__(self, parent=None):
+                super().__init__(parent)
+                self.setFixedSize(width, height)
+                self._checked = False
+                self._circle_position = 3
+                self._animation = QPropertyAnimation(self, b"circle_position", self)
+                self._animation.setEasingCurve(QEasingCurve.Type.InOutCubic)
+                self._animation.setDuration(120)
+
+                # kolory
+                self._bg_color_off = QColor("#555555")
+                self._bg_color_on = QColor("#4CAF50")
+                self._circle_color = QColor("#FFFFFF")
+                self._bg_color_on_translator = QColor("#2196F3")
+
+                self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+            def paintEvent(self, event):
+                painter = QPainter(self)
+                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+                # tlo (zaokraglony prostokat)
+                if self._checked:
+                    bg_color = self._bg_color_on_translator
+                else:
+                    bg_color = self._bg_color_off
+
+                painter.setBrush(QBrush(bg_color))
+                painter.setPen(QPen(Qt.PenStyle.NoPen))
+                painter.drawRoundedRect(0, 0, width, height, height / 2, height / 2)
+
+                # kolko (thumb)
+                circle_diameter = height - 6
+                painter.setBrush(QBrush(self._circle_color))
+                painter.drawEllipse(
+                    int(self._circle_position),
+                    3,
+                    circle_diameter,
+                    circle_diameter,
+                )
+
+            def mousePressEvent(self, event):
+                if event.button() == Qt.MouseButton.LeftButton:
+                    self.toggle()
+
+            def isChecked(self):
+                return self._checked
+
+            def setChecked(self, checked: bool):
+                if self._checked == checked:
+                    return
+                self._checked = checked
+                self._move_circle()
+                self.toggled.emit(self._checked)
+
+            def toggle(self):
+                self.setChecked(not self._checked)
+
+            def _move_circle(self):
+                if self._checked:
+                    end_pos = width - height + 3
+                else:
+                    end_pos = 3
+                self._animation.setStartValue(self._circle_position)
+                self._animation.setEndValue(end_pos)
+                self._animation.start()
+
+            def get_circle_position(self):
+                return self._circle_position
+
+            def set_circle_position(self, pos):
+                self._circle_position = pos
+                self.update()
+
+            circle_position = pyqtProperty(
+                int, fget=get_circle_position, fset=set_circle_position
+            )
+
+        return _SwitchToggle()
+
+
 @dataclass(slots=True)
 class UIRefs:
     # przechowuje referencje do kluczowych widzetow wykorzystywanych przez mainWindow
@@ -15,7 +118,8 @@ class UIRefs:
     stop_btn: object
     exec_actions_chk: object
     preview_chk: object
-    mode_combo: object
+    mode_switch: object
+    mode_text_label: object
     status_label: object
     fps_label: object
     gesture_label: object
@@ -85,11 +189,14 @@ def build_ui(display_width: int, display_height: int) -> UIRefs:
     exec_actions_chk.setChecked(True)
     preview_chk = QCheckBox("Pokaz podglad")
     preview_chk.setChecked(True)
+
+    # Android-style switch toggle
     mode_label = QLabel("Tryb:")
-    mode_combo = QComboBox()
-    mode_combo.addItem("Gesty", "gestures")
-    mode_combo.addItem("Tlumacz", "translator")
-    mode_combo.setCurrentIndex(0)
+    mode_switch = SwitchToggle(width=60, height=28)
+    mode_switch.setChecked(False)  # type: ignore[attr-defined]  # False = Gesty, True = Tlumacz
+    mode_text_label = QLabel("Gesty")
+    mode_text_label.setStyleSheet("font-weight: bold; color: #4CAF50;")
+    mode_text_label.setMinimumWidth(70)
 
     record_btn = QPushButton("Nagraj alfabet")
     train_btn = QPushButton("Wytrenuj model")
@@ -110,7 +217,8 @@ def build_ui(display_width: int, display_height: int) -> UIRefs:
     top_bar.addWidget(exec_actions_chk)
     top_bar.addWidget(preview_chk)
     top_bar.addWidget(mode_label)
-    top_bar.addWidget(mode_combo)
+    top_bar.addWidget(mode_switch)
+    top_bar.addWidget(mode_text_label)
 
     ctrl_bar = QHBoxLayout()
     ctrl_bar.addWidget(start_btn)
@@ -239,7 +347,8 @@ def build_ui(display_width: int, display_height: int) -> UIRefs:
         stop_btn=stop_btn,
         exec_actions_chk=exec_actions_chk,
         preview_chk=preview_chk,
-        mode_combo=mode_combo,
+        mode_switch=mode_switch,
+        mode_text_label=mode_text_label,
         status_label=status_label,
         fps_label=fps_label,
         gesture_label=gesture_label,

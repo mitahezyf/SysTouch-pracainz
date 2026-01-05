@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 
 from app.gesture_engine.logger import logger
-from app.sign_language.feature_extractor import FeatureExtractor
+from app.sign_language.features import FeatureExtractor
 
 # sciezki domyslne
 DATA_DIR = Path(__file__).parent / "data"

@@ -24,6 +24,15 @@ known-first-party = ["app"]
 "app/sign_language/recorder.py" = ["T201"]
 "tests/sign_language/test_pjm_translator.py" = ["T201"]
 "tests/utils/test_pycaw_quick.py" = ["T201"]
+# Skrypty diagnostyczne w rootu - uzywaja print dla outputu
+"check_*.py" = ["T201", "E402"]
+"compare_*.py" = ["T201", "E402"]
+"diagnose_*.py" = ["T201", "E402"]
+"quick_*.py" = ["T201", "E402"]
+"test_letters.py" = ["T201"]
+"test_y_fix.py" = ["T201"]
+# Tools verification scripts
+"tools/verify_*.py" = ["E402"]
 
 [format]
 # Ruff format jest zgodny z Black; nie wymuszamy zmiany cudzyslowow

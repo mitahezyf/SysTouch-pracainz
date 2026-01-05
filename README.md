@@ -163,3 +163,6 @@ Instrukcja konfiguracji Codecov: `CODECOV_SETUP.md`
 - Zmiana widocznosci podgladu i prostych opcji w GUI
 
 Diagram przypadkow uzycia: `markdown/UseCaseDiagram1.png`
+
+- Nie flipujemy obrazu przed MediaPipe; ewentualny flip (selfie view) robimy tylko na klatce do wyswietlania po narysowaniu overlay, aby nie psuc handedness i geometrii cech PJM.
+- MediaPipe dziala bez flipu wejscia (spojne z treningiem PJM), ale ACTIONS (mysz/glosnosc) mapujemy w trybie selfie: lustro osi X dla move_mouse i intuicyjny znak roll dla volume.

@@ -8,9 +8,10 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [ubuntu-latest, windows-2019, windows-latest]
         python-version: [3.12]
     steps:
       - uses: actions/checkout@v4
@@ -19,6 +20,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
+        shell: bash
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
@@ -28,11 +30,13 @@ jobs:
       - name: Run mypy
         run: mypy .
       - name: Run bandit security scan
+        shell: bash
         run: |
           mkdir -p reports
           bandit -r app/ -f json -o reports/bandit-report.json || true
           bandit -r app/ || true
       - name: Run pre-commit
+        shell: bash
         run: |
           python -m pip install --upgrade pip
           if ! command -v pre-commit >/dev/null 2>&1; then
@@ -40,10 +44,12 @@ jobs:
           fi
           pre-commit run --all-files || true
       - name: Run pip-audit
+        shell: bash
         run: |
           python -m pip install pip-audit
           pip-audit || true
       - name: Run tests with coverage
+        shell: bash
         run: |
           pytest -q --cov=app --cov-report=xml:reports/coverage.xml --cov-report=term || pytest -q --no-cov
       - name: Upload coverage to Codecov
