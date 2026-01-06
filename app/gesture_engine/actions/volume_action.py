@@ -126,11 +126,15 @@ def handle_volume(landmarks, frame_shape):
         base_deg = float(volume_state.get("hand_roll_baseline_deg") or 0.0)
         delta = _normalize_delta_deg(roll - base_deg)
 
+        # jednolite miejsce inwersji znaku (roll_invert domyslnie True gdy mirror podgladu)
+        if bool(volume_state.get("roll_invert", True)):
+            delta = -delta
+
         # mapuj na procent
         pct = _map_angle_to_percent(
             delta,
             float(volume_state.get("roll_range_deg") or 90.0),
-            bool(volume_state.get("roll_invert") or False),
+            False,
         )
 
         # zapisz stan

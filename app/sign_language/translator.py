@@ -18,14 +18,23 @@ _DEFAULT_MODEL_PATH = str(_BASE_DIR / "models" / "pjm_model.pth")
 _DEFAULT_CLASSES_PATH = str(_BASE_DIR / "models" / "classes.npy")
 _DEFAULT_META_PATH = str(_BASE_DIR / "models" / "model_meta.json")
 _DEFAULT_LABELS_PATH = str(_BASE_DIR / "labels" / "pjm.json")
+_FALLBACK_LEGACY_META_PATH = str(_BASE_DIR / "models" / "pjm_model.json")
+
+# stale dla 3-klatkowego systemu PJM
+BLOCK_SIZE = 63  # cechy na klatke
+NUM_BLOCKS = 3  # poczatek, srodek, koniec gestu
+SEQUENCE_INPUT_SIZE = BLOCK_SIZE * NUM_BLOCKS  # 189 cech
 
 
 class SignTranslator:
     """
-    Translator liter PJM z buforem, smoothingiem i histereza.
+    Translator liter PJM z buforem 3-klatkowym dla gestow ruchomych.
+
+    PJM wymaga 3 klatek (poczatek, srodek, koniec) do klasyfikacji gestu.
+    Translator zbiera sekwencje klatek i laczy je w wektor 189D.
 
     Parametry stabilizacji:
-    - buffer_size: rozmiar bufora klatek (T=7)
+    - sequence_buffer_size: ile sekwencji 3-klatkowych trzymac w buforze
     - min_hold_ms: minimalny czas trzymania litery przed zmiana
     - confidence_entry: prog confidence do wejscia w nowa litere
     - confidence_exit: prog confidence do opuszczenia aktualnej litery
@@ -35,12 +44,13 @@ class SignTranslator:
         self,
         model_path: Optional[str] = None,
         classes_path: Optional[str] = None,
-        buffer_size: int = 7,
+        buffer_size: int = 5,  # ile sekwencji 3-klatkowych w buforze
         min_hold_ms: int = 400,
         confidence_entry: float = 0.7,
         confidence_exit: float = 0.5,
         max_history: int = 500,
         enable_dynamic_gestures: bool = True,
+        frames_per_sequence: int = 3,  # klatki na sekwencje (poczatek, srodek, koniec)
     ):
         # uzywaj sciezek absolutnych jako domyslnych
         if model_path is None:
@@ -54,9 +64,15 @@ class SignTranslator:
         self.confidence_entry = confidence_entry
         self.confidence_exit = confidence_exit
         self.enable_dynamic_gestures = enable_dynamic_gestures
+        self.frames_per_sequence = frames_per_sequence
 
-        # Inicjalizacja ekstraktora cech
-        self.feature_extractor = FeatureExtractor()
+        # bufor na pojedyncze klatki (zbiera 3 klatki przed predykcja)
+        self.frame_collector: deque = deque(maxlen=frames_per_sequence)
+
+        # Inicjalizacja ekstraktora cech (mirror lewej wlaczony domyslnie, bez skali)
+        from app.sign_language.features import FeatureConfig
+
+        self.feature_extractor = FeatureExtractor(FeatureConfig())
 
         # wczytanie klas - jawna obsluga bledu
         try:
@@ -69,25 +85,35 @@ class SignTranslator:
         # wczytanie metadanych modelu (jesli istnieja) - info o usuniętych cechach
         self.zero_var_indices = np.array([], dtype=int)
         self.model_input_size = (
-            63  # domyslny rozmiar (zostanie nadpisany przez meta/wagi)
+            SEQUENCE_INPUT_SIZE  # domyslny rozmiar 189 (3 bloki x 63)
         )
         meta_path = Path(model_path).parent / "model_meta.json"
 
-        if meta_path.exists():
+        def _load_meta(path: Path) -> None:
             try:
-                with open(meta_path, "r") as f:
+                with open(path, "r") as f:
                     model_meta = json.load(f)
 
-                self.model_input_size = model_meta.get("input_size", 63)
+                self.model_input_size = int(
+                    model_meta.get("input_size", SEQUENCE_INPUT_SIZE)
+                )
                 zero_var_list = model_meta.get("zero_var_indices", [])
                 if zero_var_list:
                     self.zero_var_indices = np.array(zero_var_list, dtype=int)
                     logger.debug(
-                        "Zaladowano info o %d usuniętych cechach",
+                        "Zaladowano info o %d usunietych cechach",
                         len(self.zero_var_indices),
                     )
             except Exception as e:
                 logger.warning("Nie mozna wczytac metadanych modelu: %s", e)
+
+        if meta_path.exists():
+            _load_meta(meta_path)
+        else:
+            legacy_meta = Path(_FALLBACK_LEGACY_META_PATH)
+            if legacy_meta.exists():
+                logger.info("Uzywam fallback meta z %s", legacy_meta)
+                _load_meta(legacy_meta)
 
         # wczytanie metadanych gestow (typy, sekwencje) dla GestureManager
         gesture_types: dict[str, str] = {}
@@ -96,7 +122,13 @@ class SignTranslator:
         labels_path = Path(_DEFAULT_LABELS_PATH)
         if labels_path.exists():
             try:
-                with open(labels_path, "r", encoding="utf-8") as f:
+                has_bom = False
+                try:
+                    has_bom = labels_path.read_bytes().startswith(b"\xef\xbb\xbf")
+                except Exception:
+                    has_bom = False
+
+                with open(labels_path, "r", encoding="utf-8-sig") as f:
                     labels_config = json.load(f)
                     gesture_types = labels_config.get("gesture_types", {})
                     sequences = labels_config.get("sequences", {})
@@ -105,6 +137,8 @@ class SignTranslator:
                         len(gesture_types),
                         len(sequences),
                     )
+                    if has_bom:
+                        logger.warning("Wykryto BOM w %s (utf-8-sig)", labels_path)
             except Exception as e:
                 logger.warning("Nie mozna wczytac metadanych gestow: %s", e)
 
@@ -205,6 +239,7 @@ class SignTranslator:
         self.letter_start_time = None
         self.last_confirmed_letter = None
         self.letter_history.clear()  # historia zawsze czyszczona
+        self.frame_collector.clear()  # czysc bufor klatek
 
         if not keep_stats:
             self.letter_stats.clear()
@@ -217,21 +252,53 @@ class SignTranslator:
 
         logger.debug("SignTranslator zresetowany (keep_stats=%s)", keep_stats)
 
-    def process_landmarks(self, landmarks: np.ndarray) -> Optional[str]:
+    def process_landmarks(
+        self, landmarks: np.ndarray, handedness: str | None = None, debug: bool = False
+    ) -> Optional[str]:
         """
-        Przetwarza surowe landmarki (21x3), ekstrahuje cechy i dokonuje predykcji.
+        Przetwarza surowe landmarki (21x3), ekstrahuje cechy i zbiera sekwencje 3-klatkowa.
+
+        PJM wymaga 3 klatek (poczatek, srodek, koniec) do klasyfikacji gestu.
+        Metoda zbiera klatki i wykonuje predykcje gdy ma kompletna sekwencje.
 
         Args:
             landmarks: np.ndarray (21, 3)
+            handedness: "Left" lub "Right"
+            debug: czy logowac debug info
 
         Returns:
-            stabilna litera lub None
+            stabilna litera lub None (jesli jeszcze nie zebrano 3 klatek)
         """
         try:
-            features = self.feature_extractor.extract(landmarks)
+            # wyciagnij 63 cechy z pojedynczej klatki
+            features = self.feature_extractor.extract(landmarks, handedness=handedness)
 
-            # warstwa 1: klasyfikator statyczny (PyTorch)
-            static_result = self.process_frame(features)
+            # dodaj do bufora klatek
+            self.frame_collector.append(np.array(features, dtype=np.float32))
+
+            # jesli nie mamy jeszcze 3 klatek, zwroc aktualna litere (lub None)
+            if len(self.frame_collector) < self.frames_per_sequence:
+                return self.current_letter
+
+            # polacz 3 klatki w jeden wektor 189D
+            sequence_features = np.concatenate(list(self.frame_collector), axis=0)
+
+            # warstwa 1: klasyfikator statyczny (PyTorch) na 189D
+            static_result = self.process_frame(sequence_features)
+
+            if debug:
+                try:
+                    vec = np.asarray(sequence_features)
+                    logger.debug(
+                        "[translator-debug] hand=%s seq_feat:min=%.4f max=%.4f mean=%.4f len=%d",
+                        handedness,
+                        float(vec.min()),
+                        float(vec.max()),
+                        float(vec.mean()),
+                        len(vec),
+                    )
+                except Exception:
+                    pass
 
             # warstwa 2: logika dynamiczna (GestureManager)
             if self.gesture_manager and static_result:
@@ -274,12 +341,12 @@ class SignTranslator:
             aktualna stabilna litera lub None jesli brak stabilizacji
         """
         if len(normalized_landmarks) != self.model_input_size:
-            logger.warning(
-                "Oczekiwano wektora %dD, otrzymano %d",
-                self.model_input_size,
-                len(normalized_landmarks),
+            raise ValueError(
+                f"niepoprawny rozmiar wektora: {len(normalized_landmarks)} (oczekiwano {self.model_input_size})"
             )
-            return self.current_letter
+
+        if np.isnan(normalized_landmarks).any() or np.isinf(normalized_landmarks).any():
+            raise ValueError("wektor cech zawiera NaN/Inf")
 
         # dodaj do bufora
         self.frame_buffer.append(np.array(normalized_landmarks, dtype=np.float32))
@@ -298,12 +365,30 @@ class SignTranslator:
             smoothed = smoothed[mask]
 
         # predykcja na wygladzonym wektorze
+        if smoothed.shape[0] != self.model_input_size:
+            raise ValueError(
+                f"smoothed wektor ma ksztalt {smoothed.shape[0]}, oczekiwano {self.model_input_size}"
+            )
+        if np.isnan(smoothed).any() or np.isinf(smoothed).any():
+            raise ValueError("smoothed wektor zawiera NaN/Inf")
+
         input_tensor = torch.tensor(smoothed, dtype=torch.float32).unsqueeze(0)
 
         with torch.no_grad():
             output = self.model(input_tensor)
             probs = torch.softmax(output, dim=1)
             confidence, predicted_idx = torch.max(probs, 1)
+
+        if DEBUG_MODE:
+            try:
+                top_conf, top_idx = torch.topk(probs, k=min(5, probs.shape[1]), dim=1)
+                top_pairs = [
+                    f"{self.classes[int(i)]}:{float(c):.3f}"
+                    for c, i in zip(top_conf[0].tolist(), top_idx[0].tolist())
+                ]
+                logger.debug("[translator-debug-top5] %s", ", ".join(top_pairs))
+            except Exception:
+                pass
 
         predicted_letter = self.classes[predicted_idx.item()]
         predicted_conf = confidence.item()

@@ -110,13 +110,15 @@ def main() -> None:
             else:
                 logger.warning("nie mozna wlaczyc trybu tlumacza (brak modulu/modelu)")
 
-        frame = cap.read()
-        if frame is None:
+        frame_mp = cap.read()
+        if frame_mp is None:
             break
 
-        frame = cv2.flip(frame, 1)
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        display_frame = frame.copy()
+        rgb_frame = cv2.cvtColor(frame_mp, cv2.COLOR_BGR2RGB)
+        display_frame = frame_mp.copy()
+        preview_mirror = True
+        if display_enabled and preview_mirror:
+            display_frame = cv2.flip(display_frame, 1)
 
         tracker.process(rgb_frame)
         results = tracker.get_results() if hasattr(tracker, "get_results") else None
@@ -135,9 +137,34 @@ def main() -> None:
         )
 
         if results and getattr(results, "multi_hand_landmarks", None):
-            for hand_idx, hand_landmarks in enumerate(results.multi_hand_landmarks):
-                visualizer.draw_landmarks(display_frame, hand_landmarks)
-                hand_id = hand_idx
+            best_hand = None
+            best_area = -1.0
+            handed_list = getattr(results, "multi_handedness", None)
+
+            if translator_mode:
+                for idx, hand_landmarks in enumerate(results.multi_hand_landmarks):
+                    xs = [lm.x for lm in hand_landmarks.landmark]
+                    ys = [lm.y for lm in hand_landmarks.landmark]
+                    area = (max(xs) - min(xs)) * (max(ys) - min(ys))
+                    if area > best_area:
+                        best_area = area
+                        handed = None
+                        try:
+                            if handed_list and idx < len(handed_list):
+                                handed = handed_list[idx].classification[0].label
+                        except Exception:
+                            handed = None
+                        best_hand = (idx, hand_landmarks, handed)
+
+                iterable = [best_hand] if best_hand else []
+            else:
+                iterable = [
+                    (idx, hl, None)
+                    for idx, hl in enumerate(results.multi_hand_landmarks)
+                ]
+
+            for hand_idx, hand_landmarks, handed in iterable:
+                hand_id = 0 if translator_mode else hand_idx
                 current_hands_ids.add(hand_id)
 
                 if translator_mode:
@@ -158,7 +185,9 @@ def main() -> None:
                                     [[lm.x, lm.y, lm.z] for lm in hand_landmarks]
                                 )
 
-                            predicted_letter = translator.process_landmarks(lms_np)
+                            predicted_letter = translator.process_landmarks(
+                                lms_np, handedness=handed
+                            )
                         except Exception as e:
                             predicted_letter = None
                             logger.debug(f"blad predykcji translatora: {e}")
@@ -180,10 +209,22 @@ def main() -> None:
                         prev_gesture = last_gestures.get(hand_id)
                         if prev_gesture != best_name:
                             handle_gesture_start_hook(
-                                best_name, hand_landmarks, frame.shape
+                                best_name, hand_landmarks, frame_mp.shape
                             )
                         last_gestures[hand_id] = best_name
-                        visualizer.draw_gesture_label(display_frame, best_name)
+                        if preview_mirror:
+                            visualizer.draw_gesture_label(display_frame, best_name)
+                        else:
+                            visualizer.draw_gesture_label(display_frame, best_name)
+
+                # rysowanie landmarkow na zmirrorowanym podgladzie gdy preview wlaczony
+                if display_enabled:
+                    if preview_mirror:
+                        visualizer.draw_landmarks_mirrored(
+                            display_frame, hand_landmarks
+                        )
+                    else:
+                        visualizer.draw_landmarks(display_frame, hand_landmarks)
 
         # usuwa wpisy rak ktore zniknely
         for missing_id in list(last_gestures.keys()):

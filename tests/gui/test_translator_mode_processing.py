@@ -40,7 +40,7 @@ class DummyTranslator:
     def __init__(self):
         self.calls = 0
 
-    def process_landmarks(self, landmarks):  # noqa: D401
+    def process_landmarks(self, landmarks, handedness=None):  # noqa: D401
         # landmarks to np.ndarray shape (21, 3)
         self.calls += 1
         # symuluje litery na przemian

@@ -21,6 +21,7 @@ volume_state: dict[str, object] = {
     "pct": None,  # ostatnio policzony procent (0..100)
     "pinch_th": None,  # nadpisany prog pincha (opcjonalnie)
     "ref_max": None,  # nadpisany rozstaw dla 100% (opcjonalnie)
+    "roll_invert": True,  # domyslnie mirror dla zgodnosci z podgladem
 }
 
 

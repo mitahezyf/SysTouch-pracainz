@@ -1,50 +1,79 @@
-import csv
-from pathlib import Path
+import pathlib
 
 import numpy as np
 import pytest
 
 from app.sign_language.features import from_points25
+from tools.verify_feature_parity import parse_points, parse_vectors
+from tools.verify_mediapipe_reconstruction_parity import (
+    build_landmarks21_from_points25,
+)
 
-POINTS_DEFAULT = Path("app/sign_language/data/raw/PJM-points.csv")
-VECTORS_DEFAULT = Path("app/sign_language/data/raw/PJM-vectors.csv")
-
-
-def _iter_rows(path: Path, limit: int):
-    with path.open(newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for idx, row in enumerate(reader):
-            if idx >= limit:
-                break
-            yield row
+DATA_DIR = pathlib.Path("app/sign_language/data/raw")
+POINTS_PATH = DATA_DIR / "PJM-points.csv"
+VECTORS_PATH = DATA_DIR / "PJM-vectors.csv"
 
 
+@pytest.mark.skipif(
+    not POINTS_PATH.exists() or not VECTORS_PATH.exists(), reason="brak danych PJM"
+)
 def test_feature_parity_small_sample():
-    if not POINTS_DEFAULT.exists() or not VECTORS_DEFAULT.exists():
-        pytest.skip("PJM CSV niedostepne w srodowisku testowym")
-
     n = 50
-    tol_bones = 0.005
     tol_hand = 0.08
+    tol_bones = 0.005
 
-    max_hand = 0.0
-    max_bones = 0.0
+    with POINTS_PATH.open(newline="", encoding="utf-8") as fp, VECTORS_PATH.open(
+        newline="", encoding="utf-8"
+    ) as fv:
+        points_reader = iter(list(__import__("csv").DictReader(fp)))
+        vectors_reader = iter(list(__import__("csv").DictReader(fv)))
+        count = 0
+        for p_row, v_row in zip(points_reader, vectors_reader):
+            if count >= n:
+                break
+            points25 = parse_points(p_row)
+            feat = from_points25(points25)
+            vec_expected = parse_vectors(v_row)
+            diff = np.abs(feat - vec_expected)
+            assert diff[:3].max() <= tol_hand
+            assert diff[3:].max() <= tol_bones
+            count += 1
+        assert count > 0
 
-    for p_row, v_row in zip(
-        _iter_rows(POINTS_DEFAULT, n), _iter_rows(VECTORS_DEFAULT, n)
-    ):
-        values = [float(p_row[f"point_1_{i}"]) for i in range(1, 76)]
-        points25 = np.array(values, dtype=np.float32).reshape(25, 3)
-        feat = from_points25(points25)
 
-        cols = ["vector_hand_1_x", "vector_hand_1_y", "vector_hand_1_z"]
-        for i in range(1, 21):
-            cols.extend([f"vector_1_{i}_x", f"vector_1_{i}_y", f"vector_1_{i}_z"])
-        vec_expected = np.array([float(v_row[c]) for c in cols], dtype=np.float32)
+@pytest.mark.skipif(not POINTS_PATH.exists(), reason="brak danych PJM")
+def test_reconstruction_parity_small_sample():
+    # test sprawdza parytet rekonstrukcji 21->25 punktow
+    # UWAGA: from_mediapipe_landmarks odwraca Y dla danych z kamery,
+    # ale dane z PJM nie wymagaja odwrocenia, wiec porownujemy bezposrednio z from_points25
+    n = 50
+    tol_hand = 0.08
+    tol_bones = 0.005
 
-        diff = np.abs(feat - vec_expected)
-        max_hand = max(max_hand, float(diff[:3].max()))
-        max_bones = max(max_bones, float(diff[3:].max()))
+    import csv
 
-    assert max_bones < tol_bones
-    assert max_hand < tol_hand
+    from app.sign_language.features import (
+        FeatureConfig,
+        _build_points25_from_mediapipe21,
+        _features_from_points25,
+    )
+
+    with POINTS_PATH.open(newline="", encoding="utf-8") as fp:
+        reader = csv.DictReader(fp)
+        count = 0
+        for row in reader:
+            if count >= n:
+                break
+            points25 = parse_points(row)
+            landmarks21 = build_landmarks21_from_points25(points25)
+            feat_gold = from_points25(points25)
+            # bez odwrocenia Y - dane PJM sa juz w prawidlowym ukladzie
+            pts25_recon = _build_points25_from_mediapipe21(landmarks21)
+            feat_mp = _features_from_points25(
+                pts25_recon, handedness="Right", cfg=FeatureConfig()
+            )
+            diff = np.abs(feat_gold - feat_mp)
+            assert diff[:3].max() <= tol_hand
+            assert diff[3:].max() <= tol_bones
+            count += 1
+        assert count > 0

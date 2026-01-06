@@ -1,4 +1,5 @@
-from typing import Iterable
+from dataclasses import dataclass
+from typing import Iterable, Optional
 
 import numpy as np
 
@@ -10,187 +11,291 @@ def unit(vector: np.ndarray) -> np.ndarray:
     norm = np.linalg.norm(vector)
     if norm < EPS:
         return np.zeros_like(vector, dtype=np.float32)
-    return (vector / norm).astype(np.float32)
+    result: np.ndarray = (vector / norm).astype(np.float32)
+    return result
 
 
-def _build_points25(
-    landmarks21: np.ndarray, handedness: str | None = None
+@dataclass
+class FeatureConfig:
+    mirror_left: bool = True
+    scale_by_mcp: bool = False
+
+
+# wagi do rekonstrukcji brakujacych baz MCP (dopasowane do datasetu)
+_BASE_INDEX_WEIGHTS = np.array(
+    [1.1675016, -2.9088350, 2.0806787, 4.1512337, -3.4905784], dtype=np.float32
+)
+_BASE_MIDDLE_WEIGHTS = np.array(
+    [1.1216259, -3.2278988, 2.1774454, 4.5146465, -3.5858188], dtype=np.float32
+)
+_BASE_RING_WEIGHTS = np.array(
+    [1.0546410, -3.1840618, 1.9982234, 4.3267107, -3.1955132], dtype=np.float32
+)
+_BASE_PINKY_WEIGHTS = np.array(
+    [0.92379045, -2.2040052, 1.1102204, 2.7982580, -1.6282636], dtype=np.float32
+)
+
+
+def _build_landmarks21_from_points25(points25: np.ndarray) -> np.ndarray:
+    """Mapowanie 25->21 zgodne z tools/verify_mediapipe_reconstruction_parity."""
+    mp = np.zeros((21, 3), dtype=np.float32)
+    mp[0] = points25[0]
+    mp[1] = points25[1]
+    mp[2] = points25[2]
+    mp[3] = points25[3]
+    mp[4] = points25[4]
+
+    mp[5] = points25[6]
+    mp[6] = points25[7]
+    mp[7] = points25[8]
+    mp[8] = points25[9]
+
+    mp[9] = points25[11]
+    mp[10] = points25[12]
+    mp[11] = points25[13]
+    mp[12] = points25[14]
+
+    mp[13] = points25[16]
+    mp[14] = points25[17]
+    mp[15] = points25[18]
+    mp[16] = points25[19]
+
+    mp[17] = points25[21]
+    mp[18] = points25[22]
+    mp[19] = points25[23]
+    mp[20] = points25[24]
+    return mp
+
+
+def _compute_hand_normal(rel: np.ndarray) -> np.ndarray:
+    # normalna dloni: cross(index_mcp - wrist, pinky_mcp - wrist)
+    wrist = rel[0]
+    idx = rel[5]
+    pinky = rel[17]
+    normal = np.cross(idx - wrist, pinky - wrist)
+    return unit(normal)
+
+
+def _compute_feature_vectors(rel: np.ndarray) -> np.ndarray:
+    """63D: hand normal + 20 unit bone vectors w zadanej kolejnosci."""
+    # kolejnosc kosci
+    pairs: Iterable[tuple[int, int]] = (
+        (0, 1),
+        (1, 2),
+        (2, 3),
+        (3, 4),
+        (0, 5),
+        (5, 6),
+        (6, 7),
+        (7, 8),
+        (0, 9),
+        (9, 10),
+        (10, 11),
+        (11, 12),
+        (0, 13),
+        (13, 14),
+        (14, 15),
+        (15, 16),
+        (0, 17),
+        (17, 18),
+        (18, 19),
+        (19, 20),
+    )
+
+    feats = [_compute_hand_normal(rel)]
+    for pa, pb in pairs:
+        vec = rel[pb] - rel[pa]
+        feats.append(unit(vec))
+
+    result: np.ndarray = np.concatenate(feats, axis=0).astype(np.float32)
+    return result
+
+
+def _features_from_landmarks21(
+    landmarks21: np.ndarray, handedness: str | None, cfg: FeatureConfig
 ) -> np.ndarray:
-    """Buduje 25 punktow z 21 landmarkow mediapipe, z opcjonalnym mirrorem lewej dloni."""
     if landmarks21.shape != (21, 3):
         raise ValueError(
             f"niepoprawny ksztalt landmarks: {landmarks21.shape}, oczekiwano (21, 3)"
         )
 
-    lm = np.asarray(landmarks21, dtype=np.float32)
-    wrist = lm[0]
-    relative = lm - wrist
+    rel = np.asarray(landmarks21, dtype=np.float32) - np.asarray(
+        landmarks21[0], dtype=np.float32
+    )
 
-    if handedness is not None and handedness.lower().startswith("left"):
-        # mirror osi X wzgledem nadgarstka, aby lewa/prawa dawaly te same cechy
-        relative[:, 0] *= -1.0
+    if (
+        cfg.mirror_left
+        and handedness is not None
+        and handedness.lower().startswith("left")
+    ):
+        rel[:, 0] *= -1.0
 
-    points = np.zeros((25, 3), dtype=np.float32)
+    if cfg.scale_by_mcp:
+        ref = rel[9]
+        norm = float(np.linalg.norm(ref))
+        if norm > EPS:
+            rel = rel / norm
 
-    # podstawowe punkty
-    points[0] = relative[0]  # P0 wrist (0,0,0)
-    points[1] = relative[0]  # P1 thumb_base = wrist (duplikat)
-
-    points[2] = relative[2]
-    points[3] = relative[3]
-    points[4] = relative[4]
-
-    points[6] = relative[5]
-    points[7] = relative[6]
-    points[8] = relative[7]
-    points[9] = relative[8]
-
-    points[11] = relative[9]
-    points[12] = relative[10]
-    points[13] = relative[11]
-    points[14] = relative[12]
-
-    points[16] = relative[13]
-    points[17] = relative[14]
-    points[18] = relative[15]
-    points[19] = relative[16]
-
-    points[21] = relative[17]
-    points[22] = relative[18]
-    points[23] = relative[19]
-
-    # brakujace punkty bazowe na podstawie liniowej kombinacji MCP (punkty nie lez na prostej wrist->mcp)
-    idx = relative[5]
-    mid = relative[9]
-    ring = relative[13]
-    pinky = relative[17]
-
-    points[5] = -2.863790 * idx + 1.982240 * mid + 4.222725 * ring - 3.505714 * pinky
-    points[10] = -3.199167 * idx + 2.114646 * mid + 4.560266 * ring - 3.595484 * pinky
-    points[15] = -3.171155 * idx + 1.969997 * mid + 4.347232 * ring - 3.199870 * pinky
-    points[20] = -2.202918 * idx + 1.107818 * mid + 2.800028 * ring - 1.628653 * pinky
-
-    return points
+    return _compute_feature_vectors(rel)
 
 
-def _compute_feature_vectors(points25: np.ndarray) -> np.ndarray:
-    """Liczy 63-cechowy wektor (vector_hand_1 + vector_1_1..20) z 25 punktow."""
-    if points25.shape != (25, 3):
+def _build_points25_from_mediapipe21(mp21: np.ndarray) -> np.ndarray:
+    if mp21.shape != (21, 3):
         raise ValueError(
-            f"niepoprawny ksztalt points25: {points25.shape}, oczekiwano (25, 3)"
+            f"niepoprawny ksztalt mediapipe: {mp21.shape}, oczekiwano (21, 3)"
         )
 
-    # centrowanie na nadgarstek
-    centered = points25 - points25[0]
+    mp = np.asarray(mp21, dtype=np.float32)
+    pts = np.zeros((25, 3), dtype=np.float32)
 
-    # vector_hand_1 = normalna dloni z punktow MCP (ring, middle) i bazy malego (pinky_base)
-    middle_mcp = centered[11]
-    ring_mcp = centered[16]
-    pinky_base = centered[20]
-    vector_hand_1 = unit(np.cross(ring_mcp - middle_mcp, pinky_base - middle_mcp))
+    pts[0:5] = mp[0:5]
+    pts[6:10] = mp[5:9]
+    pts[11:15] = mp[9:13]
+    pts[16:20] = mp[13:17]
+    pts[21:25] = mp[17:21]
 
-    vectors: list[np.ndarray] = []
-    vectors.append(np.zeros(3, dtype=np.float32))  # vector_1_1 = (0,0,0)
+    base_inputs = mp[[0, 5, 9, 13, 17]]
+    pts[5] = np.tensordot(_BASE_INDEX_WEIGHTS, base_inputs, axes=(0, 0))
+    pts[10] = np.tensordot(_BASE_MIDDLE_WEIGHTS, base_inputs, axes=(0, 0))
+    pts[15] = np.tensordot(_BASE_RING_WEIGHTS, base_inputs, axes=(0, 0))
+    pts[20] = np.tensordot(_BASE_PINKY_WEIGHTS, base_inputs, axes=(0, 0))
+
+    return pts
+
+
+def _features_from_points25(
+    points25: np.ndarray, handedness: str | None, cfg: FeatureConfig
+) -> np.ndarray:
+    pts = np.asarray(points25, dtype=np.float32)
+    if pts.shape != (25, 3):
+        raise ValueError(
+            f"niepoprawny ksztalt points25: {pts.shape}, oczekiwano (25, 3)"
+        )
+
+    rel = pts - pts[0]
+
+    if (
+        cfg.mirror_left
+        and handedness is not None
+        and handedness.lower().startswith("left")
+    ):
+        rel[:, 0] *= -1.0
+
+    if cfg.scale_by_mcp:
+        ref = rel[11]
+        norm = float(np.linalg.norm(ref))
+        if norm > EPS:
+            rel = rel / norm
+
+    idx = rel[6]
+    mid = rel[11]
+    ring = rel[16]
+    pinky = rel[21]
+    center = (rel[0] + idx + mid + ring + pinky) / 5.0
+    hand = unit(np.cross(idx - center, pinky - center))
 
     pairs: Iterable[tuple[int, int]] = (
-        (0, 2),
+        (0, 1),
+        (1, 2),
         (2, 3),
-        (3, 4),  # thumb
+        (3, 4),
         (5, 6),
         (6, 7),
         (7, 8),
-        (8, 9),  # index
+        (8, 9),
         (10, 11),
         (11, 12),
         (12, 13),
-        (13, 14),  # middle
+        (13, 14),
         (15, 16),
         (16, 17),
         (17, 18),
-        (18, 19),  # ring
+        (18, 19),
         (20, 21),
         (21, 22),
         (22, 23),
-        (23, 24),  # pinky
+        (23, 24),
     )
 
-    for pa, pb in pairs:
-        direction = unit(centered[pa] - centered[pb])
-        vectors.append(direction)
+    feats = [hand]
+    for parent_idx, child_idx in pairs:
+        vec = rel[parent_idx] - rel[child_idx]
+        feats.append(unit(vec))
 
-    feature_vector = np.concatenate([vector_hand_1] + vectors, axis=0)
-    return feature_vector.astype(np.float32)
+    result: np.ndarray = np.concatenate(feats, axis=0).astype(np.float32)
+    return result
 
 
-def from_points25(points25: np.ndarray) -> np.ndarray:
-    """Ekstrahuje 63 cechy z 25 punktow (np. po rekonstrukcji z csv)."""
-    return _compute_feature_vectors(np.asarray(points25, dtype=np.float32))
+def from_points25(points25: np.ndarray, handedness: str | None = None) -> np.ndarray:
+    return _features_from_points25(points25, handedness, FeatureConfig())
 
 
 def from_mediapipe_landmarks(
-    landmarks21: np.ndarray, handedness: str | None = None
+    landmarks21: np.ndarray,
+    handedness: str | None = None,
+    cfg: FeatureConfig | None = None,
 ) -> np.ndarray:
-    """Ekstrahuje 63 cechy z 21 punktow mediapipe (x,y,z), z mirrorem lewej dloni."""
-    points25 = _build_points25(np.asarray(landmarks21, dtype=np.float32), handedness)
-    return _compute_feature_vectors(points25)
+    """
+    Konwertuje landmarki MediaPipe (21 punktow) na 63 cechy.
+
+    UWAGA: MediaPipe uzywa ukladu gdzie Y rosnie w dol (standardowy uklad obrazu),
+    a dataset PJM uzywa ukladu gdzie Y rosnie w gore. Dlatego odwracamy os Y.
+    """
+    lm = np.asarray(landmarks21, dtype=np.float32).copy()
+
+    # odwroc os Y (MediaPipe: Y+ = dol, PJM: Y+ = gora)
+    lm[:, 1] *= -1.0
+
+    pts25 = _build_points25_from_mediapipe21(lm)
+    return _features_from_points25(pts25, handedness, cfg or FeatureConfig())
 
 
 def normalize_hand_points(points: np.ndarray) -> np.ndarray:
     """Pomocniczo zwraca 63 cechy z 21 punktow (bez mirrora), uzywane w skryptach diagnostycznych."""
-    return from_mediapipe_landmarks(points)
+    return from_mediapipe_landmarks(points, handedness=None)
 
 
 class FeatureExtractor:
     """Wrapper dla ekstrakcji cech, kompatybilny z dataset.py i translator.py"""
 
-    def extract_batch(self, landmarks_batch: np.ndarray) -> np.ndarray:
-        """
-        Ekstrahuje cechy z batcha landmarkow [N, 21, 3].
+    def __init__(self, cfg: FeatureConfig | None = None) -> None:
+        self.cfg = cfg or FeatureConfig()
 
-        Args:
-            landmarks_batch: tablica [N, 21, 3] z raw landmarks
-
-        Returns:
-            features: tablica [N, 88] z cechami (rozszerzone do 88)
-        """
+    def extract_batch(
+        self, landmarks_batch: np.ndarray, handedness_batch: Optional[list[str]] = None
+    ) -> np.ndarray:
         if landmarks_batch.ndim != 3 or landmarks_batch.shape[1:] != (21, 3):
             raise ValueError(
                 f"niepoprawny ksztalt batcha: {landmarks_batch.shape}, oczekiwano (N, 21, 3)"
             )
 
-        features_list = []
-        for lm in landmarks_batch:
-            # ekstrahuje 63 cechy
-            feat_63 = from_mediapipe_landmarks(lm, handedness=None)
-            # rozszerz do 88 (padding zerami)
-            feat_88 = np.zeros(88, dtype=np.float32)
-            feat_88[:63] = feat_63
-            features_list.append(feat_88)
+        features_list: list[np.ndarray] = []
+        for i, lm in enumerate(landmarks_batch):
+            handed: str | None = (
+                handedness_batch[i] if handedness_batch is not None else None
+            )
+            feat_63 = from_mediapipe_landmarks(lm, handedness=handed, cfg=self.cfg)
+            if np.isnan(feat_63).any() or np.isinf(feat_63).any():
+                raise ValueError("wykryto NaN/Inf w cechach batch")
+            features_list.append(feat_63)
 
         return np.array(features_list, dtype=np.float32)
 
-    def extract(self, landmarks: np.ndarray) -> np.ndarray:
-        """
-        Ekstrahuje cechy z pojedynczego zestawu landmarkow (21, 3).
-
-        Args:
-            landmarks: tablica [21, 3] z raw landmarks
-
-        Returns:
-            features: tablica [88] z cechami (rozszerzone do 88)
-        """
+    def extract(
+        self, landmarks: np.ndarray, handedness: str | None = None
+    ) -> np.ndarray:
         if landmarks.shape != (21, 3):
             raise ValueError(
                 f"niepoprawny ksztalt landmarks: {landmarks.shape}, oczekiwano (21, 3)"
             )
 
-        # ekstrahuje 63 cechy
-        feat_63 = from_mediapipe_landmarks(landmarks, handedness=None)
-        # rozszerz do 88 (padding zerami)
-        feat_88 = np.zeros(88, dtype=np.float32)
-        feat_88[:63] = feat_63
+        feat_63 = from_mediapipe_landmarks(
+            landmarks, handedness=handedness, cfg=self.cfg
+        )
+        if np.isnan(feat_63).any() or np.isinf(feat_63).any():
+            raise ValueError("wykryto NaN/Inf w cechach")
 
-        return feat_88
+        return feat_63
 
 
 __all__ = [
@@ -198,5 +303,6 @@ __all__ = [
     "from_points25",
     "normalize_hand_points",
     "unit",
+    "FeatureConfig",
     "FeatureExtractor",
 ]

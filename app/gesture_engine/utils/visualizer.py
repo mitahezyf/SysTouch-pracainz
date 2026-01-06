@@ -366,3 +366,17 @@ class Visualizer:
         except Exception as e:
             # nie przerywa renderu w razie braku pol
             logger.debug("draw_volume_at_tips error: %s", e)
+
+    def draw_landmarks_mirrored(self, frame, hand_landmarks):
+        # rysuje landmarki na zmirrorowanej klatce, odbijajac wspolrzedna x
+        try:
+            mirrored = type(hand_landmarks)()
+            mirrored.landmark.extend(
+                [
+                    type(lm)(x=1.0 - lm.x, y=lm.y, z=lm.z)
+                    for lm in hand_landmarks.landmark
+                ]
+            )
+        except Exception:
+            mirrored = hand_landmarks
+        self.draw_landmarks(frame, mirrored)

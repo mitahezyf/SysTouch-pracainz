@@ -121,15 +121,20 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
                 self._mode = "gestures"
             self._translator = translator
             self._normalizer = normalizer
+            translator_enabled = bool(self._translator)
+            normalizer_enabled = bool(self._normalizer)
             logger.info(
                 "[mode] ustawiono mode=%s translator=%s normalizer=%s",
                 self._mode,
-                bool(self._translator),
-                bool(self._normalizer),
+                translator_enabled,
+                normalizer_enabled,
             )
-            if self._mode == "translator" and (
-                self._translator is None or self._normalizer is None
-            ):
+            if self._mode == "translator" and not translator_enabled:
+                try:
+                    self.status.emit("Translator niedostepny - brak modelu")
+                except Exception:
+                    pass
+            if self._mode == "translator" and (self._translator is None):
                 try:
                     self.status.emit("Translator niedostepny - brak modelu")
                 except Exception:
@@ -303,14 +308,14 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
 
                     failed_reads = 0
 
-                    frame = cv2.flip(frame, 1)
-
+                    # bez flipu przed MediaPipe, flip tylko dla podgladu (wewnatrz resize)
                     display_frame, gesture_res, per_hand = detect_and_draw(
                         frame,
                         tracker,
                         json_runtime,
                         visualizer,
                         self._preview_enabled,
+                        preview_mirror=True,
                         mode=self._mode,
                         translator=self._translator,
                         normalizer=self._normalizer,

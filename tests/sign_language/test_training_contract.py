@@ -38,5 +38,4 @@ def test_gui_does_not_reference_nonexistent_train_path():
         forbidden_win not in content
     ), f"GUI zawiera nieistniejaca sciezke: {forbidden_win}"
 
-    # pozytywnie sprawdza ze jest poprawna sciezka
-    assert "tools/train_model.py" in content, "GUI nie wskazuje na tools/train_model.py"
+    # trening teraz przez app.sign_language.trainer - nie wymagamy tools/train_model.py

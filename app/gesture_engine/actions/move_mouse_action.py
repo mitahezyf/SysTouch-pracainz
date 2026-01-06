@@ -110,8 +110,8 @@ def handle_move_mouse(landmarks, frame_shape):
     index_tip = landmarks[FINGER_TIPS["index"]]
     screen_w, screen_h = pyautogui.size()
 
-    # przelicza wspolrzedne czubka palca na koordynaty ekranu w zakresie
-    screen_x = _clamp(int(index_tip.x * screen_w), 0, screen_w - 1)
+    # przelicza wspolrzedne czubka palca na koordynaty ekranu w zakresie (mirror X)
+    screen_x = _clamp(int((1.0 - index_tip.x) * screen_w), 0, screen_w - 1)
     screen_y = _clamp(int(index_tip.y * screen_h), 0, screen_h - 1)
 
     with lock:

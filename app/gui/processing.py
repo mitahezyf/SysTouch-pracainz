@@ -15,7 +15,9 @@ class TranslatorLike(Protocol):
     _last_logged_letter: Optional[str]
 
     def process_frame(self, normalized_landmarks: list[float]) -> Optional[str]: ...
-    def process_landmarks(self, landmarks: np.ndarray) -> Optional[str]: ...
+    def process_landmarks(
+        self, landmarks: np.ndarray, handedness: str | None = None
+    ) -> Optional[str]: ...
     def get_state(self) -> dict: ...
 
 
@@ -78,6 +80,7 @@ def detect_and_draw(
     json_runtime,
     visualizer: Visualizer,
     preview_enabled: bool,
+    preview_mirror: bool = True,
     mode: str = "gestures",
     translator: Optional[TranslatorLike] = None,
     normalizer: Optional[NormalizerLike] = None,
@@ -87,8 +90,13 @@ def detect_and_draw(
     import cv2  # lokalny import
 
     frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
-    # tworzy kopie tylko gdy rysuje podglad inaczej zwraca oryginal
-    display_frame = frame_bgr.copy() if preview_enabled else frame_bgr
+    # display_frame moze byc zmirrorowane dla podgladu, ale tracker dostaje nie-flip
+    if preview_enabled and preview_mirror:
+        display_frame = cv2.flip(frame_bgr, 1)
+    elif preview_enabled:
+        display_frame = frame_bgr.copy()
+    else:
+        display_frame = frame_bgr
 
     results = tracker.process(frame_rgb)
 
@@ -102,7 +110,23 @@ def detect_and_draw(
     handed_list = getattr(results, "multi_handedness", None) if results else None
 
     if results and getattr(results, "multi_hand_landmarks", None):
+        hand_entries = []
         for idx, hand_landmarks in enumerate(results.multi_hand_landmarks):
+            handed = None
+            try:
+                if handed_list and idx < len(handed_list):
+                    handed = handed_list[idx].classification[0].label  # Left lub Right
+            except Exception:
+                handed = None
+            xs = [lm.x for lm in hand_landmarks.landmark]
+            ys = [lm.y for lm in hand_landmarks.landmark]
+            area = (max(xs) - min(xs)) * (max(ys) - min(ys))
+            hand_entries.append((idx, hand_landmarks, handed, area))
+
+        if mode == "translator" and hand_entries:
+            hand_entries = [max(hand_entries, key=lambda h: h[3])]
+
+        for idx, hand_landmarks, handed, _area in hand_entries:
             gesture_name: Optional[str] = None
             confidence: float = 0.0
             points = [
@@ -116,7 +140,9 @@ def detect_and_draw(
                         landmarks_array = np.array(points, dtype=np.float32)
 
                         # translator.process_landmarks robi automatycznie ekstrakcje cech 88D
-                        letter = translator.process_landmarks(landmarks_array)
+                        letter = translator.process_landmarks(
+                            landmarks_array, handedness=handed
+                        )
 
                         if letter:
                             gesture_name = letter
@@ -170,16 +196,10 @@ def detect_and_draw(
                     if alt:
                         gesture_name, confidence = alt
 
-            handed = None
-            try:
-                if handed_list and idx < len(handed_list):
-                    handed = handed_list[idx].classification[0].label  # Left lub Right
-            except Exception:
-                handed = None
-
+            result_idx = 0 if mode == "translator" else idx
             per_hand.append(
                 SingleHandResult(
-                    index=idx,
+                    index=result_idx,
                     name=gesture_name,
                     confidence=confidence,
                     landmarks=hand_landmarks.landmark,
@@ -195,9 +215,22 @@ def detect_and_draw(
             if preview_enabled:
                 label = gesture_name or ""
                 label_text = f"{label}: ({confidence * 100:.1f})" if label else ""
-                visualizer.draw_landmarks(display_frame, hand_landmarks)
+                draw_landmarks = hand_landmarks
+                if preview_mirror:
+                    try:
+                        # utworz kopie z x->1-x do rysowania na zmirrorowanej klatce
+                        draw_landmarks = type(hand_landmarks)()
+                        draw_landmarks.landmark.extend(
+                            [
+                                type(lm)(x=1.0 - lm.x, y=lm.y, z=lm.z)
+                                for lm in hand_landmarks.landmark
+                            ]
+                        )
+                    except Exception:
+                        draw_landmarks = hand_landmarks
+                visualizer.draw_landmarks(display_frame, draw_landmarks)
                 visualizer.draw_hand_box(
-                    display_frame, hand_landmarks, label=label_text
+                    display_frame, draw_landmarks, label=label_text
                 )
 
     # rysuje duza litere PJM w prawym gornym rogu dla trybu translator

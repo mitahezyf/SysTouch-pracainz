@@ -95,6 +95,18 @@ def train(
     Path(classes_path).parent.mkdir(parents=True, exist_ok=True)
     np.save(classes_path, classes)
 
+    # walidacja cech: brak NaN/Inf (rozmiar moze byc 63 lub 189)
+    input_dim = X_train.shape[1]
+    if input_dim not in (63, 189):
+        raise ValueError(f"Oczekiwano 63 lub 189 cech, otrzymano {input_dim}")
+    for split_name, arr in {
+        "train": X_train,
+        "val": X_val,
+        "test": X_test,
+    }.items():
+        if np.isnan(arr).any() or np.isinf(arr).any():
+            raise ValueError(f"wykryto NaN/Inf w split {split_name}")
+
     # konwersja do tensorow
     X_train_t = torch.tensor(X_train, dtype=torch.float32)
     y_train_t = torch.tensor(y_train, dtype=torch.long)
@@ -104,7 +116,7 @@ def train(
     y_test_t = torch.tensor(y_test, dtype=torch.long)
 
     # model i optymalizator
-    input_dim = X_train.shape[1]  # dynamicznie z danych (88D)
+    input_dim = X_train.shape[1]
     model = SignLanguageMLP(
         input_size=input_dim, hidden_size=hidden_size, num_classes=num_classes
     )
@@ -196,9 +208,9 @@ def train(
         "input_size": input_dim,
         "hidden_size": hidden_size,
         "num_classes": num_classes,
-        "version": "2.0_relative_features",
+        "version": "2.1_features63",
     }
-    with open(meta_path, "w") as f:
+    with open(meta_path, "w", encoding="utf-8") as f:
         json.dump(model_meta, f, indent=2)
     logger.info("Metadane zapisane: %s", meta_path)
 

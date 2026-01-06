@@ -103,25 +103,16 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                 self._init_translator_dependencies()
 
             def _init_translator_dependencies(self) -> None:
-                # inicjalizuje translator PJM i normalizer
+                # inicjalizuje translator PJM i (opcjonalnie) normalizer
+                self._translator_available = False
+                self._translator_error = None
+
+                # init translator (obowiazkowy)
                 try:
                     sign_language = importlib.import_module(
                         "app.sign_language.translator"
                     )
                     SignTranslator = getattr(sign_language, "SignTranslator")
-                    normalizer_mod = importlib.import_module(
-                        "app.sign_language.normalizer"
-                    )
-                    MediaPipeNormalizerCls = getattr(
-                        normalizer_mod, "MediaPipeNormalizer"
-                    )
-                    self._normalizer = MediaPipeNormalizerCls()
-
-                    # Translator z ZBALANSOWANYMI progami - dobra precyzja i responsywnosc
-                    # buffer_size: 7 -> wystarczajaca stabilizacja
-                    # min_hold_ms: 600 -> rozumny delay pomiedzy literami
-                    # confidence_entry: 0.70 -> dopasowane do sredniej confidence modelu (88%)
-                    # confidence_exit: 0.55 -> stabilne utrzymanie
                     self._translator = SignTranslator(
                         buffer_size=7,
                         min_hold_ms=600,
@@ -141,9 +132,7 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                     self._translator_available = False
                     self._translator_error = str(exc)
                     self._translator = None
-                    self._normalizer = None
-                    self.mode_switch.setChecked(False)  # ustaw na tryb Gesty
-                    # pozostawia mode_switch aktywny aby pokazac komunikat o niedostepnosci
+                    self.mode_switch.setChecked(False)
                     logger.warning("[PJM] Translator niedostepny: %s", exc)
                     try:
                         self.status_label.setText(
@@ -151,6 +140,22 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                         )
                     except Exception:
                         pass
+
+                # init normalizer (opcjonalny)
+                try:
+                    normalizer_mod = importlib.import_module(
+                        "app.sign_language.normalizer"
+                    )
+                    MediaPipeNormalizerCls = getattr(
+                        normalizer_mod, "MediaPipeNormalizer"
+                    )
+                    self._normalizer = MediaPipeNormalizerCls()
+                    logger.info(
+                        "[PJM] Normalizer zainicjalizowany (MediaPipeNormalizer)"
+                    )
+                except Exception as exc:  # pragma: no cover
+                    self._normalizer = None
+                    logger.warning("[PJM] Normalizer niedostepny: %s", exc)
 
             def on_record_sign_language(self):
                 # uruchamia proces nagrywania datasetu liter w osobnym procesie pythona
@@ -279,24 +284,29 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                     if "app.sign_language.normalizer" in sys.modules:
                         del sys.modules["app.sign_language.normalizer"]
 
-                    # przeladuj translator i normalizer
+                    # przeladuj translator i normalizer (normalizer opcjonalny)
                     sign_language = importlib.import_module(
                         "app.sign_language.translator"
                     )
                     SignTranslator = getattr(sign_language, "SignTranslator")
-                    normalizer_mod = importlib.import_module(
-                        "app.sign_language.normalizer"
-                    )
-                    MediaPipeNormalizerCls = getattr(
-                        normalizer_mod, "MediaPipeNormalizer"
-                    )
+                    try:
+                        normalizer_mod = importlib.import_module(
+                            "app.sign_language.normalizer"
+                        )
+                        MediaPipeNormalizerCls = getattr(
+                            normalizer_mod, "MediaPipeNormalizer"
+                        )
+                    except Exception:
+                        MediaPipeNormalizerCls = None
 
                     # zapisz stare referencje (na wypadek bledu)
                     old_translator = self._translator
                     old_normalizer = self._normalizer
 
                     # stworz nowe instancje
-                    self._normalizer = MediaPipeNormalizerCls()
+                    self._normalizer = (
+                        MediaPipeNormalizerCls() if MediaPipeNormalizerCls else None
+                    )
                     self._translator = SignTranslator()
 
                     logger.info(

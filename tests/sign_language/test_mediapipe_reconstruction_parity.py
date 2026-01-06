@@ -3,7 +3,12 @@ from pathlib import Path
 
 import numpy as np
 
-from app.sign_language.features import from_mediapipe_landmarks, from_points25
+from app.sign_language.features import (
+    FeatureConfig,
+    _build_points25_from_mediapipe21,
+    _features_from_points25,
+    from_points25,
+)
 from tools.verify_mediapipe_reconstruction_parity import build_landmarks21_from_points25
 
 
@@ -22,6 +27,9 @@ def _load_points(points_path: Path, n: int) -> list[np.ndarray]:
 
 
 def test_mediapipe_reconstruction_parity() -> None:
+    # test sprawdza parytet rekonstrukcji 21->25 punktow
+    # UWAGA: from_mediapipe_landmarks odwraca Y dla danych z kamery,
+    # ale dane z PJM nie wymagaja odwrocenia, wiec uzywamy _features_from_points25 bezposrednio
     points_path = Path("app/sign_language/data/raw/PJM-points.csv")
     samples = _load_points(points_path, 20)
 
@@ -31,7 +39,11 @@ def test_mediapipe_reconstruction_parity() -> None:
     for points25 in samples:
         landmarks21 = build_landmarks21_from_points25(points25)
         feat_gold = from_points25(points25)
-        feat_mp = from_mediapipe_landmarks(landmarks21, handedness="Right")
+        # bez odwrocenia Y - dane PJM sa juz w prawidlowym ukladzie
+        pts25_recon = _build_points25_from_mediapipe21(landmarks21)
+        feat_mp = _features_from_points25(
+            pts25_recon, handedness="Right", cfg=FeatureConfig()
+        )
 
         diff = np.abs(feat_gold - feat_mp)
         hand_diff = diff[:3]

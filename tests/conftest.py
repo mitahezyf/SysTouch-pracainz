@@ -1,4 +1,6 @@
+import gc
 import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -26,6 +28,23 @@ def _find_model_joblib(repo_root: Path) -> Path | None:
         return preferred
     matches = list(repo_root.rglob("pjm_model.joblib"))
     return matches[0] if matches else None
+
+
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_com_objects():
+    """Fixture do czyszczenia obiektow COM po zakonczeniu testow.
+
+    Zapobiega bledowi 'access violation' w comtypes podczas garbage collection.
+    """
+    yield
+    # po zakonczeniu testow wymus garbage collection przed zamknieciem
+    if sys.platform == "win32":
+        gc.collect()
+        # daj czas na zwolnienie zasobow COM
+        import time
+
+        time.sleep(0.1)
+        gc.collect()
 
 
 @pytest.fixture(scope="session")
