@@ -1,4 +1,4 @@
-﻿﻿# podstawowe biblioteki numeryczne
+# podstawowe biblioteki numeryczne
 numpy>=1.24,<3
 
 # obsluga obrazu (wariant headless do CI/serverow)

@@ -69,10 +69,10 @@ class SignTranslator:
         # bufor na pojedyncze klatki (zbiera 3 klatki przed predykcja)
         self.frame_collector: deque = deque(maxlen=frames_per_sequence)
 
-        # Inicjalizacja ekstraktora cech (mirror lewej wlaczony domyslnie, bez skali)
+        # Inicjalizacja ekstraktora cech (mirror lewej wlaczony domyslnie)
         from app.sign_language.features import FeatureConfig
 
-        self.feature_extractor = FeatureExtractor(FeatureConfig())
+        self.feature_extractor = FeatureExtractor(FeatureConfig(mirror_left=True))
 
         # wczytanie klas - jawna obsluga bledu
         try:

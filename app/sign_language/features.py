@@ -123,6 +123,9 @@ def _features_from_landmarks21(
         landmarks21[0], dtype=np.float32
     )
 
+    # mirror dla lewej reki (z perspektywy uzytkownika)
+    # MediaPipe "Left" = twoja prawa reka, "Right" = twoja lewa reka
+    # Dataset byl nagrany lewa reka, wiec mirrorujemy "Left" (prawa reka uzytkownika)
     if (
         cfg.mirror_left
         and handedness is not None
@@ -174,6 +177,9 @@ def _features_from_points25(
 
     rel = pts - pts[0]
 
+    # mirror dla lewej reki (z perspektywy uzytkownika)
+    # MediaPipe "Left" = twoja prawa reka, "Right" = twoja lewa reka
+    # Dataset byl nagrany lewa reka, wiec mirrorujemy "Left" (prawa reka uzytkownika)
     if (
         cfg.mirror_left
         and handedness is not None
@@ -237,15 +243,10 @@ def from_mediapipe_landmarks(
 ) -> np.ndarray:
     """
     Konwertuje landmarki MediaPipe (21 punktow) na 63 cechy.
-
-    UWAGA: MediaPipe uzywa ukladu gdzie Y rosnie w dol (standardowy uklad obrazu),
-    a dataset PJM uzywa ukladu gdzie Y rosnie w gore. Dlatego odwracamy os Y.
     """
     lm = np.asarray(landmarks21, dtype=np.float32).copy()
 
-    # odwroc os Y (MediaPipe: Y+ = dol, PJM: Y+ = gora)
-    lm[:, 1] *= -1.0
-
+    # bez transformacji
     pts25 = _build_points25_from_mediapipe21(lm)
     return _features_from_points25(pts25, handedness, cfg or FeatureConfig())
 

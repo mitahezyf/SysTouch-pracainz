@@ -198,7 +198,8 @@ class PJMDataset:
         if not feature_cols:
             return np.array([]).reshape(0, self.input_size)
 
-        X = df[feature_cols].to_numpy(dtype=np.float32)
+        X_raw = df[feature_cols].to_numpy(dtype=np.float32)
+        X: np.ndarray = np.asarray(X_raw, dtype=np.float32)
 
         if X.shape[1] != self.input_size:
             logger.error(

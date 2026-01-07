@@ -29,10 +29,10 @@ known-first-party = ["app"]
 "compare_*.py" = ["T201", "E402"]
 "diagnose_*.py" = ["T201", "E402"]
 "quick_*.py" = ["T201", "E402"]
-"test_letters.py" = ["T201"]
-"test_y_fix.py" = ["T201"]
-# Tools verification scripts
-"tools/verify_*.py" = ["E402"]
+"analyze_*.py" = ["T201", "E402"]
+"test_*.py" = ["T201", "E402"]
+# Tools - narzedzia pomocnicze moga uzywac print
+"tools/**/*.py" = ["T201", "E402", "F841"]
 
 [format]
 # Ruff format jest zgodny z Black; nie wymuszamy zmiany cudzyslowow

@@ -116,8 +116,8 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                     self._translator = SignTranslator(
                         buffer_size=7,
                         min_hold_ms=600,
-                        confidence_entry=0.70,
-                        confidence_exit=0.55,
+                        confidence_entry=0.85,
+                        confidence_exit=0.65,
                         enable_dynamic_gestures=True,
                     )
                     self._translator_available = True
