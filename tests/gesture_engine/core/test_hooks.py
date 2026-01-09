@@ -21,68 +21,71 @@ def test_register_and_trigger_hook(mock_logger):
     mock_logger.debug.assert_any_call("[hook] wywołanie hooka dla: test_gest")
 
 
-# weryfikuje reset stanu click przy przejsciu na inny gest
+# weryfikuje reset stanu click przy przejsciu na inny gest (nie move_mouse)
+@patch("app.gesture_engine.actions.click_action.release_click")
 @patch("app.core.hooks.logger")
-@patch("app.core.hooks.update_click_state")
-def test_handle_click_reset_on_change(mock_update, mock_logger):
-    hooks.handle_click.active = True
+def test_handle_click_reset_on_change(mock_logger, mock_release):
+    hooks.last_gesture_name = "click"
     hooks.handle_gesture_start_hook("scroll", None, None)
 
-    assert hooks.handle_click.active is False
-    mock_update.assert_called_once_with(False)
+    mock_release.assert_called_once()
     mock_logger.debug.assert_any_call("[hook] click released (gest zmienił się)")
 
 
-# weryfikuje reset stanu click przy zakonczeniu gestu (None)
-@patch("app.core.hooks.logger")
-@patch("app.core.hooks.update_click_state")
-def test_handle_click_reset_on_none(mock_update, mock_logger):
+# weryfikuje ze click NIE jest zwalniany przy przejsciu na move_mouse
+@patch("app.gesture_engine.actions.click_action.release_click")
+def test_handle_click_not_released_on_move_mouse(mock_release):
     hooks.last_gesture_name = "click"
-    hooks.handle_click.active = True
+    hooks.handle_gesture_start_hook("move_mouse", None, None)
+
+    # release_click NIE powinno byc wywolane
+    mock_release.assert_not_called()
+
+
+# weryfikuje reset stanu click przy zakonczeniu gestu (None)
+@patch("app.gesture_engine.actions.click_action.release_click")
+@patch("app.core.hooks.logger")
+def test_handle_click_reset_on_none(mock_logger, mock_release):
+    hooks.last_gesture_name = "click"
 
     hooks.handle_gesture_start_hook(None, None, None)
 
-    assert hooks.handle_click.active is False
-    mock_update.assert_called_once_with(False)
+    mock_release.assert_called_once()
     mock_logger.debug.assert_any_call("[hook] click released (gest się zakończył)")
 
 
-# USUNIĘTO: test_volume_hook_registers_and_sets_adjusting
-# USUNIĘTO: test_volume_reset_on_exit
-# Przyczyna: hook volume został usunięty w prostym modelu (bez faz)
-# Handler volume działa teraz bezpośrednio bez hooka, baseline pozostaje przez całą sesję
-
-
-@patch("app.core.hooks.update_click_state")
+# weryfikuje reset click gdy move_mouse sie konczy podczas click-hold
+@patch("app.gesture_engine.actions.click_action.is_click_holding", return_value=True)
+@patch("app.gesture_engine.actions.click_action.release_click")
 @patch("app.core.hooks.logger")
-def test_reset_hooks_state_clears_click_and_volume(mock_logger, mock_update):
+def test_handle_move_mouse_end_releases_click_hold(
+    mock_logger, mock_release, mock_is_holding
+):
+    hooks.last_gesture_name = "move_mouse"
+
+    hooks.handle_gesture_start_hook(None, None, None)
+
+    mock_is_holding.assert_called_once()
+    mock_release.assert_called_once()
+    mock_logger.debug.assert_any_call(
+        "[hook] click released (move_mouse zakończony podczas rysowania)"
+    )
+
+
+@patch("app.gesture_engine.actions.click_action.release_click")
+@patch("app.core.hooks.logger")
+def test_reset_hooks_state_clears_click(mock_logger, mock_release):
     from app.gesture_engine.actions import click_action
 
-    setattr(click_action.handle_click, "active", True)
-    click_action.click_state["start_time"] = 123.0
-    click_action.click_state["holding"] = True
-    click_action.click_state["mouse_down"] = True
-    click_action.click_state["click_sent"] = True
-    click_action.click_state["was_active"] = True
+    # Ustaw stan click jako aktywny
+    click_action.click_state["gesture_start"] = 123.0
+    click_action.click_state["mouse_down_active"] = True
+    click_action.click_state["click_executed"] = True
 
-    hooks.last_gesture_name = "volume"
-    if hooks.volume_state is not None:
-        hooks.volume_state["phase"] = "adjusting"
-        hooks.volume_state["_extend_start"] = 1.0
+    hooks.last_gesture_name = "click"
 
     hooks.reset_hooks_state()
 
-    assert getattr(click_action.handle_click, "active") is False
-    assert click_action.click_state["start_time"] is None
-    assert click_action.click_state["holding"] is False
-    assert click_action.click_state["mouse_down"] is False
-    assert click_action.click_state["click_sent"] is False
-    assert click_action.click_state["was_active"] is False
-
+    # release_click powinno byc wywolane
+    mock_release.assert_called_once()
     assert hooks.last_gesture_name is None
-
-    if hooks.volume_state is not None:
-        assert hooks.volume_state["phase"] == "idle"
-        assert hooks.volume_state["_extend_start"] is None
-
-    mock_update.assert_called()

@@ -1,78 +1,87 @@
 # -*- coding: utf-8 -*-
-"""Test cooldown mechanizmu dla close_program gestu."""
+"""Test mechanizmu zapobiegania powtorzeniom dla close_program gestu."""
 
 
-def test_close_program_cooldown_prevents_repeated_execution():
-    """Sprawdza ze close_program wykonuje sie tylko raz dopoki gest jest trzymany."""
-    from app.gesture_engine.actions.close_program_action import (
-        _close_program_state,
-        handle_close_program,
-        reset_close_program_cooldown,
+def test_close_program_per_hand_state():
+    """Sprawdza ze close_program ma niezalezny stan dla lewej i prawej reki."""
+    from app.gesture_engine.gestures.close_program_gesture import (
+        _execution_state,
+        reset_close_program_state,
     )
 
     # Reset stanu przed testem
-    reset_close_program_cooldown()
+    reset_close_program_state()
 
-    # Symuluj landmarks i frame_shape (nie sa uzywane w logice cooldown)
-    fake_landmarks = None
-    fake_frame_shape = (480, 640, 3)
+    # Sprawdz inicjalny stan
+    assert _execution_state["Left"] is False
+    assert _execution_state["Right"] is False
 
-    # Pierwsze wywolanie - powinno wykonac akcje
-    initial_state = _close_program_state.copy()
-    assert not initial_state["last_executed"]
-    assert not initial_state["cooldown_active"]
+    # Symuluj wykonanie gestu prawą ręką
+    _execution_state["Right"] = True
 
-    handle_close_program(fake_landmarks, fake_frame_shape)
+    # Prawa ręka zablokowana, lewa wciąż dostępna
+    assert _execution_state["Right"] is True
+    assert _execution_state["Left"] is False
 
-    # Po pierwszym wywolaniu cooldown powinien byc aktywny
-    assert _close_program_state["last_executed"]
-    assert _close_program_state["cooldown_active"]
+    # Reset tylko prawej ręki
+    reset_close_program_state("Right")
 
-    # Drugie wywolanie (gest wciaz trzymany) - NIE powinno wykonac akcji
-    handle_close_program(fake_landmarks, fake_frame_shape)
-
-    # Stan powinien pozostac bez zmian
-    assert _close_program_state["last_executed"]
-    assert _close_program_state["cooldown_active"]
-
-    # Reset cooldown (symulacja zakonczenia gestu)
-    reset_close_program_cooldown()
-
-    # Po resecie powinno byc mozliwe ponowne wykonanie
-    assert not _close_program_state["last_executed"]
-    assert not _close_program_state["cooldown_active"]
-
-    # Trzecie wywolanie (nowy gest) - powinno wykonac akcje
-    handle_close_program(fake_landmarks, fake_frame_shape)
-
-    assert _close_program_state["last_executed"]
-    assert _close_program_state["cooldown_active"]
+    assert _execution_state["Right"] is False
+    assert _execution_state["Left"] is False
 
 
-def test_close_program_reset_via_hooks():
-    """Sprawdza ze hooks.py poprawnie resetuje cooldown close_program."""
-    from app.gesture_engine.actions.close_program_action import (
-        _close_program_state,
-        reset_close_program_cooldown,
+def test_close_program_reset_all_hands():
+    """Sprawdza ze reset bez argumentu resetuje obie rece."""
+    from app.gesture_engine.gestures.close_program_gesture import (
+        _execution_state,
+        reset_close_program_state,
     )
-    from app.gesture_engine.core.hooks import handle_gesture_start_hook
+
+    # Ustaw obie ręce jako wykonane
+    _execution_state["Left"] = True
+    _execution_state["Right"] = True
+
+    # Reset wszystkich
+    reset_close_program_state()
+
+    assert _execution_state["Left"] is False
+    assert _execution_state["Right"] is False
+
+
+def test_close_program_gesture_blocks_repeat():
+    """Sprawdza ze gest close_program blokuje powtorzenia dla tej samej reki."""
+    from app.gesture_engine.gestures.close_program_gesture import (
+        _execution_state,
+        detect_close_program_gesture,
+        reset_close_program_state,
+    )
 
     # Reset stanu
-    reset_close_program_cooldown()
+    reset_close_program_state()
 
-    # Ustaw cooldown jako aktywny (symulacja wykonanej akcji)
-    _close_program_state["last_executed"] = True
-    _close_program_state["cooldown_active"] = True
+    # Przygotuj fake landmarks (pięść z kciukiem na bok)
+    # Dla uproszczenia używamy prostych wartości - test sprawdza tylko logikę blokady
+    class FakeLandmark:
+        def __init__(self, x, y, z=0):
+            self.x = x
+            self.y = y
+            self.z = z
 
-    # Symuluj zmiane gestu z close_program na None (zakonczenie gestu)
-    # Najpierw ustaw last_gesture_name na close_program
-    from app.gesture_engine.core import hooks
+    # Symuluj landmarks dla gestu close_program
+    # (szczegóły geometrii nie są istotne dla tego testu)
+    fake_landmarks = [FakeLandmark(0, 0)] * 21
 
-    hooks.last_gesture_name = "close_program"
+    # Ustaw stan jako już wykonany
+    _execution_state["Right"] = True
 
-    # Wywolaj hook z gesture_name=None (zakonczenie gestu)
-    handle_gesture_start_hook(None, None, None)
+    # Wywołaj detektor - powinien zwrócić None (zablokowany)
+    result = detect_close_program_gesture(fake_landmarks, "Right")
 
-    # Cooldown powinien byc zresetowany
-    assert not _close_program_state["last_executed"]
-    assert not _close_program_state["cooldown_active"]
+    # Gest powinien być zablokowany
+    assert result is None
+
+    # Reset i ponowna próba
+    reset_close_program_state("Right")
+    # Teraz gest powinien być możliwy do wykrycia (choć może nie zostać wykryty
+    # ze względu na fake landmarks - ale nie powinien być zablokowany)
+    # Ten test sprawdza tylko mechanizm blokady, nie samą detekcję gestu

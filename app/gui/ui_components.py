@@ -39,7 +39,9 @@ class SwitchToggle:
                 self._bg_color_off = QColor("#555555")
                 self._bg_color_on = QColor("#4CAF50")
                 self._circle_color = QColor("#FFFFFF")
-                self._bg_color_on_translator = QColor("#2196F3")
+                self._bg_color_on_translator = QColor(
+                    "#4CAF50"
+                )  # zielony, taki sam jak tryb tłumacza
 
                 self.setCursor(Qt.CursorShape.PointingHandCursor)
 
@@ -208,9 +210,12 @@ def build_ui(display_width: int, display_height: int) -> UIRefs:
 
     status_label = QLabel("Status: gotowe")
     fps_label = QLabel("FPS: 0")
-    gesture_label = QLabel("Gesture (best): None")
-    left_hand_label = QLabel("Left: None")
-    right_hand_label = QLabel("Right: None")
+    gesture_label = QLabel("Gest (najlepszy): Brak")
+    gesture_label.setMinimumWidth(350)  # stała szerokość aby zapobiec przeskokom
+    left_hand_label = QLabel("Lewa: Brak")
+    left_hand_label.setMinimumWidth(200)  # stała szerokość
+    right_hand_label = QLabel("Prawa: Brak")
+    right_hand_label.setMinimumWidth(200)  # stała szerokość
 
     top_bar = QHBoxLayout()
     top_bar.addWidget(QLabel("Kamera:"))
@@ -302,21 +307,22 @@ def build_ui(display_width: int, display_height: int) -> UIRefs:
     pjm_layout.addWidget(pjm_top_label)
 
     # Przyciski akcji
-    pjm_buttons_layout = QHBoxLayout()
-    pjm_clear_btn = QPushButton("Wyczysc")
+    pjm_buttons_layout = QHBoxLayout()  # poziomy układ
+    pjm_clear_btn = QPushButton("Wyczyść")
+    pjm_clear_btn.setStyleSheet("font-size: 11px; padding: 4px;")
     pjm_export_btn = QPushButton("Eksportuj")
-    pjm_reload_btn = QPushButton("Przeladuj Model")
-    pjm_reload_btn.setToolTip("Przeladowuje model PJM z dysku (po przetrenowaniu)")
+    pjm_export_btn.setStyleSheet("font-size: 11px; padding: 4px;")
+    pjm_reload_btn = QPushButton("Przeładuj")
+    pjm_reload_btn.setStyleSheet("font-size: 11px; padding: 4px;")
+    pjm_reload_btn.setToolTip("Przeładowuje model PJM z dysku (po przetrenowaniu)")
     pjm_buttons_layout.addWidget(pjm_clear_btn)
     pjm_buttons_layout.addWidget(pjm_export_btn)
     pjm_buttons_layout.addWidget(pjm_reload_btn)
     pjm_layout.addLayout(pjm_buttons_layout)
 
     pjm_group.setLayout(pjm_layout)
-    pjm_group.setVisible(False)  # ukryj domyslnie, pokaze sie w trybie translator
-    pjm_group.setMaximumWidth(
-        350
-    )  # ogranicza szerokosc panelu aby nie zaslanialo wideo
+    pjm_group.setVisible(False)  # ukryj domyślnie, pokaże się w trybie translator
+    pjm_group.setMinimumWidth(300)  # minimalna szerokość panelu
 
     info_group = QGroupBox("Informacje")
     info_layout = QVBoxLayout()
@@ -325,18 +331,20 @@ def build_ui(display_width: int, display_height: int) -> UIRefs:
     info_layout.addWidget(right_hand_label)
     info_layout.addWidget(status_label)
     info_group.setLayout(info_layout)
+    info_group.setMinimumHeight(150)  # stały rozmiar aby zapobiec przeskokom
 
     # tworzy horizontal layout dla wideo i panelu PJM (obok siebie)
     video_and_stats_layout = QHBoxLayout()
-    video_and_stats_layout.addWidget(video_label, alignment=Qt.AlignCenter)
-    video_and_stats_layout.addWidget(pjm_group)
-    video_and_stats_layout.addStretch(0)  # panel PJM przylega do prawej krawedzi wideo
+    video_and_stats_layout.addWidget(video_label, 0, Qt.AlignCenter)
+    video_and_stats_layout.addWidget(pjm_group, 0, Qt.AlignTop)
+    video_and_stats_layout.setSpacing(10)  # odstęp między elementami
 
     central = QWidget()
     main_layout = QVBoxLayout()
     main_layout.addWidget(title_label)
     main_layout.addLayout(top_bar)
     main_layout.addLayout(video_and_stats_layout)  # wideo + panel PJM obok siebie
+    main_layout.addSpacing(15)  # padding między podglądem a przyciskami
     main_layout.addLayout(ctrl_bar)
     main_layout.addWidget(info_group)
     central.setLayout(main_layout)

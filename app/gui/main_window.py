@@ -26,8 +26,19 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
         class _MainWindow(QMainWindow):
             def __init__(self):
                 super().__init__()
-                self.setWindowTitle("SysTouch GUI")
-                self.setMinimumSize(900, 700)
+                self.setWindowTitle("SysTouch")
+
+                # Ustaw ikonę aplikacji
+                from pathlib import Path
+
+                QIcon = qtgui.QIcon
+                icon_path = (
+                    Path(__file__).resolve().parent.parent.parent / "SysTouchIco.jpg"
+                )
+                if icon_path.exists():
+                    self.setWindowIcon(QIcon(str(icon_path)))
+
+                self.setMinimumSize(1100, 750)
                 self.setStyleSheet(DARK_STYLESHEET)
 
                 ui = build_ui(DISPLAY_WIDTH, DISPLAY_HEIGHT)
@@ -336,6 +347,9 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                             len(self._translator.zero_var_indices),
                             list(self._translator.zero_var_indices),
                         )
+
+                    # natychmiast odswiez wyswietlanie statystyk w GUI
+                    self._update_pjm_stats_display()
 
                 except Exception as exc:
                     logger.error("[PJM] Blad przeladowania modelu: %s", exc)
@@ -736,7 +750,7 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                 if checked:
                     self.mode_text_label.setText("Tlumacz")
                     self.mode_text_label.setStyleSheet(
-                        "font-weight: bold; color: #2196F3;"
+                        "font-weight: bold; color: #4CAF50;"
                     )
                 else:
                     self.mode_text_label.setText("Gesty")
@@ -812,22 +826,25 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                     logger.debug("on_metrics: setText error: %s", e)
 
             def on_gesture(self, result):
-                if self.mode == "translator" and result.name:
-                    self.gesture_label.setText(f"Translator: {result.name}")
-                    # aktualizuj panel PJM
+                if self.mode == "translator":
+                    # w trybie tłumacza zawsze aktualizuj panel PJM (nawet gdy brak wykrycia)
                     self._update_pjm_stats_display()
+                    if result.name:
+                        self.gesture_label.setText(f"Tłumacz: {result.name}")
+                    else:
+                        self.gesture_label.setText("Tłumacz: Brak")
                     return
                 if result.name:
                     self.gesture_label.setText(
-                        f"Gesture (best): {result.name} ({int(result.confidence * 100)}%)"
+                        f"Gest (najlepszy): {result.name} ({int(result.confidence * 100)}%)"
                     )
                 else:
-                    self.gesture_label.setText("Gesture (best): None")
+                    self.gesture_label.setText("Gest (najlepszy): Brak")
 
             def on_hands(self, per_hand: List[object]):
                 # per_hand to lista SingleHandResult z polami: handedness ("Left"/"Right"), name, confidence
-                left_txt = "Left: None"
-                right_txt = "Right: None"
+                left_txt = "Lewa: Brak"
+                right_txt = "Prawa: Brak"
                 try:
                     for h in per_hand:
                         handed = getattr(h, "handedness", None)
@@ -835,15 +852,15 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                         conf = getattr(h, "confidence", 0.0)
                         if handed and str(handed).lower().startswith("left"):
                             left_txt = (
-                                f"Left: {name} ({int(conf * 100)}%)"
+                                f"Lewa: {name} ({int(conf * 100)}%)"
                                 if name
-                                else "Left: None"
+                                else "Lewa: Brak"
                             )
                         elif handed and str(handed).lower().startswith("right"):
                             right_txt = (
-                                f"Right: {name} ({int(conf * 100)}%)"
+                                f"Prawa: {name} ({int(conf * 100)}%)"
                                 if name
-                                else "Right: None"
+                                else "Prawa: Brak"
                             )
                 except Exception as e:
                     logger.debug("on_hands parse error: %s", e)
