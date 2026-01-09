@@ -25,6 +25,7 @@ LABELS_PATH = Path(__file__).parent / "labels" / "pjm.json"
 CSV_FILES = {
     "vectors": RAW_DIR / "PJM-vectors.csv",
     "points": RAW_DIR / "PJM-points.csv",
+    "custom": RAW_DIR / "custom_dataset.csv",  # Twoje zebrane dane
     # images pomijamy - tylko metadane
 }
 
@@ -175,6 +176,8 @@ class PJMDataset:
                 X = np.array([]).reshape(0, self.input_size)
             else:
                 X = self._extract_and_normalize_points(df, label_col)
+        elif dataset_type == "custom":
+            X = self._extract_custom(df, label_col)
         else:
             raise ValueError(f"Nieznany typ datasetu: {dataset_type}")
 
@@ -209,6 +212,42 @@ class PJMDataset:
             )
             return np.array([]).reshape(0, self.input_size)
 
+        return X
+
+    def _extract_custom(self, df: pd.DataFrame, label_col: str) -> np.ndarray:
+        """
+        Ekstrahuje cechy z custom_dataset.csv (zebrane z collect_dataset.py).
+        Format: 1 blok x 63 cechy (feat_0...feat_62).
+        Powtarza 3x aby dostac 189 cech (kompatybilnosc z PJM-vectors).
+        """
+        # sprawdz czy sa kolumny feat_0...feat_62
+        feat_cols = [f"feat_{i}" for i in range(63)]
+        missing_cols = [col for col in feat_cols if col not in df.columns]
+        if missing_cols:
+            logger.error(
+                "Brak wymaganych kolumn feat_* w custom dataset: %s", missing_cols[:5]
+            )
+            return np.array([]).reshape(0, self.input_size)
+
+        # wczytaj 63 cechy
+        X_single = df[feat_cols].to_numpy(dtype=np.float32)
+
+        # powtorz 3x aby dostac 189 cech (poczatek=srodek=koniec dla gestow statycznych)
+        # dla gestow dynamicznych: mozna pozniej zastosowac interpolacje
+        X = np.tile(X_single, (1, 3))
+
+        if X.shape[1] != self.input_size:
+            logger.error(
+                "Nieoczekiwany ksztalt cech custom: %s (oczekiwano %d kolumn)",
+                X.shape,
+                self.input_size,
+            )
+            return np.array([]).reshape(0, self.input_size)
+
+        logger.info(
+            "Ekstrahowano cechy z %d probek z custom dataset (1 blok -> 3 bloki)",
+            len(X),
+        )
         return X
 
     def _extract_and_normalize_points(

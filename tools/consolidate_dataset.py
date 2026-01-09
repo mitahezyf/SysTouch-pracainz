@@ -1,6 +1,25 @@
 """
-Konsoliduje wszystkie zebrane sesje do jednego pliku vectors.csv gotowego do treningu
+DEPRECATED: Ten skrypt jest przestarzaly.
+
+Uzyj zamiast niego:
+    python tools/run_full_training.py
+
+Lub do konsolidacji manualnej:
+    python tools/consolidate_collected.py
+
+Ten skrypt (consolidate_dataset.py) jest zachowany dla kompatybilnosci wstecznej
+z pipeline sklearn (train_model.py). Jezeli chcesz uzywac PyTorch MLP (zalecane),
+uzyj run_full_training.py.
 """
+
+import warnings
+
+warnings.warn(
+    "consolidate_dataset.py jest przestarzaly. "
+    "Uzyj run_full_training.py lub consolidate_collected.py",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 import csv
 import json

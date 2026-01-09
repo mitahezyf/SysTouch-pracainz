@@ -1,0 +1,9 @@
+{
+  "input_size": 246,
+  "hidden_size": 512,
+  "num_classes": 36,
+  "best_val_acc": 0.9966666666666667,
+  "test_acc": 0.9948148148148148,
+  "best_epoch": 94,
+  "version": "extended_82x3"
+}

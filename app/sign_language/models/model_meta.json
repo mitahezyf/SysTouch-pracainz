@@ -1,0 +1,6 @@
+{
+  "input_size": 189,
+  "hidden_size": 256,
+  "num_classes": 36,
+  "version": "2.1_features63"
+}

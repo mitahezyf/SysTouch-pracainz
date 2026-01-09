@@ -1,0 +1,5 @@
+{
+  "threshold": 0.98,
+  "window": 8,
+  "force_right_hand": true
+}

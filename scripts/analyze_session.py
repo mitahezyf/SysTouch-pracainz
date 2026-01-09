@@ -25,7 +25,7 @@ total_with_hand = 0
 total_with_features = 0
 
 for csv_file in csv_files:
-    with open(csv_file, "r") as f:
+    with open(csv_file, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
 

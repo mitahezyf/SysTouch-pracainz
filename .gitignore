@@ -13,7 +13,8 @@ __pycache__/
 .ruff_cache/
 
 # IDE
-.vscode/
+.vscode/*
+!.vscode/settings.json
 .idea/
 
 # OS
@@ -35,3 +36,12 @@ analyze_output.txt
 
 # Kosz - pliki do usuniecia
 KOSZ/
+trash_test/
+data/
+
+# Pliki wideo z sesji zbierania danych
+*.mp4
+data/collected/*/clips/
+
+# GitHub instructions
+.github/instructions/instructionsprompt.instructions.md
