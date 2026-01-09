@@ -54,12 +54,12 @@ DEVELOPER_MODE = False
 
 # progi gestow
 CLICK_THRESHOLD = 0.5
-HOLD_THRESHOLD = 2.0
+HOLD_THRESHOLD = 0.3  # czas do aktywacji hold (mouseDown) - obnizony dla rysowania
 SCROLL_THRESHOLD = 5
 SCROLL_SENSITIVITY = 30
-MOUSE_MOVING_SMOOTHING = 0.7
+MOUSE_MOVING_SMOOTHING = 0.5  # srednia wartosc dla plynnego ruchu
 # minimalny prog ruchu w pikselach, ponizej ktorego ruch nie jest wykonywany (redukcja drgan)
-MOUSE_DEADZONE_PX = 3
+MOUSE_DEADZONE_PX = 2  # balans miedzy precyzja a stabilnoscia
 FLEX_THRESHOLD = 0.001
 VOLUME_THRESHOLD = 0.5
 

@@ -2,11 +2,6 @@
 
 from typing import Dict, Optional  # noqa: F401
 
-from app.gesture_engine.actions.click_action import (
-    click_state,
-    handle_click,
-    update_click_state,
-)
 from app.gesture_engine.logger import logger
 
 # deklaracja typu na poziomie modulu
@@ -32,14 +27,16 @@ def register_gesture_start_hook(gesture_name, func):
 def handle_gesture_start_hook(gesture_name, landmarks, frame_shape):
     global last_gesture_name
 
-    # zwalnia click przy zmianie na inny gest (ale nie None - to obsluzymy nizej)
+    # zwalnia click przy zmianie na inny gest
+    # WYJĄTEK: NIE zwalniaj gdy przełączamy na move_mouse (potrzebne do rysowania!)
     if (
-        handle_click.active
+        last_gesture_name in ("click", "click-hold")
         and gesture_name is not None
-        and gesture_name not in ("click", "click-hold")
+        and gesture_name not in ("click", "click-hold", "move_mouse")
     ):
-        update_click_state(False)
-        handle_click.active = False
+        from app.gesture_engine.actions.click_action import release_click
+
+        release_click()
         logger.debug("[hook] click released (gest zmienił się)")
 
     if gesture_name != last_gesture_name:
@@ -56,9 +53,26 @@ def handle_gesture_start_hook(gesture_name, landmarks, frame_shape):
 
     # specjalny przypadek: koniec gestu (None) po clicku
     if gesture_name is None and last_gesture_name in ("click", "click-hold"):
-        update_click_state(False)
-        handle_click.active = False
+        from app.gesture_engine.actions.click_action import release_click
+
+        release_click()
         logger.debug("[hook] click released (gest się zakończył)")
+
+    # specjalny przypadek: koniec move_mouse podczas aktywnego click-hold
+    # (użytkownik kończył rysowanie przez podniesienie wszystkich palców)
+    if gesture_name is None and last_gesture_name == "move_mouse":
+        from app.gesture_engine.actions.click_action import (
+            is_click_holding,
+            release_click,
+        )
+
+        if is_click_holding():
+            release_click()
+            logger.debug(
+                "[hook] click released (move_mouse zakończony podczas rysowania)"
+            )
+
+    # Uwaga: close_program cooldown jest teraz obslugiwany w gesture detector
 
     last_gesture_name = gesture_name
 
@@ -80,20 +94,11 @@ def reset_hooks_state() -> None:
     global last_gesture_name
     try:
         # zwalnia click, jesli byl aktywny
-        update_click_state(False)
-        setattr(handle_click, "active", False)
+        from app.gesture_engine.actions.click_action import release_click
+
+        release_click()
     except Exception as e:
         logger.debug("reset_hooks_state: click reset error: %s", e)
-
-    # resetuje strukture click_state (bezpieczne wyzerowanie)
-    try:
-        click_state["start_time"] = None
-        click_state["holding"] = False
-        click_state["mouse_down"] = False
-        click_state["click_sent"] = False
-        click_state["was_active"] = False
-    except Exception as e:
-        logger.debug("reset_hooks_state: click_state reset error: %s", e)
 
     # resetuje volume
     try:
@@ -118,6 +123,8 @@ def reset_hooks_state() -> None:
                 logger.debug("reset_hooks_state: volume nested reset error: %s", e)
     except Exception as e:
         logger.debug("reset_hooks_state: volume reset error: %s", e)
+
+    # Uwaga: close_program cooldown jest teraz obslugiwany w worker.py (single-shot actions)
 
     last_gesture_name = None
     logger.debug("reset_hooks_state: state cleared")

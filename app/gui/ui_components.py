@@ -202,6 +202,9 @@ def build_ui(display_width: int, display_height: int) -> UIRefs:
     train_btn = QPushButton("Wytrenuj model")
     record_btn.setToolTip("Rozpoczyna nagrywanie datasetu liter (osobny proces)")
     train_btn.setToolTip("Trenuje model na nagranym datasiecie (osobny proces)")
+    # ukryj domyslnie - pokaza sie tylko w trybie translator
+    record_btn.setVisible(False)
+    train_btn.setVisible(False)
 
     status_label = QLabel("Status: gotowe")
     fps_label = QLabel("FPS: 0")

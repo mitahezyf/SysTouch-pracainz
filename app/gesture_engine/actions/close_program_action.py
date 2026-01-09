@@ -46,6 +46,11 @@ else:  # non-Windows: stuby
 
 
 def handle_close_program(landmarks, frame_shape):
+    """
+    Zamyka aktywne okno.
+
+    Uwaga: Wykonanie jednokrotne jest zapewnione przez worker.py (single-shot actions).
+    """
     hwnd = win32gui.GetForegroundWindow()
     if hwnd:
         win32gui.PostMessage(hwnd, win32con.WM_CLOSE, 0, 0)

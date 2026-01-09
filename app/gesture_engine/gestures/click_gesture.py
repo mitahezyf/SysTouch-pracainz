@@ -36,7 +36,7 @@ def detect_click_gesture(landmarks):
             f"[click] fingers: pinky={pinky_straight}, ring={ring_straight}, middle={middle_straight}"
         )
 
-    if confidence > 0.9 and pinky_straight and ring_straight and middle_straight:
+    if confidence > 0.75 and pinky_straight and ring_straight and middle_straight:
         logger.debug("[click] MATCH: click gesture detected")
         return "click", confidence
 

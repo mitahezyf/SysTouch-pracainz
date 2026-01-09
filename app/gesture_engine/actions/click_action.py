@@ -1,13 +1,19 @@
-# todo naprawic blad logiczny w release_click() - short tap nie zawsze wywoluje pyautogui.click()
+# Click action - obsługa kliknięć i ciągłego przytrzymania
+# Logika:
+# - Szybkie dotknięcie (< 1.5s) = pojedynczy click()
+# - Przytrzymanie >= 1.5s = mouseDown() i trzymanie (do rysowania z move_mouse)
+
 import time
 
-from app.gesture_engine.config import HOLD_THRESHOLD
 from app.gesture_engine.logger import logger
 
-# leniwy import pyautogui z no-op stubem, aby nie wysypywac sie w srodowiskach bez GUI
-try:  # pragma: no cover - galaz zaleznia od srodowiska CI
+# Próg czasu do aktywacji ciągłego kliknięcia (mouseDown)
+HOLD_TIME_THRESHOLD = 1.5  # sekundy
+
+# leniwy import pyautogui
+try:
     import pyautogui as _pyautogui
-except Exception:  # pragma: no cover
+except Exception:
 
     class _PyAutoGuiStub:
         def click(self, *_, **__):
@@ -23,103 +29,93 @@ except Exception:  # pragma: no cover
             return (1920, 1080)
 
     logger.warning("pyautogui niedostepne - uzywam no-op stubu")
-    pyautogui = _PyAutoGuiStub()
-else:
-    pyautogui = _pyautogui
+    _pyautogui = _PyAutoGuiStub()
+
+pyautogui = _pyautogui
 
 
+# Stan kliknięcia
 click_state = {
-    "start_time": None,
-    "holding": False,
-    "mouse_down": False,
-    "click_sent": False,
-    "was_active": False,
+    "gesture_start": None,  # kiedy zaczął się gest (dotknięcie kciuk+wskazujący)
+    "mouse_down_active": False,  # czy mouseDown jest aktywne (tryb rysowania)
+    "click_executed": False,  # czy wykonano już akcję w tym cyklu gestu
 }
 
 
-def start_click():
-    click_state["start_time"] = time.time()
-    click_state["holding"] = False
-    click_state["mouse_down"] = False
-    click_state["click_sent"] = False
-    logger.debug("[click] start_click()")
+def handle_click(_landmarks, _frame_shape):
+    """
+    Wywoływane w każdej klatce gdy wykryto gest click (kciuk dotyka wskazującego).
 
-
-def handle_active():
-    if click_state["start_time"] is None:
-        start_click()
-
+    Logika:
+    1. Pierwsze wykrycie -> zapisz czas startu
+    2. Jeśli trzymasz < 1.5s -> nic (czekamy)
+    3. Jeśli trzymasz >= 1.5s -> mouseDown() (tryb rysowania)
+    4. Gdy puścisz (release_click):
+       - Jeśli < 1.5s -> click()
+       - Jeśli >= 1.5s -> mouseUp()
+    """
     current_time = time.time()
-    duration = current_time - click_state["start_time"]
 
-    if duration >= HOLD_THRESHOLD:
-        if not click_state["holding"]:
-            click_state["holding"] = True
-            logger.debug("[click] HOLD aktywowany")
+    # Pierwsze wykrycie gestu w tym cyklu
+    if click_state["gesture_start"] is None:
+        click_state["gesture_start"] = current_time
+        click_state["mouse_down_active"] = False
+        click_state["click_executed"] = False
+        logger.debug("[click] Gest rozpoczęty - czekam na przytrzymanie lub puszczenie")
+        return
 
-        if not click_state["mouse_down"]:
-            pyautogui.mouseDown()
-            click_state["mouse_down"] = True
-            logger.debug("[click] mouseDown()")
+    # Sprawdź czy przekroczono próg czasowy dla ciągłego kliknięcia
+    duration = current_time - click_state["gesture_start"]
+
+    if duration >= HOLD_TIME_THRESHOLD and not click_state["mouse_down_active"]:
+        # Przekroczono próg - włącz tryb ciągłego kliknięcia (rysowanie)
+        pyautogui.mouseDown()
+        click_state["mouse_down_active"] = True
+        click_state["click_executed"] = True
+        logger.info(
+            f"[click] mouseDown() - tryb rysowania aktywny (po {duration:.1f}s)"
+        )
 
 
 def release_click():
-    if click_state["start_time"] is None:
-        logger.debug("[click] Ignoruje release - brak start_time")
+    """
+    Wywoływane gdy gest click się kończy (palce się rozłączyły).
+    """
+    if click_state["gesture_start"] is None:
+        # Brak aktywnego gestu - ignoruj
         return
 
-    duration = time.time() - click_state["start_time"]
-    is_hold = duration >= HOLD_THRESHOLD
-    logger.debug(
-        f"[click] release_click(): duration={duration:.3f}, holding={click_state['holding']}, mouse_down={click_state['mouse_down']}, is_hold={is_hold}"
-    )
+    duration = time.time() - click_state["gesture_start"]
 
-    if is_hold:
-        if click_state["mouse_down"]:
-            pyautogui.mouseUp()
-            logger.debug("[click] mouseUp() (hold)")
-        else:
-            # przekroczony prog, ale nie zdazyl nacisnac - bezpieczny fallback
-            pyautogui.click()
-            click_state["click_sent"] = True
-            logger.debug("[click] click() (fallback po przekroczeniu progu)")
-    else:
+    if click_state["mouse_down_active"]:
+        # Był w trybie ciągłego kliknięcia - zwolnij przycisk
+        pyautogui.mouseUp()
+        logger.info(f"[click] mouseUp() - koniec rysowania (czas: {duration:.1f}s)")
+    elif not click_state["click_executed"]:
+        # Krótkie dotknięcie - wykonaj pojedyncze kliknięcie
         pyautogui.click()
-        click_state["click_sent"] = True
-        logger.debug("[click] click() (short tap)")
+        logger.info(f"[click] click() - pojedyncze kliknięcie (czas: {duration:.2f}s)")
 
-    # resetuje stan
-    click_state["start_time"] = None
-    click_state["holding"] = False
-    click_state["mouse_down"] = False
-    # zachowuje click_sent dla weryfikacji w testach
-    setattr(handle_click, "active", False)
-
-
-def update_click_state(active: bool):
-    if active:
-        if not click_state["was_active"]:
-            start_click()
-        handle_active()
-        click_state["was_active"] = True
-    else:
-        if click_state["was_active"]:
-            release_click()
-        click_state["was_active"] = False
+    # Reset stanu
+    click_state["gesture_start"] = None
+    click_state["mouse_down_active"] = False
+    click_state["click_executed"] = False
 
 
 def get_click_state_name():
-    if click_state["holding"]:
+    """Zwraca nazwę stanu dla UI."""
+    if click_state["mouse_down_active"]:
         return "click-hold"
-    elif click_state["start_time"] is not None and not click_state["click_sent"]:
+    elif click_state["gesture_start"] is not None:
         return "click"
     else:
         return None
 
 
-def handle_click(_landmarks, _frame_shape):
-    setattr(handle_click, "active", True)
-    update_click_state(True)
+def is_click_holding():
+    """Zwraca True jeśli w trybie ciągłego kliknięcia (rysowanie)."""
+    return click_state["mouse_down_active"]
 
 
+# Atrybut "active" dla kompatybilności z hooks
 setattr(handle_click, "active", False)

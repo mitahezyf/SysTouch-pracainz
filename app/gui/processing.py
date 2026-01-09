@@ -234,13 +234,14 @@ def detect_and_draw(
                 )
 
     # rysuje duza litere PJM w prawym gornym rogu dla trybu translator
-    if mode == "translator" and preview_enabled and best_name and translator:
-        try:
-            state = translator.get_state()
-            visualizer.draw_pjm_letter(
-                display_frame, best_name, state["confidence"], state["time_held_ms"]
-            )
-        except Exception as exc:
-            logger.debug(f"[translator] blad rysowania litery: {exc}")
+    # WYŁĄCZONE - litera jest już wyświetlana w panelu GUI po prawej stronie
+    # if mode == "translator" and preview_enabled and best_name and translator:
+    #     try:
+    #         state = translator.get_state()
+    #         visualizer.draw_pjm_letter(
+    #             display_frame, best_name, state["confidence"], state["time_held_ms"]
+    #         )
+    #     except Exception as exc:
+    #         logger.debug(f"[translator] blad rysowania litery: {exc}")
 
     return display_frame, GestureResult(best_name, best_conf), per_hand

@@ -764,6 +764,9 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                 self.left_hand_label.setVisible(not is_translator_mode)
                 self.right_hand_label.setVisible(not is_translator_mode)
 
+                # pokaz przycisk treningu tylko w trybie translator
+                self.train_btn.setVisible(is_translator_mode)
+
                 if is_translator_mode and self._translator:
                     # reset stanu ale zachowaj statystyki
                     self._translator.reset(keep_stats=True)
