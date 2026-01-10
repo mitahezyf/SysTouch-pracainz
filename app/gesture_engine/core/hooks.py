@@ -1,130 +1,79 @@
-# todo usunac powielone wywolanie update_click_state(False) przy zmianie gestu z click
+from __future__ import annotations
 
-from typing import Dict, Optional  # noqa: F401
+from typing import Callable, Dict, Optional
 
 from app.gesture_engine.logger import logger
 
-# deklaracja typu na poziomie modulu
-volume_state = None  # type: Optional[Dict[str, object]]
+"""Hooki na zmiane gestu.
+
+WAŻNE:
+Poprzednia implementacja miala globalny `last_gesture_name` wspolny dla obu rak.
+W multi-hand powodowalo to losowe "zwalnianie" clicka / inne skutki uboczne.
+
+W tej wersji hooki sa *celowo minimalistyczne*:
+- NIE dotykamy clicka (click jest obslugiwany wprost w workerze + click_action).
+- Hooki zostawiamy glownie pod volume/scroll itp. (opcjonalnie).
+"""
 
 # volume: import stanu do resetu/przejsc
+volume_state: Optional[Dict[str, object]]
 try:
     from app.gesture_engine.gestures.volume_gesture import volume_state as _volume_state
 
     volume_state = _volume_state
 except Exception:
-    # gdy modul gestu nie jest dostepny (np. w minimalnym trybie testowym)
     volume_state = None
 
-last_gesture_name = None
-gesture_start_hooks = {}
+
+_last_gesture_per_hand: Dict[int, Optional[str]] = {}
+_gesture_start_hooks: Dict[str, Callable[[object, object], None]] = {}
 
 
-def register_gesture_start_hook(gesture_name, func):
-    gesture_start_hooks[gesture_name] = func
+def register_gesture_start_hook(
+    gesture_name: str, func: Callable[[object, object], None]
+) -> None:
+    _gesture_start_hooks[gesture_name] = func
 
 
-def handle_gesture_start_hook(gesture_name, landmarks, frame_shape):
-    global last_gesture_name
+def handle_gesture_start_hook(
+    gesture_name: Optional[str],
+    landmarks: object,
+    frame_shape: object,
+    *,
+    hand_id: int = 0,
+) -> None:
+    """Wywolywane NA ZMIANIE gestu dla danej reki."""
+    prev = _last_gesture_per_hand.get(int(hand_id))
 
-    # zwalnia click przy zmianie na inny gest
-    # WYJĄTEK: NIE zwalniaj gdy przełączamy na move_mouse (potrzebne do rysowania!)
-    if (
-        last_gesture_name in ("click", "click-hold")
-        and gesture_name is not None
-        and gesture_name not in ("click", "click-hold", "move_mouse")
-    ):
-        from app.gesture_engine.actions.click_action import release_click
-
-        release_click()
-        logger.debug("[hook] click released (gest zmienił się)")
-
-    if gesture_name != last_gesture_name:
-        logger.debug(
-            "[hook] zmiana gestu: {} -> {}".format(last_gesture_name, gesture_name)
-        )
-        hook = gesture_start_hooks.get(gesture_name)
-        if hook:
-            logger.debug("[hook] wywołanie hooka dla: {}".format(gesture_name))
-            if landmarks is not None and frame_shape is not None:
+    if gesture_name != prev:
+        logger.debug("[hook] hand=%s: %s -> %s", hand_id, prev, gesture_name)
+        hook = _gesture_start_hooks.get(str(gesture_name)) if gesture_name else None
+        if hook and landmarks is not None and frame_shape is not None:
+            try:
                 hook(landmarks, frame_shape)
-            else:
-                logger.debug("[hook] pomijam wywolanie hooka (brak danych)")
+            except Exception as e:
+                logger.debug("[hook] hand=%s hook EXC: %r", hand_id, e)
 
-    # specjalny przypadek: koniec gestu (None) po clicku
-    if gesture_name is None and last_gesture_name in ("click", "click-hold"):
-        from app.gesture_engine.actions.click_action import release_click
+        # volume overlay: jak gest volume zniknie na tej rece, czyscimy faze
+        if prev == "volume" and gesture_name != "volume" and volume_state is not None:
+            try:
+                volume_state["phase"] = None
+            except Exception:
+                pass
 
-        release_click()
-        logger.debug("[hook] click released (gest się zakończył)")
-
-    # specjalny przypadek: koniec move_mouse podczas aktywnego click-hold
-    # (użytkownik kończył rysowanie przez podniesienie wszystkich palców)
-    if gesture_name is None and last_gesture_name == "move_mouse":
-        from app.gesture_engine.actions.click_action import (
-            is_click_holding,
-            release_click,
-        )
-
-        if is_click_holding():
-            release_click()
-            logger.debug(
-                "[hook] click released (move_mouse zakończony podczas rysowania)"
-            )
-
-    # Uwaga: close_program cooldown jest teraz obslugiwany w gesture detector
-
-    last_gesture_name = gesture_name
-
-    def test_scroll_hook(landmarks, frame_shape):
-        logger.debug("[hook] scroll hook wywolany")
-
-    if "scroll" not in gesture_start_hooks:
-        register_gesture_start_hook("scroll", test_scroll_hook)
+        _last_gesture_per_hand[int(hand_id)] = gesture_name
 
 
 def reset_hooks_state() -> None:
-    """Resetuje globalne stany hookow/gestow przed nowym uruchomieniem przetwarzania.
+    """Reset hookow przed startem przetwarzania."""
+    _last_gesture_per_hand.clear()
 
-    - zwalnia ewentualny aktywny click
-    - zeruje last_gesture_name
-    - ustawia volume w stan idle
-    - czysci wewnetrzne flagi click_state
-    """
-    global last_gesture_name
-    try:
-        # zwalnia click, jesli byl aktywny
-        from app.gesture_engine.actions.click_action import release_click
-
-        release_click()
-    except Exception as e:
-        logger.debug("reset_hooks_state: click reset error: %s", e)
-
-    # resetuje volume
-    try:
-        if volume_state is not None:
+    # volume: reset do idle
+    if volume_state is not None:
+        try:
             volume_state["phase"] = "idle"
             volume_state["_extend_start"] = None
-            try:
-                volume_state["pct"] = None
-                volume_state["ref_max"] = None
-                volume_state["pinch_since"] = None
-                volume_state["pinch_th"] = None
-                volume_state["control_wrist"] = None
-                volume_state["last_seen_ts"] = None
-                volume_state["_exit_pinched_since"] = None
-                volume_state["_last_pct"] = None
-                volume_state["_stable_since"] = None
-                # resetuje pola nowego trybu galki
-                volume_state["knob_baseline_angle_deg"] = None
-                volume_state["knob_range_deg"] = None
-                volume_state["knob_invert"] = None
-            except Exception as e:
-                logger.debug("reset_hooks_state: volume nested reset error: %s", e)
-    except Exception as e:
-        logger.debug("reset_hooks_state: volume reset error: %s", e)
+        except Exception:
+            pass
 
-    # Uwaga: close_program cooldown jest teraz obslugiwany w worker.py (single-shot actions)
-
-    last_gesture_name = None
-    logger.debug("reset_hooks_state: state cleared")
+    logger.debug("reset_hooks_state: cleared")

@@ -5,6 +5,16 @@ import threading
 import time
 from typing import Any, Protocol, Union, cast
 
+from app.gesture_engine.actions.click_action import (
+    handle_click,
+    is_mouse_down,
+    maybe_release_click,
+    release_click,
+)
+from app.gesture_engine.actions.move_mouse_action import (
+    get_move_debug_state,
+    handle_move_mouse,
+)
 from app.gesture_engine.config import (
     CAPTURE_HEIGHT,
     CAPTURE_WIDTH,
@@ -88,6 +98,8 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
             self._mode: str = "gestures"
             self._translator = None
             self._normalizer = None
+            # throttling logow podczas rysowania (mouseDown)
+            self._last_draw_diag_ts: float = 0.0
 
         def configure(
             self,
@@ -151,6 +163,11 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
                 self._stop_flag = threading.Event()
             self._last_best = None
             self._last_per_hand = {}
+            # bezpiecznik: nie zostawiaj wcisnietego przycisku myszy po poprzednim run
+            try:
+                release_click(reason="worker_start")
+            except Exception as e:
+                logger.debug("release_click(worker_start) error: %s", e)
             # resetuje globalne hooki i przeladowuje detektory gestow
             try:
                 reset_hooks_state()
@@ -341,13 +358,14 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
                                 )
                         self._last_best = gesture_res.name
 
-                    # obsluguje akcje i hooki per reka
+                    # --- ACTION DISPATCH (multi-hand safe) ---
                     if per_hand:
+                        # 1) log zmiany gestow per reka + hooki (np. volume overlay)
                         for hand in per_hand:
-                            idx = getattr(hand, "index", -1)
+                            idx = int(getattr(hand, "index", -1))
                             handed = getattr(hand, "handedness", None)
                             name = getattr(hand, "name", None)
-                            conf = getattr(hand, "confidence", 0.0)
+                            conf = float(getattr(hand, "confidence", 0.0) or 0.0)
 
                             last = self._last_per_hand.get(idx)
                             if last != name:
@@ -376,58 +394,126 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
                                             name,
                                             conf,
                                         )
+
                                 self._last_per_hand[idx] = name
 
                                 try:
                                     handle_gesture_start_hook(
-                                        name, hand.landmarks, frame.shape
+                                        name,
+                                        hand.landmarks,
+                                        frame.shape,
+                                        hand_id=idx,
                                     )
                                 except Exception as e:
-                                    logger.debug(f"[hook] wyjatek: {e}")
+                                    if DEBUG_MODE:
+                                        logger.debug("[hook] EXC: %r", e)
 
-                            handler = (
-                                gesture_handlers.get(hand.name) if hand.name else None
-                            )
+                        # 2) akcje: w translatorze NIE dotykamy systemu
+                        if self._mode != "translator" and self._actions_enabled:
+                            # klik = prawa reka, ruch = druga reka (lub move_mouse)
+                            click_hand = None
+                            pointer_hand = None
+
+                            # 2a) wyznacz click_hand i pointer_hand
+                            for hand in per_hand:
+                                hn = getattr(hand, "name", None)
+                                if hn in ("click", "click-hold") and click_hand is None:
+                                    click_hand = hand
+                                if hn == "move_mouse" and pointer_hand is None:
+                                    pointer_hand = hand
+
+                            if pointer_hand is None:
+                                # preferuj dlon NIE bedaca clickiem (najwyzsza pewnosc)
+                                best = None
+                                best_conf = -1.0
+                                for hand in per_hand:
+                                    if click_hand is not None and hand is click_hand:
+                                        continue
+                                    c = float(getattr(hand, "confidence", 0.0) or 0.0)
+                                    if c > best_conf:
+                                        best = hand
+                                        best_conf = c
+                                # NIE fallback na click_hand! Jesli nie ma innej dloni, pointer_hand = None
+                                pointer_hand = best
+
+                            # 2b) aktualizuj klik (tap/hold) i puszczanie z debounce
+                            try:
+                                if click_hand is not None:
+                                    handle_click(click_hand.landmarks, frame.shape)
+                                else:
+                                    maybe_release_click()
+                            except Exception as e:
+                                if DEBUG_MODE:
+                                    logger.debug("[click] handler EXC: %r", e)
+
+                            # 2c) aktualizuj pozycje kursora
+                            # - TYLKO gest move_mouse na ODDZIELNEJ rece kontroluje kursor
+                            # - click_hand NIGDY nie porusza kursorem
+                            # - do rysowania potrzebne sa 2 rece: click (hold) + move_mouse
+                            try:
+                                # znajdz reke z gestem move_mouse (nie click_hand!)
+                                move_source = None
+                                for hand in per_hand:
+                                    if getattr(hand, "name", None) == "move_mouse":
+                                        move_source = hand
+                                        break
+
+                                # aktualizuj kursor tylko jesli jest gest move_mouse
+                                if move_source is not None:
+                                    handle_move_mouse(
+                                        move_source.landmarks, frame.shape
+                                    )
+                            except Exception as e:
+                                if DEBUG_MODE:
+                                    logger.debug("[move_mouse] handler EXC: %r", e)
+
+                            # 2d) diag: podczas mouseDown loguj co ~250ms (wystarczy do debug)
+                            if DEBUG_MODE and is_mouse_down():
+                                now = time.monotonic()
+                                if now - float(self._last_draw_diag_ts) >= 0.25:
+                                    self._last_draw_diag_ts = now
+                                    try:
+                                        ms = get_move_debug_state()
+                                    except Exception:
+                                        ms = {}
+                                    logger.info(
+                                        "[draw-diag] mouse_down=True click_hand=%s pointer_hand=%s move=%s",
+                                        getattr(click_hand, "index", None),
+                                        getattr(pointer_hand, "index", None),
+                                        ms,
+                                    )
+
+                        # 3) inne akcje (scroll/volume/close_program...) per reka
+                        for hand in per_hand:
+                            hn = getattr(hand, "name", None)
+
+                            if self._mode == "translator":
+                                continue
+                            if not self._actions_enabled:
+                                continue
+
+                            # klik i move obslugujemy wyzej
+                            if hn in ("click", "click-hold", "move_mouse"):
+                                continue
+
+                            handler = gesture_handlers.get(hn) if hn else None
+                            if handler is None:
+                                continue
+
                             if LOG_PER_FRAME:
                                 logger.debug(
-                                    "[dispatch] hand=%s/%s gesture=%s conf=%.2f actions=%s handler=%s",
+                                    "[dispatch] hand=%s/%s gesture=%s conf=%.2f",
                                     getattr(hand, "index", None),
                                     getattr(hand, "handedness", None),
-                                    hand.name,
-                                    getattr(hand, "confidence", 0.0),
-                                    self._actions_enabled,
-                                    bool(handler),
+                                    hn,
+                                    float(getattr(hand, "confidence", 0.0) or 0.0),
                                 )
 
-                            # pomijaj akcje w trybie translator (tylko rozpoznawanie liter)
-                            if self._mode == "translator":
-                                if LOG_PER_FRAME:
-                                    logger.debug(
-                                        "[action] skip '%s' (tryb translator - tylko litery)",
-                                        hand.name,
-                                    )
-                                continue
-
-                            if hand.name and (
-                                not self._actions_enabled or handler is None
-                            ):
-                                if LOG_PER_FRAME:
-                                    logger.debug(
-                                        "[action] skip '%s' (actions=%s handler=%s)",
-                                        hand.name,
-                                        self._actions_enabled,
-                                        bool(handler),
-                                    )
-
-                            if not self._actions_enabled or handler is None:
-                                continue
-
                             try:
-                                if LOG_PER_FRAME:
-                                    logger.debug("[action] invoke '%s'", hand.name)
                                 handler(hand.landmarks, frame.shape)
                             except Exception as e:
-                                logger.debug(f"[handler] wyjatek: {e}")
+                                if DEBUG_MODE:
+                                    logger.debug("[handler] '%s' EXC: %r", hn, e)
 
                     performance.update()
 
@@ -439,6 +525,9 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
                         visualizer.draw_frametime(
                             resized_frame, performance.frametime_ms
                         )
+                        # wskaznik HOLD gdy przycisku myszy wcisniety (tryb rysowania)
+                        if is_mouse_down():
+                            visualizer.draw_hold_indicator(resized_frame)
                         rgb_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
                         h, w, ch = rgb_frame.shape
                         bytes_per_line = ch * w
@@ -462,6 +551,12 @@ def create_processing_worker() -> ProcessingWorkerProtocol:
                 logger.exception("Wyjatek w watku przetwarzania: %s", e)
                 self.status.emit(f"Blad watku: {e}")
             finally:
+                # bezpiecznik: konczymy rysowanie/klik na stopie watku
+                try:
+                    release_click(reason="worker_finally")
+                except Exception as e:
+                    if DEBUG_MODE:
+                        logger.debug("release_click(worker_finally) error: %s", e)
                 try:
                     cap.stop()
                 except Exception as e:

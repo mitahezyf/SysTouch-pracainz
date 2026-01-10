@@ -1,3 +1,4 @@
+import ctypes
 import threading
 import time
 from typing import Optional, Tuple
@@ -31,12 +32,78 @@ else:
 
 from app.gesture_engine.utils.landmarks import FINGER_TIPS
 
+# --- Windows SendInput dla prawidlowego drag ---
+# pyautogui.moveTo moze uzywac SetCursorPos ktore nie generuje WM_MOUSEMOVE
+# uzywamy SendInput z MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE dla prawidlowego drag w Paint
+
+MOUSEEVENTF_MOVE = 0x0001
+MOUSEEVENTF_ABSOLUTE = 0x8000
+
+
+class MOUSEINPUT(ctypes.Structure):
+    _fields_ = [
+        ("dx", ctypes.c_long),
+        ("dy", ctypes.c_long),
+        ("mouseData", ctypes.c_ulong),
+        ("dwFlags", ctypes.c_ulong),
+        ("time", ctypes.c_ulong),
+        ("dwExtraInfo", ctypes.POINTER(ctypes.c_ulong)),
+    ]
+
+
+class INPUT(ctypes.Structure):
+    _fields_ = [
+        ("type", ctypes.c_ulong),
+        ("mi", MOUSEINPUT),
+    ]
+
+
+INPUT_MOUSE = 0
+
+
+def _send_mouse_move(x: int, y: int) -> None:
+    """Wysyla zdarzenie ruchu myszy przez SendInput (generuje WM_MOUSEMOVE)."""
+    try:
+        # Przelicz na wspolrzedne absolutne (0-65535)
+        screen_w, screen_h = pyautogui.size()
+        abs_x = int(x * 65535 / screen_w)
+        abs_y = int(y * 65535 / screen_h)
+
+        extra = ctypes.c_ulong(0)
+        mi = MOUSEINPUT(
+            dx=abs_x,
+            dy=abs_y,
+            mouseData=0,
+            dwFlags=MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE,
+            time=0,
+            dwExtraInfo=ctypes.pointer(extra),
+        )
+        inp = INPUT(type=INPUT_MOUSE, mi=mi)
+        ctypes.windll.user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(inp))
+    except Exception as e:
+        logger.debug("[mouse] SendInput wyjatek: %s", e)
+        # fallback do pyautogui
+        try:
+            pyautogui.moveTo(x, y, duration=0)
+        except Exception:
+            pass
+
+
 # ostatnia zadana pozycja kursora oraz pozycja wygladzona
 latest_position: Optional[Tuple[int, int]] = None
 _smoothed_position: Optional[Tuple[float, float]] = None
 
 lock = threading.Lock()
 running = True
+
+
+def get_move_debug_state() -> dict[str, object]:
+    """Snapshot stanu ruchu (do logow)."""
+    with lock:
+        return {
+            "latest_position": latest_position,
+            "smoothed_position": _smoothed_position,
+        }
 
 
 def _clamp(val: int, low: int, high: int) -> int:
@@ -83,14 +150,13 @@ def move_worker():
                 alpha * sy + (1.0 - alpha) * ty,
             )
 
-        # wykonuje ruch do pozycji wygladzonej
+        # wykonuje ruch do pozycji wygladzonej - uzywamy SendInput dla prawidlowego drag
         mx = int(_smoothed_position[0])
         my = int(_smoothed_position[1])
         try:
-            pyautogui.moveTo(mx, my, duration=0)
+            _send_mouse_move(mx, my)
         except Exception as e:  # pragma: no cover
-            # kontynuuje w razie bledow pyautogui (np. failsafe)
-            logger.debug("[mouse] moveTo wyjatek: %s", e)
+            logger.debug("[mouse] move wyjatek: %s", e)
         else:
             if not first_move_logged:
                 logger.debug(f"[mouse] pierwszy ruch kursora: ({mx}, {my})")

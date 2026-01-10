@@ -169,6 +169,74 @@ class Visualizer:
                 2,
             )
 
+    def draw_hold_indicator(self, frame) -> None:
+        """Rysuje duzy wskaznik HOLD w lewym gornym rogu gdy mouseDown jest aktywny."""
+        try:
+            h, w = frame.shape[:2]
+
+            # tekst
+            main_text = "HOLD"
+            sub_text = "Drawing Mode"
+
+            # parametry pozycji (lewy gorny rog z marginesem)
+            margin = 20
+            font_scale_main = 2.0
+            font_scale_sub = 0.6
+            thickness_main = 4
+            thickness_sub = 2
+
+            # oblicz rozmiary tekstow
+            (tw_main, th_main), _ = cv2.getTextSize(
+                main_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale_main, thickness_main
+            )
+            (tw_sub, th_sub), _ = cv2.getTextSize(
+                sub_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale_sub, thickness_sub
+            )
+
+            # pozycje
+            x_main = margin
+            x_sub = margin
+            y_main = margin + th_main + 60  # odsun od gorى (FPS jest na 20)
+            y_sub = y_main + 10 + th_sub
+
+            # rysuj ciemne tlo (prostokat)
+            padding = 10
+            bg_x0 = margin - padding
+            bg_y0 = y_main - th_main - padding
+            bg_x1 = margin + max(tw_main, tw_sub) + padding
+            bg_y1 = y_sub + padding
+
+            overlay = frame.copy()
+            cv2.rectangle(overlay, (bg_x0, bg_y0), (bg_x1, bg_y1), (0, 0, 0), -1)
+            # polprzezroczyste tlo
+            alpha = 0.7
+            cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
+
+            # rysuj HOLD (czerwony kolor)
+            cv2.putText(
+                frame,
+                main_text,
+                (x_main, y_main),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                font_scale_main,
+                (0, 0, 255),  # czerwony BGR
+                thickness_main,
+            )
+
+            # rysuj "Drawing Mode" (bialy)
+            cv2.putText(
+                frame,
+                sub_text,
+                (x_sub, y_sub),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                font_scale_sub,
+                (255, 255, 255),
+                thickness_sub,
+            )
+
+        except Exception as e:
+            logger.debug("draw_hold_indicator error: %s", e)
+
     # rysuje overlay glosnosci: pasek procentowy i etykiete fazy
     def draw_volume_overlay(self, frame, pct: int | None, phase: str | None) -> None:
         # ustawia parametry paska
