@@ -1,4 +1,4 @@
-import sys
+﻿import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -10,10 +10,10 @@ import app.gesture_engine.detector.gesture_detector as gesture_detector
 
 
 # ladowanie gestow z mockowanych plikow gestures/ i funkcji detect_
-@patch("app.detector.gesture_detector.os.listdir")
-@patch("app.detector.gesture_detector.importlib.import_module")
-@patch("app.detector.gesture_detector.inspect.getmembers")
-@patch("app.detector.gesture_detector.logger")
+@patch("app.gesture_engine.detector.gesture_detector.os.listdir")
+@patch("app.gesture_engine.detector.gesture_detector.importlib.import_module")
+@patch("app.gesture_engine.detector.gesture_detector.inspect.getmembers")
+@patch("app.gesture_engine.detector.gesture_detector.logger")
 def test_load_gesture_detectors(_, mock_getmembers, mock_import, mock_listdir):
     # czyszczenie globalnego stanu
     gesture_detector.gesture_detectors.clear()
@@ -42,9 +42,9 @@ def test_load_gesture_detectors(_, mock_getmembers, mock_import, mock_listdir):
 
 
 # blad importu modulu gestures powinien zostac zlapany
-@patch("app.detector.gesture_detector.os.listdir")
-@patch("app.detector.gesture_detector.importlib.import_module")
-@patch("app.detector.gesture_detector.logger")
+@patch("app.gesture_engine.detector.gesture_detector.os.listdir")
+@patch("app.gesture_engine.detector.gesture_detector.importlib.import_module")
+@patch("app.gesture_engine.detector.gesture_detector.logger")
 def test_load_with_import_error(_, mock_import, mock_listdir):
     gesture_detector.gesture_detectors.clear()
     mock_listdir.return_value = ["broken.py"]
@@ -62,10 +62,10 @@ def test_load_with_import_error(_, mock_import, mock_listdir):
 
 # pierwszy detector zwraca gest
 @patch(
-    "app.detector.gesture_detector.gesture_detectors",
+    "app.gesture_engine.detector.gesture_detector.gesture_detectors",
     [lambda lm: ("click", 0.95), lambda lm: None],
 )
-@patch("app.detector.gesture_detector.logger")
+@patch("app.gesture_engine.detector.gesture_detector.logger")
 def test_detect_gesture_first_match(_):
     result = gesture_detector.detect_gesture("fake_landmarks")
     assert result == ("click", 0.95)
@@ -73,18 +73,21 @@ def test_detect_gesture_first_match(_):
 
 # zaden detector nie zwraca nic
 @patch(
-    "app.detector.gesture_detector.gesture_detectors",
+    "app.gesture_engine.detector.gesture_detector.gesture_detectors",
     [lambda lm: None, lambda lm: None],
 )
-@patch("app.detector.gesture_detector.logger")
+@patch("app.gesture_engine.detector.gesture_detector.logger")
 def test_detect_gesture_no_match(_):
     result = gesture_detector.detect_gesture("fake_landmarks")
     assert result is None
 
 
 # logowanie co 10 wywolanie
-@patch("app.detector.gesture_detector.gesture_detectors", [lambda lm: ("test", 0.88)])
-@patch("app.detector.gesture_detector.logger")
+@patch(
+    "app.gesture_engine.detector.gesture_detector.gesture_detectors",
+    [lambda lm: ("test", 0.88)],
+)
+@patch("app.gesture_engine.detector.gesture_detector.logger")
 def test_detect_gesture_logs_every_10th(mock_logger):
     gesture_detector._log_counter = 9
 

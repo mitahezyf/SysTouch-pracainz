@@ -407,9 +407,7 @@ def main(argv: list[str] | None = None) -> int:
                         if args.show_landmarks:
                             rgb_vis = cv2.cvtColor(vis, cv2.COLOR_BGR2RGB)
                             res_vis = tracker.process(rgb_vis)
-                            if res_vis and getattr(
-                                res_vis, "multi_hand_landmarks", None
-                            ):
+                            if res_vis and res_vis.multi_hand_landmarks:
                                 visualizer.draw_landmarks(
                                     vis, res_vis.multi_hand_landmarks[0]
                                 )
@@ -447,9 +445,7 @@ def main(argv: list[str] | None = None) -> int:
                         if args.show_landmarks:
                             rgb_vis = cv2.cvtColor(vis, cv2.COLOR_BGR2RGB)
                             res_vis = tracker.process(rgb_vis)
-                            if res_vis and getattr(
-                                res_vis, "multi_hand_landmarks", None
-                            ):
+                            if res_vis and res_vis.multi_hand_landmarks:
                                 visualizer.draw_landmarks(
                                     vis, res_vis.multi_hand_landmarks[0]
                                 )
@@ -509,12 +505,12 @@ def main(argv: list[str] | None = None) -> int:
                         has_hand = False
                         ok = True
 
-                        if results and getattr(results, "multi_hand_landmarks", None):
+                        if results and results.multi_hand_landmarks:
                             hand_lm = results.multi_hand_landmarks[0]
 
                             # pobierz surowe handedness z mediapipe
                             handedness_raw = None
-                            if getattr(results, "multi_handedness", None):
+                            if results.multi_handedness:
                                 handedness_raw = (
                                     results.multi_handedness[0].classification[0].label
                                 )
@@ -612,7 +608,7 @@ def main(argv: list[str] | None = None) -> int:
                             if (
                                 args.show_landmarks
                                 and results
-                                and getattr(results, "multi_hand_landmarks", None)
+                                and results.multi_hand_landmarks
                             ):
                                 # gdy uzywamy flip do mediapipe, landmarki sa w przestrzeni sfipowanej
                                 # wiec rysujemy je na tej samej klatce co detekcja

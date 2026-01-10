@@ -142,26 +142,29 @@ def main() -> None:
             handed_list = getattr(results, "multi_handedness", None)
 
             if translator_mode:
-                for idx, hand_landmarks in enumerate(results.multi_hand_landmarks):
-                    xs = [lm.x for lm in hand_landmarks.landmark]
-                    ys = [lm.y for lm in hand_landmarks.landmark]
-                    area = (max(xs) - min(xs)) * (max(ys) - min(ys))
-                    if area > best_area:
-                        best_area = area
-                        handed = None
-                        try:
-                            if handed_list and idx < len(handed_list):
-                                handed = handed_list[idx].classification[0].label
-                        except Exception:
+                if results and results.multi_hand_landmarks:
+                    for idx, hand_landmarks in enumerate(results.multi_hand_landmarks):
+                        xs = [lm.x for lm in hand_landmarks.landmark]
+                        ys = [lm.y for lm in hand_landmarks.landmark]
+                        area = (max(xs) - min(xs)) * (max(ys) - min(ys))
+                        if area > best_area:
+                            best_area = area
                             handed = None
-                        best_hand = (idx, hand_landmarks, handed)
+                            try:
+                                if handed_list and idx < len(handed_list):
+                                    handed = handed_list[idx].classification[0].label
+                            except Exception:
+                                handed = None
+                            best_hand = (idx, hand_landmarks, handed)
 
                 iterable = [best_hand] if best_hand else []
             else:
-                iterable = [
-                    (idx, hl, None)
-                    for idx, hl in enumerate(results.multi_hand_landmarks)
-                ]
+                iterable = []
+                if results and results.multi_hand_landmarks:
+                    iterable = [
+                        (idx, hl, None)
+                        for idx, hl in enumerate(results.multi_hand_landmarks)
+                    ]
 
             for hand_idx, hand_landmarks, handed in iterable:
                 hand_id = 0 if translator_mode else hand_idx

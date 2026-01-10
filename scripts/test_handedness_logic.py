@@ -42,7 +42,7 @@ required = "Right"
 expected = _flip_handedness_label(required)  # Right -> Left
 match = mp_result == expected
 print(f"   - expected dla MP: {expected}")
-print(f"   - match: {match} ✓" if match else f"   - match: {match} ✗")
+print(f"   - match: {match} [OK]" if match else f"   - match: {match} [FAILED]")
 print()
 
 # Test 2: Tryb flip
@@ -55,10 +55,10 @@ mp_result = "Right"
 required = "Right"
 # w flip: porownujemy bezposrednio
 match = mp_result == required
-print(f"   - match: {match} ✓" if match else f"   - match: {match} ✗")
+print(f"   - match: {match} [OK]" if match else f"   - match: {match} [FAILED]")
 print()
 
 print("=== WNIOSKI ===")
-print("✓ W trybie flip: MediaPipe zwraca Right dla prawej ręki")
-print("✓ Porównujemy bezpośrednio: Right == Right")
-print("✓ Nie flipujemy etykiety!")
+print("[OK] W trybie flip: MediaPipe zwraca Right dla prawej ręki")
+print("[OK] Porównujemy bezpośrednio: Right == Right")
+print("[OK] Nie flipujemy etykiety!")

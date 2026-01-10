@@ -36,9 +36,9 @@ def check_video(video_path: Path) -> dict:
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = tracker.process(rgb)
 
-        if results and getattr(results, "multi_hand_landmarks", None):
+        if results and results.multi_hand_landmarks:
             detected += 1
-            if getattr(results, "multi_handedness", None):
+            if results.multi_handedness:
                 label = results.multi_handedness[0].classification[0].label
                 if label == "Left":
                     left_count += 1
@@ -99,8 +99,8 @@ if __name__ == "__main__":
             print(f"  Left: {stats['left']}, Right: {stats['right']}")
 
             if stats["detected_pct"] < 50:
-                print("  ⚠️ PROBLEM: Malo wykrytych klatek!")
+                print("  [WARNING] PROBLEM: Malo wykrytych klatek!")
             else:
-                print("  ✓ OK")
+                print("  [OK] OK")
 
         print()

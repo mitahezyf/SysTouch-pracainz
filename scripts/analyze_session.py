@@ -41,7 +41,11 @@ for csv_file in csv_files:
     hand_pct = round(with_hand / frames * 100) if frames > 0 else 0
     feat_pct = round(with_features / frames * 100) if frames > 0 else 0
 
-    status = "✓ OK" if hand_pct >= 70 else ("⚠️ MALO" if hand_pct > 0 else "✗ BRAK")
+    status = (
+        "[OK] OK"
+        if hand_pct >= 70
+        else ("[WARNING] MALO" if hand_pct > 0 else "[FAILED] BRAK")
+    )
 
     print(
         f"{csv_file.name[:40]:40} | has_hand: {with_hand:3}/{frames:3} ({hand_pct:3}%) | features: {feat_pct:3}% | {status}"
@@ -59,8 +63,8 @@ print(
 )
 
 if total_with_hand == total_with_features and total_with_features > 0:
-    print("\n✅ SUKCES: Wszystkie klatki z has_hand=1 maja wypelnione features!")
+    print("\n[OK] SUKCES: Wszystkie klatki z has_hand=1 maja wypelnione features!")
 elif total_with_features == 0:
-    print("\n❌ PROBLEM: Zadna klatka nie ma features!")
+    print("\n[ERROR] PROBLEM: Zadna klatka nie ma features!")
 else:
-    print("\n⚠️ UWAGA: Niektore klatki z has_hand=1 nie maja features")
+    print("\n[WARNING] UWAGA: Niektore klatki z has_hand=1 nie maja features")

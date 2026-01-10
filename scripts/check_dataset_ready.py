@@ -13,7 +13,7 @@ collected = Path("data/collected")
 sessions = sorted(collected.glob("*"), key=lambda p: p.stat().st_mtime, reverse=True)
 
 if not sessions:
-    print("❌ Brak sesji - zbierz dane najpierw!")
+    print("[ERROR] Brak sesji - zbierz dane najpierw!")
     sys.exit(1)
 
 print("=" * 80)
@@ -29,7 +29,7 @@ total_clips = 0
 total_frames = 0
 total_frames_ok = 0
 
-print("📁 Sesje:")
+print("[FOLDER] Sesje:")
 for session in sessions[:10]:  # ostatnie 10 sesji
     features_dir = session / "features"
     if not features_dir.exists():
@@ -102,13 +102,13 @@ for label in labels_sorted:
 
     # ocena czy wystarczy do treningu
     if clips_count >= 30:
-        status = "✅ DOSKONALE"
+        status = "[OK] DOSKONALE"
     elif clips_count >= 20:
-        status = "✓ DOBRE"
+        status = "[OK] DOBRE"
     elif clips_count >= 10:
-        status = "⚠️ MALO (min 20)"
+        status = "[WARNING] MALO (min 20)"
     else:
-        status = "❌ ZA MALO (min 20)"
+        status = "[ERROR] ZA MALO (min 20)"
 
     print(
         f"{label}: clips={clips_count:3} | frames_ok={frames_ok:5} ({pct:3}%) | {status}"
@@ -151,37 +151,39 @@ print()
 
 if len(all_data) < 10:
     print(
-        "❌ Za mało liter (masz {}, potrzebujesz min 10-15 dla sensownego modelu)".format(
+        "[ERROR] Za mało liter (masz {}, potrzebujesz min 10-15 dla sensownego modelu)".format(
             len(all_data)
         )
     )
     can_train = False
 elif any(len(data["clips"]) < 10 for data in all_data.values()):
-    print("⚠️ Niektóre litery mają za mało klipów (min 10 dla eksperymentu)")
+    print("[WARNING] Niektóre litery mają za mało clipów (min 10 dla eksperymentu)")
     can_train = True
-    print("✓ Możesz spróbować wytrenować, ale jakość będzie niska")
+    print("[OK] Możesz spróbować wytrenować, ale jakość będzie niska")
 elif any(len(data["clips"]) < 20 for data in all_data.values()):
-    print("⚠️ Niektóre litery mają mało klipów (zalecane 20+)")
+    print("[WARNING] Niektóre litery mają mało clipów (zalecane 20+)")
     can_train = True
-    print("✓ Możesz wytrenować przyzwoity model")
+    print("[OK] Możesz wytrenować przyzwoity model")
 else:
-    print("✅ Dataset wygląda dobrze!")
+    print("[OK] Dataset wygląda dobrze!")
     can_train = True
-    print("✓ Możesz wytrenować dobry model")
+    print("[OK] Możesz wytrenować dobry model")
 
 print()
 
 if total_frames_ok < 1000:
-    print("⚠️ Mało klatek total (masz {}, zalecane 2000+)".format(total_frames_ok))
+    print(
+        "[WARNING] Mało klatek total (masz {}, zalecane 2000+)".format(total_frames_ok)
+    )
     print("   Zbierz więcej danych dla lepszej jakości")
 elif total_frames_ok < 5000:
     print(
-        "✓ Rozsądna liczba klatek ({}), model powinien się nauczyć podstaw".format(
+        "[OK] Rozsądna liczba klatek ({}), model powinien się nauczyć podstaw".format(
             total_frames_ok
         )
     )
 else:
-    print("✅ Dużo klatek ({}), model powinien być dobry!".format(total_frames_ok))
+    print("[OK] Dużo klatek ({}), model powinien być dobry!".format(total_frames_ok))
 
 print()
 print("=" * 80)
@@ -190,7 +192,7 @@ print("=" * 80)
 print()
 
 if can_train and len(all_data) >= 15 and total_frames_ok >= 2000:
-    print("✅ TAK - masz wystarczająco danych aby całkowicie zastąpić Kaggle")
+    print("[OK] TAK - masz wystarczająco danych aby całkowicie zastąpić Kaggle")
     print("   Twój model będzie:")
     print("   • Wytrenowany tylko na Twoich gestach")
     print("   • Lepiej rozpoznawał Ciebie i Werkę")
@@ -201,7 +203,7 @@ if can_train and len(all_data) >= 15 and total_frames_ok >= 2000:
         "   python tools\\train_model.py --vectors=TWOJ_VECTORS.csv --output=models/moj_model.pt"
     )
 elif can_train and len(all_data) >= 10:
-    print("⚠️ CZĘŚCIOWO - masz dane, ale lepiej zbierz więcej")
+    print("[WARNING] CZĘŚCIOWO - masz dane, ale lepiej zbierz więcej")
     print(f"   Masz {len(all_data)} liter, zalecane 20-26 (pełny alfabet PJM)")
     print(f"   Masz {total_frames_ok} klatek, zalecane 2000+ dla solidnego modelu")
     print()
@@ -210,7 +212,7 @@ elif can_train and len(all_data) >= 10:
     print("   2. Dodaj więcej powtórzeń dla istniejących liter (30-50 klipów/litera)")
     print("   3. Spróbuj wytrenować z tym co masz (będzie działać, ale gorzej)")
 else:
-    print("❌ NIE - zbierz więcej danych")
+    print("[ERROR] NIE - zbierz więcej danych")
     print(f"   Masz tylko {len(all_data)} liter, potrzebujesz min 10-15")
     print(f"   Masz tylko {total_clips} klipów total")
     print()
@@ -224,7 +226,7 @@ print("=" * 80)
 
 if can_train:
     print()
-    print("🚀 NASTĘPNE KROKI:")
+    print("[NEXT] NASTĘPNE KROKI:")
     print()
     print("1. Zbierz więcej liter (jeśli < 20):")
     print("   .\\ZBIERAJ_GESTY_PRAWA_REKA.bat")

@@ -1,4 +1,4 @@
-import sys
+﻿import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -24,7 +24,7 @@ def test_visualizer_scaling():
 
 
 # draw_label: rysuje nazwe gestu i confidence
-@patch("app.utils.visualizer.cv2.putText")
+@patch("app.gesture_engine.utils.visualizer.cv2.putText")
 def test_draw_label(mock_putText):
     frame = dummy_frame()
     vis = Visualizer((1920, 1080), (640, 480))
@@ -42,7 +42,7 @@ def test_draw_label(mock_putText):
 
 
 # draw_fps: rysuje fps
-@patch("app.utils.visualizer.cv2.putText")
+@patch("app.gesture_engine.utils.visualizer.cv2.putText")
 def test_draw_fps(mock_putText):
     frame = dummy_frame()
     vis = Visualizer((1920, 1080), (640, 480))
@@ -60,7 +60,7 @@ def test_draw_fps(mock_putText):
 
 
 # draw_frametime: rysuje czas klatki
-@patch("app.utils.visualizer.cv2.putText")
+@patch("app.gesture_engine.utils.visualizer.cv2.putText")
 def test_draw_frametime(mock_putText):
     frame = dummy_frame()
     vis = Visualizer((1920, 1080), (640, 480))
@@ -78,7 +78,7 @@ def test_draw_frametime(mock_putText):
 
 
 # draw_current_gesture z nazwa
-@patch("app.utils.visualizer.cv2.putText")
+@patch("app.gesture_engine.utils.visualizer.cv2.putText")
 def test_draw_current_gesture_with_name(mock_putText):
     frame = dummy_frame()
     vis = Visualizer((1920, 1080), (640, 480))
@@ -96,7 +96,7 @@ def test_draw_current_gesture_with_name(mock_putText):
 
 
 # raw_current_gesture bez nazwy - none
-@patch("app.utils.visualizer.cv2.putText")
+@patch("app.gesture_engine.utils.visualizer.cv2.putText")
 def test_draw_current_gesture_none(mock_putText):
     frame = dummy_frame()
     vis = Visualizer((1920, 1080), (640, 480))
@@ -114,7 +114,7 @@ def test_draw_current_gesture_none(mock_putText):
 
 
 # draw_landmarks: czy mediapipe.draw_landmarks zostalo wywolane
-@patch("app.utils.visualizer.mp_drawing.draw_landmarks")
+@patch("app.gesture_engine.utils.visualizer.mp_drawing.draw_landmarks")
 def test_draw_landmarks(mock_draw):
     frame = dummy_frame()
     landmarks = MagicMock()
@@ -126,8 +126,8 @@ def test_draw_landmarks(mock_draw):
 
 
 # test draw_hand_box z etykieta
-@patch("app.utils.visualizer.cv2.putText")
-@patch("app.utils.visualizer.cv2.rectangle")
+@patch("app.gesture_engine.utils.visualizer.cv2.putText")
+@patch("app.gesture_engine.utils.visualizer.cv2.rectangle")
 def test_draw_hand_box_with_label(mock_rect, mock_text):
     frame = dummy_frame()
     mock_hand = MagicMock()
@@ -141,7 +141,7 @@ def test_draw_hand_box_with_label(mock_rect, mock_text):
 
 
 # test draw_hand_box bez etykiety
-@patch("app.utils.visualizer.cv2.rectangle")
+@patch("app.gesture_engine.utils.visualizer.cv2.rectangle")
 def test_draw_hand_box_no_label(mock_rect):
     frame = dummy_frame()
     mock_hand = MagicMock()

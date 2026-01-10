@@ -10,7 +10,7 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
-CALIBRATION_PATH = Path("app/sign_language/models/calibration.json")
+CALIBRATION_PATH = Path("../sign_language/models/calibration.json")
 
 
 @dataclass(frozen=True)

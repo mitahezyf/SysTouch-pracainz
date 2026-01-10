@@ -74,4 +74,4 @@ if app_issues:
             print(f"    Linia: {issue['line_number']}")
             print(f"    Kod: {issue.get('code', 'N/A')[:80]}")
     else:
-        print("\n✅ Brak MEDIUM severity w app/")
+        print("\n[OK] Brak MEDIUM severity w app/")

@@ -43,7 +43,7 @@ def main():
     sessions = sorted(collected.glob("*"), key=lambda p: p.stat().st_mtime)
 
     if not sessions:
-        print("❌ Brak sesji w data/collected")
+        print("[ERROR] Brak sesji w data/collected")
         return 1
 
     # agreguj dane
@@ -113,7 +113,7 @@ def main():
 
     if not all_rows:
         print()
-        print("❌ Brak danych do konsolidacji!")
+        print("[ERROR] Brak danych do konsolidacji!")
         print("   Upewnij się że masz zebrane sesje z wypełnionymi features")
         return 1
 
@@ -144,7 +144,7 @@ def main():
             writer.writeheader()
             writer.writerows(all_rows)
 
-    print(f"✓ Zapisano {len(all_rows)} klatek")
+    print(f"[OK] Zapisano {len(all_rows)} klatek")
 
     # zapisz metadata
     meta_file = output_dir / "metadata.json"
@@ -159,11 +159,11 @@ def main():
     with open(meta_file, "w", encoding="utf-8") as f:
         json.dump(metadata, f, indent=2, ensure_ascii=False)
 
-    print(f"✓ Metadata: {meta_file}")
+    print(f"[OK] Metadata: {meta_file}")
 
     print()
     print("=" * 80)
-    print("✅ KONSOLIDACJA ZAKOŃCZONA")
+    print("[OK] KONSOLIDACJA ZAKOŃCZONA")
     print("=" * 80)
     print()
     print("Dataset gotowy do treningu:")
@@ -171,7 +171,7 @@ def main():
     print()
 
     if len(stats) < 10:
-        print("⚠️ Uwaga: Masz tylko {} liter, zalecane 15-26".format(len(stats)))
+        print("[WARNING] Uwaga: Masz tylko {} liter, zalecane 15-26".format(len(stats)))
         print("   Model będzie słabszy, ale możesz spróbować wytrenować")
 
     print()

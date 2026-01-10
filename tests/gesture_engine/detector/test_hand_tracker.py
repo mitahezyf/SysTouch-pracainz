@@ -9,8 +9,8 @@ from app.gesture_engine.detector.hand_tracker import HandTracker
 
 
 # inicjalizacja tworzy obiekt mediapipe Hands z odpowiednimi argumentami
-@patch("app.detector.hand_tracker.mp.solutions.hands.Hands")
-@patch("app.detector.hand_tracker.logger")
+@patch("app.gesture_engine.detector.hand_tracker.mp.solutions.hands.Hands")
+@patch("app.gesture_engine.detector.hand_tracker.logger")
 def test_hand_tracker_init(mock_logger, mock_hands):
     tracker = HandTracker(
         max_num_hands=3, detection_confidence=0.8, tracking_confidence=0.6
@@ -28,7 +28,7 @@ def test_hand_tracker_init(mock_logger, mock_hands):
 
 
 # metoda process wywoluje hands.process z danym obrazem
-@patch("app.detector.hand_tracker.mp.solutions.hands.Hands")
+@patch("app.gesture_engine.detector.hand_tracker.mp.solutions.hands.Hands")
 def test_hand_tracker_process(mock_hands_class):
     mock_hands_instance = MagicMock()
     mock_hands_class.return_value = mock_hands_instance

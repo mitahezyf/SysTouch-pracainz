@@ -65,12 +65,12 @@ def main():
 
     # Sprawdź czy jesteśmy w repo Git
     if not Path(".git").exists():
-        print("❌ Błąd: To nie jest katalog Git!")
+        print("[ERROR] Błąd: To nie jest katalog Git!")
         return 1
 
     # Sprawdź niezacommitowane zmiany
     if check_git_status():
-        print("⚠️  UWAGA: Masz niezacommitowane zmiany!")
+        print("[WARNING]  UWAGA: Masz niezacommitowane zmiany!")
         print()
         print("Opcje:")
         print("1. Commit obecne zmiany i kontynuuj czyszczenie")
@@ -80,28 +80,28 @@ def main():
         choice = input("Wybór (1/2/3): ").strip()
 
         if choice == "1":
-            print("\n📝 Commitowanie zmian...")
+            print("\n[COMMIT] Commitowanie zmian...")
             run_command(["git", "add", "-A"])
             code, _, _ = run_command(
                 ["git", "commit", "-m", "chore: przed czyszczeniem historii Git"]
             )
             if code != 0:
-                print("❌ Błąd podczas commit!")
+                print("[ERROR] Błąd podczas commit!")
                 return 1
-            print("✅ Zmiany zacommitowane")
+            print("[OK] Zmiany zacommitowane")
 
         elif choice == "2":
-            print("\n📦 Stashowanie zmian...")
+            print("\n[STASH] Stashowanie zmian...")
             code, _, _ = run_command(
                 ["git", "stash", "push", "-u", "-m", "Przed czyszczeniem historii"]
             )
             if code != 0:
-                print("❌ Błąd podczas stash!")
+                print("[ERROR] Błąd podczas stash!")
                 return 1
-            print("✅ Zmiany schowane w stash")
+            print("[OK] Zmiany schowane w stash")
 
         else:
-            print("❌ Przerwano przez użytkownika")
+            print("[ERROR] Przerwano przez użytkownika")
             return 0
 
     print("\n" + "=" * 70)
@@ -122,11 +122,11 @@ def main():
 
     response = input("Czy kontynuować? (tak/nie): ").strip().lower()
     if response not in ["tak", "t", "yes", "y"]:
-        print("❌ Anulowano")
+        print("[ERROR] Anulowano")
         return 0
 
-    print("\n🧹 Czyszczenie historii Git...")
-    print("⏳ To może potrwać kilka minut...\n")
+    print("\n[CLEANUP] Czyszczenie historii Git...")
+    print("To może potrwać kilka minut...\n")
 
     # Przygotuj listę plików do git rm
     files_str = " ".join(FILES_TO_REMOVE + DIRS_TO_REMOVE)
@@ -148,36 +148,36 @@ def main():
     code, stdout, stderr = run_command(cmd)
 
     if code != 0:
-        print(f"❌ Błąd podczas czyszczenia!\n{stderr}")
+        print(f"[ERROR] Błąd podczas czyszczenia!\n{stderr}")
         return 1
 
-    print("✅ Historia Git wyczyszczona!")
+    print("[OK] Historia Git wyczyszczona!")
     print()
 
     # Cleanup refs
-    print("🧹 Czyszczenie refs...")
+    print("[CLEANUP] Czyszczenie refs...")
     run_command(["git", "for-each-ref", "--format=%(refname)", "refs/original/"])
     run_command(["git", "update-ref", "-d", "refs/original/refs/heads/main"])
 
     # Expire reflog
-    print("🧹 Czyszczenie reflog...")
+    print("[CLEANUP] Czyszczenie reflog...")
     run_command(["git", "reflog", "expire", "--expire=now", "--all"])
 
     # Garbage collect
-    print("🧹 Garbage collection...")
+    print("[CLEANUP] Garbage collection...")
     run_command(["git", "gc", "--prune=now", "--aggressive"])
 
     print("\n" + "=" * 70)
-    print("✅ ZAKOŃCZONO!")
+    print("[OK] ZAKOŃCZONO!")
     print("=" * 70)
     print()
-    print("📊 Statystyki repo:")
+    print("[STATS] Statystyki repo:")
 
     # Pokaż rozmiar
     code, stdout, _ = run_command(["git", "count-objects", "-vH"])
     print(stdout)
 
-    print("\n⚠️  WAŻNE:")
+    print("\n[WARNING]  WAŻNE:")
     print("1. Historia Git została przepisana - wszystkie commity mają nowe hash")
     print("2. Jeśli już pushowałeś na GitHub, musisz zrobić force push:")
     print("   git push origin --force --all")

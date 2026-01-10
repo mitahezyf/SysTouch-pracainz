@@ -1,4 +1,4 @@
-import sys
+﻿import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -10,7 +10,7 @@ from app.gesture_engine.utils import ThreadedCapture
 
 
 # czy poprawnie ustawia parametry kamery i startuje watek
-@patch("app.utils.video_capture.cv2.VideoCapture")
+@patch("app.gesture_engine.utils.video_capture.cv2.VideoCapture")
 def test_threaded_capture_init(mock_cv2):
     mock_cap = MagicMock()
     mock_cap.read.return_value = (True, "dummy_frame")
@@ -37,7 +37,7 @@ def test_threaded_capture_init(mock_cv2):
 
 
 # read() - powinna zwrocic aktualny frame
-@patch("app.utils.video_capture.cv2.VideoCapture")
+@patch("app.gesture_engine.utils.video_capture.cv2.VideoCapture")
 def test_threaded_capture_read(mock_cv2):
     mock_cap = MagicMock()
     mock_cap.read.return_value = (True, "some_frame")
@@ -53,7 +53,7 @@ def test_threaded_capture_read(mock_cv2):
 
 
 # stop() - zatrzymuje watek i zwalnia zasoby kamery
-@patch("app.utils.video_capture.cv2.VideoCapture")
+@patch("app.gesture_engine.utils.video_capture.cv2.VideoCapture")
 def test_threaded_capture_stop(mock_cv2):
     mock_cap = MagicMock()
     mock_cap.read.return_value = (True, "frame")
@@ -94,7 +94,7 @@ def test_threaded_capture_raises_when_camera_not_opened(mock_cv2_mod):
         pass
 
 
-@patch("app.utils.video_capture.cv2.VideoCapture")
+@patch("app.gesture_engine.utils.video_capture.cv2.VideoCapture")
 def test_threaded_capture_handles_read_exception(mock_cv2):
     # pierwszy read ok przy init, kolejne rzucaja wyjatek w watku
     mock_cap = MagicMock()
