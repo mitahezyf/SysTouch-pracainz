@@ -105,3 +105,51 @@ USE_JSON_GESTURES = False  # wlacznik runtime json
 JSON_GESTURE_PATHS = [
     "app/gesture_engine/gestures_json"  # katalog z wbudowanymi definicjami
 ]
+
+# Nagrywanie datasetu PJM - zabezpieczenie haslem
+RECORDING_PASSWORD = "admin"  # haslo do nagrywania alfabetu (zmien na wlasne)
+
+# Pelny alfabet PJM (36 liter)
+PJM_LABELS = [
+    "A",
+    "A+",
+    "B",
+    "C",
+    "C+",
+    "CH",
+    "CZ",
+    "D",
+    "E",
+    "E+",
+    "F",
+    "G",
+    "H",
+    "I",
+    "J",
+    "K",
+    "L",
+    "L+",
+    "M",
+    "N",
+    "N+",
+    "O",
+    "O+",
+    "P",
+    "R",
+    "RZ",
+    "S",
+    "S+",
+    "SZ",
+    "T",
+    "U",
+    "W",
+    "Y",
+    "Z",
+    "Z+",
+    "Z++",
+]
+
+# Parametry nagrywania datasetu
+RECORDING_CLIP_SECONDS = 3.0  # czas na jedna probke
+RECORDING_COUNTDOWN = 1.0  # odliczanie przed nagraniem
+RECORDING_REPEATS = 5  # ile powtorzen na gest

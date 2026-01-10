@@ -45,3 +45,6 @@ data/collected/*/clips/
 
 # GitHub instructions
 .github/instructions/instructionsprompt.instructions.md
+
+# Diagramy (generowane automatycznie)
+diagramy/

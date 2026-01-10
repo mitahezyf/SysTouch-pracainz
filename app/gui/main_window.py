@@ -170,22 +170,111 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
 
             def on_record_sign_language(self):
                 # uruchamia proces nagrywania datasetu liter w osobnym procesie pythona
+                # zabezpieczone haslem z config.py
                 import os
                 import subprocess
                 import sys
+
+                from PySide6.QtWidgets import QInputDialog, QLineEdit, QMessageBox
+
+                from app.gesture_engine.config import (
+                    PJM_LABELS,
+                    RECORDING_CLIP_SECONDS,
+                    RECORDING_COUNTDOWN,
+                    RECORDING_PASSWORD,
+                    RECORDING_REPEATS,
+                )
+
+                # sprawdz czy kamera jest zajeta przez worker
+                if self.worker is not None and self.worker.isRunning():
+                    msg_box = QMessageBox(self)
+                    msg_box.setWindowTitle("Zatrzymac aplikacje?")
+                    msg_box.setText(
+                        "Aplikacja glowna uzywa kamery. Zatrzymac ja przed nagrywaniem?"
+                    )
+                    msg_box.setIcon(QMessageBox.Question)
+
+                    # polskie przyciski
+                    tak_btn = msg_box.addButton("Tak", QMessageBox.YesRole)
+                    msg_box.addButton("Nie", QMessageBox.NoRole)
+                    msg_box.setDefaultButton(tak_btn)
+
+                    msg_box.exec()
+
+                    if msg_box.clickedButton() != tak_btn:
+                        self.status_label.setText("Status: Nagrywanie anulowane")
+                        return
+
+                    # zatrzymaj worker
+                    try:
+                        self.worker.stop()
+                        self.worker.wait(2000)
+                        self._destroy_worker()
+                        self.start_btn.setEnabled(True)
+                        self.stop_btn.setEnabled(False)
+                        self.camera_combo.setEnabled(True)
+                        self.refresh_cams_btn.setEnabled(True)
+                        logger.info("[PJM] Worker zatrzymany przed nagrywaniem")
+                    except Exception as e:
+                        logger.error("[PJM] Blad zatrzymywania workera: %s", e)
+                        self.status_label.setText(
+                            "Status: Blad zatrzymywania aplikacji"
+                        )
+                        return
+
+                # dialog hasla
+                password, ok = QInputDialog.getText(
+                    self,
+                    "Haslo wymagane",
+                    "Wprowadz haslo do nagrywania alfabetu:",
+                    QLineEdit.Password,
+                )
+
+                if not ok:
+                    self.status_label.setText("Status: Nagrywanie anulowane")
+                    return
+
+                if password != RECORDING_PASSWORD:
+                    self.status_label.setText("Status: Nieprawidlowe haslo")
+                    logger.warning("[PJM] Nieprawidlowe haslo do nagrywania")
+                    return
 
                 try:
                     base_dir = os.path.dirname(
                         os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
                     )
-                    cmd = [sys.executable, "-m", "app.sign_language.recorder"]
+
+                    # przygotuj liste etykiet jako string
+                    labels_str = ",".join(PJM_LABELS)
+
+                    cmd = [
+                        sys.executable,
+                        "-m",
+                        "tools.collect_dataset",
+                        "--labels",
+                        labels_str,
+                        "--clip-seconds",
+                        str(RECORDING_CLIP_SECONDS),
+                        "--countdown",
+                        str(RECORDING_COUNTDOWN),
+                        "--repeats",
+                        str(RECORDING_REPEATS),
+                        "--interactive",
+                        "--show-landmarks",  # pokazuj landmarki dloni
+                    ]
                     subprocess.Popen(cmd, cwd=base_dir)
                     self.status_label.setText(
-                        "Status: Uruchomiono nagrywanie alfabetu (osobne okno)"
+                        f"Status: Uruchomiono nagrywanie {len(PJM_LABELS)} liter (osobne okno)"
+                    )
+                    logger.info(
+                        "[PJM] Uruchomiono nagrywanie: %d liter, %d powtorzen, %.1fs/probka",
+                        len(PJM_LABELS),
+                        RECORDING_REPEATS,
+                        RECORDING_CLIP_SECONDS,
                     )
                 except Exception as exc:
                     self.status_label.setText(f"Status: Blad nagrywania: {exc}")
-                    logger.debug("on_record_sign_language error: %s", exc)
+                    logger.error("on_record_sign_language error: %s", exc)
 
             def on_train_sign_language(self):
                 # uruchamia trening modelu liter w osobnym procesie
@@ -236,7 +325,7 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                     logger.info("[PJM] Statystyki wyczyszczone")
 
             def on_pjm_export_stats(self):
-                # eksportuje statystyki do pliku CSV
+                # eksportuje pełne dane sesji (historia + statystyki) do pliku CSV
                 if not self._translator:
                     return
 
@@ -244,25 +333,74 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                 import datetime
                 from pathlib import Path
 
+                from PySide6.QtWidgets import QFileDialog
+
                 try:
                     stats = self._translator.get_statistics()
+                    history = self._translator.get_history(format_groups=False)
 
-                    # generuj nazwe pliku z timestamp
+                    # generuj nazwe pliku z timestamp (bez domyslnej sciezki)
                     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                    filename = f"pjm_stats_{timestamp}.csv"
-                    filepath = Path("reports") / filename
-                    filepath.parent.mkdir(exist_ok=True)
+                    default_filename = f"pjm_raport_{timestamp}.csv"
 
+                    # otworz dialog wyboru lokalizacji zapisu (bez domyslnej sciezki)
+                    filepath, _ = QFileDialog.getSaveFileName(
+                        self,
+                        "Zapisz raport PJM",
+                        default_filename,
+                        "Pliki CSV (*.csv);;Wszystkie pliki (*.*)",
+                    )
+
+                    # jesli uzytkownik anulował
+                    if not filepath:
+                        self.status_label.setText("Status: Eksport anulowany")
+                        return
+
+                    # zapisz pełny raport
                     with open(filepath, "w", newline="", encoding="utf-8") as f:
                         writer = csv.writer(f)
-                        writer.writerow(["Litera", "Liczba_wykryc"])
 
-                        for letter, count in stats["most_common"]:
-                            writer.writerow([letter, count])
-
-                        # dodaj podsumowanie
+                        # sekcja 1: HISTORIA SESJI
+                        writer.writerow(["=== HISTORIA SESJI ==="])
                         writer.writerow([])
-                        writer.writerow(["PODSUMOWANIE", ""])
+                        writer.writerow(
+                            [
+                                "Data",
+                                datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            ]
+                        )
+                        writer.writerow(
+                            ["Czas sesji (s)", f"{stats['session_duration_s']:.1f}"]
+                        )
+                        writer.writerow([])
+                        writer.writerow(["Historia liter (sekwencja):"])
+                        # podziel historie na linie po 60 znakow dla czytelnosci
+                        if history:
+                            for i in range(0, len(history), 60):
+                                writer.writerow([history[i : i + 60]])
+                        else:
+                            writer.writerow(["(pusta)"])
+                        writer.writerow([])
+
+                        # sekcja 2: STATYSTYKI LITER
+                        writer.writerow(["=== STATYSTYKI LITER ==="])
+                        writer.writerow([])
+                        writer.writerow(["Litera", "Liczba_wykryc", "Procent"])
+
+                        total = stats["total_detections"]
+                        for letter, count in sorted(
+                            stats["letter_counts"].items(),
+                            key=lambda x: x[1],
+                            reverse=True,
+                        ):
+                            percent = (count / total * 100) if total > 0 else 0
+                            writer.writerow([letter, count, f"{percent:.1f}%"])
+
+                        writer.writerow([])
+
+                        # sekcja 3: PODSUMOWANIE
+                        writer.writerow(["=== PODSUMOWANIE ==="])
+                        writer.writerow([])
                         writer.writerow(
                             ["Calkowite wykrycia", stats["total_detections"]]
                         )
@@ -273,13 +411,20 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                         writer.writerow(
                             ["Wykryc/min", f"{stats['detections_per_minute']:.1f}"]
                         )
+                        writer.writerow([])
+                        writer.writerow(["Top 10 najczesciej uzywanych liter:"])
+                        for i, (letter, count) in enumerate(stats["most_common"], 1):
+                            writer.writerow([f"{i}.", letter, count])
 
+                    # wyswietl komunikat sukcesu z nazwa pliku
+                    saved_filename = Path(filepath).name
                     self.status_label.setText(
-                        f"Status: Statystyki wyeksportowane do {filename}"
+                        f"Status: Raport wyeksportowany: {saved_filename}"
                     )
-                    logger.info("[PJM] Statystyki wyeksportowane: %s", filepath)
+                    logger.info("[PJM] Raport wyeksportowany: %s", filepath)
                 except Exception as exc:
                     self.status_label.setText(f"Status: Blad eksportu: {exc}")
+                    logger.error("[PJM] Blad eksportu: %s", exc)
 
             def on_pjm_reload_model(self):
                 # przeladowuje model PJM z dysku (hot-reload)
@@ -778,8 +923,12 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                 self.left_hand_label.setVisible(not is_translator_mode)
                 self.right_hand_label.setVisible(not is_translator_mode)
 
-                # pokaz przycisk treningu tylko w trybie translator
+                # ukryj checkbox "Wykonuj akcje" w trybie translator
+                self.exec_actions_chk.setVisible(not is_translator_mode)
+
+                # pokaz przyciski treningu i nagrywania tylko w trybie translator
                 self.train_btn.setVisible(is_translator_mode)
+                self.record_btn.setVisible(is_translator_mode)
 
                 if is_translator_mode and self._translator:
                     # reset stanu ale zachowaj statystyki

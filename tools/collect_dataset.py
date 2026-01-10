@@ -72,16 +72,17 @@ def _draw_overlay(frame_bgr: np.ndarray, state: _OverlayState) -> np.ndarray:
 
     color = (0, 200, 0) if state.ok else (0, 0, 255)
 
+    # polskie etykiety bez "who:"
     line1 = (
-        f"label: {state.label} ({state.repetition}/{state.repetitions_total})   who: {state.performer}"
-        f"   phase: {state.phase}   left: {state.seconds_left:.1f}s"
+        f"Litera: {state.label} ({state.repetition}/{state.repetitions_total})"
+        f"   Faza: {state.phase}   Pozostalo: {state.seconds_left:.1f}s"
     )
-    line2 = f"hand: {state.handedness or '-'}   req: {state.handedness_required or '-'}   frame: {state.frame_idx}"
+    line2 = f"Dlon: {state.handedness or '-'}   Wymagana: {state.handedness_required or '-'}   Klatka: {state.frame_idx}"
 
     cv2.putText(out, line1, (10, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
     cv2.putText(out, line2, (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
-    hint = "keys: n/space/enter=next, r=repeat, q/esc=quit"
+    hint = "Klawisze: n/spacja/enter=dalej, r=powtorz, q/esc=koniec"
     cv2.putText(
         out,
         hint,
@@ -330,34 +331,41 @@ def main(argv: list[str] | None = None) -> int:
 
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")  # type: ignore[attr-defined]
 
-        window_name = "dataset collector" if args.interactive else ""
+        window_name = "SysTouch - Nagrywanie Alfabetu PJM" if args.interactive else ""
         if args.interactive:
             cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
 
-            # skaluje podglad do rozmiaru ekranu, zeby overlay sie miescil
-            scale_ui = min(
-                float(args.ui_max_width) / float(width),
-                float(args.ui_max_height) / float(height),
-                1.0,
-            )
-            ui_w = max(640, int(width * scale_ui))
-            ui_h = max(480, int(height * scale_ui))
+            # oblicz rozmiar okna 16:9 ktory zmiesci sie na ekranie
+            # standardowy ekran FullHD = 1920x1080
+            # bezpieczny rozmiar dla wiekszosci ekranow: 1280x720 (720p)
+            target_w = 1280
+            target_h = 720
 
-            # uwzglednia dodatkowa skale z --window-scale
-            scale_win = float(args.window_scale)
-            if scale_win <= 0:
-                logger.error("--window-scale musi byc > 0")
-                return 2
-            ui_w = int(ui_w * scale_win)
-            ui_h = int(ui_h * scale_win)
+            # jesli capture jest mniejsze od target, uzyj capture size
+            if width < target_w or height < target_h:
+                # zachowaj proporcje 16:9
+                aspect_ratio = 16.0 / 9.0
+                if width / height > aspect_ratio:
+                    # szerokie - dopasuj po wysokosci
+                    ui_h = height
+                    ui_w = int(ui_h * aspect_ratio)
+                else:
+                    # wysokie - dopasuj po szerokosci
+                    ui_w = width
+                    ui_h = int(ui_w / aspect_ratio)
+            else:
+                ui_w = target_w
+                ui_h = target_h
 
             try:
                 cv2.resizeWindow(window_name, ui_w, ui_h)
+                # ustaw ciemne tlo dla konsystencji z glownym GUI
+                cv2.setWindowProperty(window_name, cv2.WND_PROP_TOPMOST, 0)
             except Exception:
                 logger.debug("nie mozna ustawic rozmiaru okna")
 
             logger.info(
-                "capture=%dx%d@%.1ffps ui=%dx%d", width, height, fps, ui_w, ui_h
+                "capture=%dx%d@%.1ffps ui=%dx%d (16:9)", width, height, fps, ui_w, ui_h
             )
 
         label_idx = 0
@@ -414,6 +422,12 @@ def main(argv: list[str] | None = None) -> int:
                         vis = _draw_overlay(vis, state)
                         cv2.imshow(window_name, vis)
                         key = cv2.waitKey(10) & 0xFF
+
+                        # sprawdz czy okno zostalo zamkniete przez X
+                        if cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) < 1:
+                            logger.info("Okno zamkniete - koniec nagrywania")
+                            return 0
+
                         if key in (ord("q"), 27):
                             return 0
                         if key == ord("r"):
@@ -452,6 +466,12 @@ def main(argv: list[str] | None = None) -> int:
                         vis = _draw_overlay(vis, state)
                         cv2.imshow(window_name, vis)
                         key = cv2.waitKey(10) & 0xFF
+
+                        # sprawdz czy okno zostalo zamkniete przez X
+                        if cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) < 1:
+                            logger.info("Okno zamkniete - koniec nagrywania")
+                            return 0
+
                         if key in (ord("q"), 27):
                             return 0
 
@@ -620,6 +640,15 @@ def main(argv: list[str] | None = None) -> int:
                             vis = _draw_overlay(vis, state)
                             cv2.imshow(window_name, vis)
                             key = cv2.waitKey(1) & 0xFF
+
+                            # sprawdz czy okno zostalo zamkniete przez X
+                            if (
+                                cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE)
+                                < 1
+                            ):
+                                logger.info("Okno zamkniete - koniec nagrywania")
+                                return 0
+
                             if key in (ord("q"), 27):
                                 return 0
                             if key == ord("r"):
