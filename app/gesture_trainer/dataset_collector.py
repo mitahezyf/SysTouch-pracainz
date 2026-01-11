@@ -3,7 +3,6 @@ from __future__ import annotations
 import csv
 import json
 import time
-import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -27,7 +26,20 @@ def _now_ts_ms() -> int:
 
 
 def build_session_id() -> str:
-    return uuid.uuid4().hex
+    """Generuje ID sesji z timestampem dla czytelnosci.
+
+    Format: YYYYMMDD_HHMMSS_nanoseconds
+    Przyklad: 20260111_012410_123456789
+    """
+    import time
+    from datetime import datetime
+
+    now = datetime.now()
+    # YYYYMMDD_HHMMSS
+    date_str = now.strftime("%Y%m%d_%H%M%S")
+    # nanoseconds dla unikalnosci
+    nanos = time.time_ns() % 1_000_000_000
+    return f"{date_str}_{nanos:09d}"
 
 
 def ensure_dirs(cfg: CollectionConfig) -> tuple[Path, Path, Path]:

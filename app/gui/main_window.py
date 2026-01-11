@@ -59,6 +59,7 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                 self.right_hand_label = ui.right_hand_label
                 # przyciski obslugi nagrywania alfabetu i treningu modelu
                 self.record_btn = ui.record_btn
+                self.samples_btn = ui.samples_btn
                 self.train_btn = ui.train_btn
                 # panel PJM
                 self.pjm_group = ui.pjm_group
@@ -94,6 +95,7 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                 self.camera_combo.currentIndexChanged.connect(self.on_camera_changed)
                 # podpina sygnaly przyciskow translatora/nagrywania
                 self.record_btn.clicked.connect(self.on_record_sign_language)
+                self.samples_btn.clicked.connect(self.on_show_samples)
                 self.train_btn.clicked.connect(self.on_train_sign_language)
                 # podpina sygnaly panelu PJM
                 self.pjm_clear_btn.clicked.connect(self.on_pjm_clear_stats)
@@ -276,8 +278,30 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                     self.status_label.setText(f"Status: Blad nagrywania: {exc}")
                     logger.error("on_record_sign_language error: %s", exc)
 
+            def on_show_samples(self):
+                # otwiera folder z nagranymi probkami w Eksploratorze
+                import os
+
+                base_dir = os.path.dirname(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                )
+                samples_dir = os.path.join(base_dir, "data", "collected")
+
+                if os.path.exists(samples_dir):
+                    try:
+                        os.startfile(samples_dir)  # Windows
+                        self.status_label.setText("Status: Otwarto folder z probkami")
+                    except Exception as exc:
+                        self.status_label.setText(
+                            f"Status: Blad otwarcia folderu: {exc}"
+                        )
+                        logger.error("on_show_samples error: %s", exc)
+                else:
+                    self.status_label.setText("Status: Brak folderu z probkami")
+                    logger.warning("Folder %s nie istnieje", samples_dir)
+
             def on_train_sign_language(self):
-                # uruchamia trening modelu liter w osobnym procesie
+                # konsoliduje nowe probki i uruchamia trening modelu
                 import os
                 import subprocess
                 import sys
@@ -286,14 +310,36 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                     base_dir = os.path.dirname(
                         os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
                     )
-                    cmd = [sys.executable, "-m", "app.sign_language.trainer"]
-                    subprocess.Popen(cmd, cwd=base_dir)
+
+                    # 1. Konsolidacja danych (automatyczna)
+                    self.status_label.setText("Status: Konsolidacja nowych probek...")
+                    logger.info("[PJM] Auto-konsolidacja przed treningiem")
+                    consolidate_cmd = [
+                        sys.executable,
+                        "-m",
+                        "app.sign_language.dataset",
+                    ]
+                    result = subprocess.run(
+                        consolidate_cmd, cwd=base_dir, capture_output=True, text=True
+                    )
+
+                    if result.returncode != 0:
+                        self.status_label.setText("Status: Blad konsolidacji danych")
+                        logger.error("Konsolidacja failed: %s", result.stderr)
+                        return
+
+                    logger.info("[PJM] Konsolidacja zakonczona")
+
+                    # 2. Trening modelu
                     self.status_label.setText(
                         "Status: Uruchomiono trening modelu (sprawdz terminal)"
                     )
+                    train_cmd = [sys.executable, "-m", "app.sign_language.trainer"]
+                    subprocess.Popen(train_cmd, cwd=base_dir)
+                    logger.info("[PJM] Uruchomiono trening")
                 except Exception as exc:
                     self.status_label.setText(f"Status: Blad treningu: {exc}")
-                    logger.debug("on_train_sign_language error: %s", exc)
+                    logger.error("on_train_sign_language error: %s", exc)
 
             def on_pjm_copy_history(self):
                 # kopiuje historie liter do schowka
@@ -926,9 +972,10 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                 # ukryj checkbox "Wykonuj akcje" w trybie translator
                 self.exec_actions_chk.setVisible(not is_translator_mode)
 
-                # pokaz przyciski treningu i nagrywania tylko w trybie translator
+                # pokaz przyciski treningu, nagrywania i próbek tylko w trybie translator
                 self.train_btn.setVisible(is_translator_mode)
                 self.record_btn.setVisible(is_translator_mode)
+                self.samples_btn.setVisible(is_translator_mode)
 
                 if is_translator_mode and self._translator:
                     # reset stanu ale zachowaj statystyki

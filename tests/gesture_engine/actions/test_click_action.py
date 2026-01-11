@@ -15,50 +15,52 @@ import app.gesture_engine.actions.click_action as click_action
 def reset_click_state():
     click_action.click_state.update(
         {
-            "gesture_start": None,
-            "mouse_down_active": False,
-            "click_executed": False,
+            "start_time": None,
+            "last_seen": None,
+            "holding": False,
+            "mouse_down": False,
+            "click_sent": False,
         }
     )
 
 
 # handle_click przy pierwszym wywolaniu zapisuje czas startu
 @patch("app.gesture_engine.actions.click_action.logger")
-@patch("app.gesture_engine.actions.click_action.time.time", return_value=1234.567)
+@patch("app.gesture_engine.actions.click_action.time.monotonic", return_value=1234.567)
 def test_handle_click_first_call(mock_time, _):
     click_action.handle_click(None, None)
     state = click_action.click_state
-    assert state["gesture_start"] == 1234.567
-    assert state["mouse_down_active"] is False
-    assert state["click_executed"] is False
+    assert state["start_time"] == 1234.567
+    assert state["mouse_down"] is False
+    assert state["click_sent"] is False
 
 
-# handle_click aktywuje mouseDown po przekroczeniu HOLD_TIME_THRESHOLD
+# handle_click aktywuje mouseDown pop przekroczeniu HOLD_MS
 @patch("app.gesture_engine.actions.click_action.logger")
 @patch("app.gesture_engine.actions.click_action.pyautogui.mouseDown")
-@patch("app.gesture_engine.actions.click_action.time.time")
+@patch("app.gesture_engine.actions.click_action.time.monotonic")
 def test_handle_click_triggers_hold(mock_time, mock_mouse_down, _):
     # Pierwsze wywolanie - ustaw czas startu
     mock_time.return_value = 1000
     click_action.handle_click(None, None)
 
-    # Drugie wywolanie - po przekroczeniu progu
-    mock_time.return_value = 1000 + click_action.HOLD_TIME_THRESHOLD + 0.1
+    # Drugie wywolanie - po przekroczeniu progu (HOLD_MS = 1500ms = 1.5s)
+    mock_time.return_value = 1000 + 1.5 + 0.1
     click_action.handle_click(None, None)
 
-    assert click_action.click_state["mouse_down_active"] is True
-    assert click_action.click_state["click_executed"] is True
+    assert click_action.click_state["mouse_down"] is True
+    assert click_action.click_state["holding"] is True
     mock_mouse_down.assert_called_once()
 
 
 # handle_click nie wywoluje mouseDown ponownie jesli juz aktywne
 @patch("app.gesture_engine.actions.click_action.pyautogui.mouseDown")
-@patch("app.gesture_engine.actions.click_action.time.time")
+@patch("app.gesture_engine.actions.click_action.time.monotonic")
 def test_handle_click_hold_not_repeated(mock_time, mock_mouse_down):
     # Ustaw stan jako juz w trybie hold
-    click_action.click_state["gesture_start"] = 1000
-    click_action.click_state["mouse_down_active"] = True
-    click_action.click_state["click_executed"] = True
+    click_action.click_state["start_time"] = 1000
+    click_action.click_state["mouse_down"] = True
+    click_action.click_state["holding"] = True
 
     mock_time.return_value = 1002
     click_action.handle_click(None, None)
@@ -70,35 +72,36 @@ def test_handle_click_hold_not_repeated(mock_time, mock_mouse_down):
 # release_click wykonuje click() przy krotkim tapie
 @patch("app.gesture_engine.actions.click_action.logger")
 @patch("app.gesture_engine.actions.click_action.pyautogui.click")
-@patch("app.gesture_engine.actions.click_action.time.time")
+@patch("app.gesture_engine.actions.click_action.time.monotonic")
 def test_release_click_short_tap(mock_time, mock_click, _):
     click_action.click_state.update(
         {
-            "gesture_start": 1000,
-            "mouse_down_active": False,
-            "click_executed": False,
+            "start_time": 1000,
+            "mouse_down": False,
+            "click_sent": False,
         }
     )
-    mock_time.return_value = 1000 + click_action.HOLD_TIME_THRESHOLD - 0.1
+    # Krotki czas - ponizej TAP_MAX_MS (500ms = 0.5s)
+    mock_time.return_value = 1000 + 0.3
 
     click_action.release_click()
 
     mock_click.assert_called_once()
     # Stan powinien byc zresetowany
-    assert click_action.click_state["gesture_start"] is None
-    assert click_action.click_state["mouse_down_active"] is False
+    assert click_action.click_state["start_time"] is None
+    assert click_action.click_state["mouse_down"] is False
 
 
 # release_click wykonuje mouseUp przy holdzie
 @patch("app.gesture_engine.actions.click_action.logger")
 @patch("app.gesture_engine.actions.click_action.pyautogui.mouseUp")
-@patch("app.gesture_engine.actions.click_action.time.time")
+@patch("app.gesture_engine.actions.click_action.time.monotonic")
 def test_release_click_hold(mock_time, mock_mouse_up, _):
     click_action.click_state.update(
         {
-            "gesture_start": 1000,
-            "mouse_down_active": True,
-            "click_executed": True,
+            "start_time": 1000,
+            "mouse_down": True,
+            "holding": True,
         }
     )
     mock_time.return_value = 1002
@@ -107,41 +110,33 @@ def test_release_click_hold(mock_time, mock_mouse_up, _):
 
     mock_mouse_up.assert_called_once()
     # Stan powinien byc zresetowany
-    assert click_action.click_state["gesture_start"] is None
-    assert click_action.click_state["mouse_down_active"] is False
+    assert click_action.click_state["start_time"] is None
+    assert click_action.click_state["mouse_down"] is False
 
 
-# release_click ignoruje jesli brak gesture_start
+# release_click ignoruje jesli brak start_time
 def test_release_click_no_start_time():
-    click_action.click_state["gesture_start"] = None
+    click_action.click_state["start_time"] = None
     # Nie powinno rzucic wyjatku
     click_action.release_click()
     # Stan powinien pozostac None
-    assert click_action.click_state["gesture_start"] is None
+    assert click_action.click_state["start_time"] is None
 
 
-# is_click_holding zwraca True gdy mouse_down_active
+# is_mouse_down zwraca True gdy mouse_down aktywny
 def test_is_click_holding_true():
-    click_action.click_state["mouse_down_active"] = True
-    assert click_action.is_click_holding() is True
+    click_action.click_state["mouse_down"] = True
+    assert click_action.is_mouse_down() is True
 
 
-# is_click_holding zwraca False gdy mouse_down_active jest False
+# is_mouse_down zwraca False gdy mouse_down jest False
 def test_is_click_holding_false():
-    click_action.click_state["mouse_down_active"] = False
-    assert click_action.is_click_holding() is False
+    click_action.click_state["mouse_down"] = False
+    assert click_action.is_mouse_down() is False
 
 
-# get_click_state_name zwraca nazwe w zaleznosci od stanu
+# get_click_state_name nie istnieje - usuwam test
+# Funkcja get_click_state_name byla usunieta z API
 def test_get_click_state_name():
-    # Stan: mouse_down_active
-    click_action.click_state.update({"mouse_down_active": True, "gesture_start": 123})
-    assert click_action.get_click_state_name() == "click-hold"
-
-    # Stan: gesture_start ale nie mouse_down
-    click_action.click_state.update({"mouse_down_active": False, "gesture_start": 123})
-    assert click_action.get_click_state_name() == "click"
-
-    # Stan: brak gestu
-    click_action.click_state.update({"gesture_start": None, "mouse_down_active": False})
-    assert click_action.get_click_state_name() is None
+    # Ten test jest nieaktualny - funkcja nie istnieje w nowym API
+    pytest.skip("get_click_state_name() nie istnieje w nowym API")

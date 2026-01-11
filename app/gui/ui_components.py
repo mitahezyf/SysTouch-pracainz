@@ -130,6 +130,7 @@ class UIRefs:
     central_widget: object
     # przyciski dla nagrywania alfabetu i treningu modelu jezyka migowego
     record_btn: object
+    samples_btn: object
     train_btn: object
     # panel PJM - wyswietlanie liter i statystyk
     pjm_group: object
@@ -202,11 +203,14 @@ def build_ui(display_width: int, display_height: int) -> UIRefs:
 
     record_btn = QPushButton("Nagraj alfabet")
     train_btn = QPushButton("Wytrenuj model")
+    samples_btn = QPushButton("Pokaż próbki")
     record_btn.setToolTip("Rozpoczyna nagrywanie datasetu liter (osobny proces)")
     train_btn.setToolTip("Trenuje model na nagranym datasiecie (osobny proces)")
+    samples_btn.setToolTip("Otwiera folder z nagranymi probkami")
     # ukryj domyslnie - pokaza sie tylko w trybie translator
     record_btn.setVisible(False)
     train_btn.setVisible(False)
+    samples_btn.setVisible(False)
 
     status_label = QLabel("Status: gotowe")
     fps_label = QLabel("FPS: 0")
@@ -232,6 +236,7 @@ def build_ui(display_width: int, display_height: int) -> UIRefs:
     ctrl_bar.addWidget(start_btn)
     ctrl_bar.addWidget(stop_btn)
     ctrl_bar.addWidget(record_btn)
+    ctrl_bar.addWidget(samples_btn)
     ctrl_bar.addWidget(train_btn)
     ctrl_bar.addStretch(1)
     ctrl_bar.addWidget(fps_label)
@@ -367,6 +372,7 @@ def build_ui(display_width: int, display_height: int) -> UIRefs:
         right_hand_label=right_hand_label,
         central_widget=central,
         record_btn=record_btn,
+        samples_btn=samples_btn,
         train_btn=train_btn,
         pjm_group=pjm_group,
         pjm_letter_label=pjm_letter_label,
