@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pathlib import Path
 
 import numpy as np
@@ -24,6 +26,7 @@ def train(
     batch_size: int = 32,
     augment_low_accuracy: bool = False,
     augment_multiplier: int = 10,
+    progress_callback=None,
 ) -> dict:
     """
     Trenuje model MLP na datasecie PJM.
@@ -144,6 +147,10 @@ def train(
         loss.backward()
         optimizer.step()
         last_loss = float(loss.item())
+
+        # Callback postępu
+        if progress_callback:
+            progress_callback(epoch + 1, epochs)
 
         # walidacja co kilka epok
         if (epoch + 1) % max(1, epochs // 10) == 0:

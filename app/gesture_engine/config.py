@@ -30,7 +30,9 @@ RELOAD_DETECTORS_SEC = 0
 
 # skanowanie kamer w GUI
 CAMERA_SCAN_INTERVAL_MS = 8000  # jak czesto odswiezac liste kamer
-CAMERA_MAX_INDEX_SCAN = 5  # do jakiego indeksu skanowac
+CAMERA_MAX_INDEX_SCAN = (
+    10  # do jakiego indeksu skanowac (wieksze dla OBS i innych wirtualnych kamer)
+)
 
 # parametry kamery ograniczajace zaciecia
 CAMERA_SET_BUFFERSIZE = True  # proba ustawienia minimalnego bufora klatek

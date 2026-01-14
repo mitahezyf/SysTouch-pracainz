@@ -237,6 +237,12 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                     return
 
                 if password != RECORDING_PASSWORD:
+                    # Wyświetl wyraźny komunikat o błędzie
+                    QMessageBox.critical(
+                        self,
+                        "Nieprawidłowe hasło",
+                        "Wprowadzone hasło jest nieprawidłowe.\nDostęp do nagrywania alfabetu został odmówiony.",
+                    )
                     self.status_label.setText("Status: Nieprawidlowe haslo")
                     logger.warning("[PJM] Nieprawidlowe haslo do nagrywania")
                     return
@@ -249,10 +255,22 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                     # przygotuj liste etykiet jako string
                     labels_str = ",".join(PJM_LABELS)
 
+                    # Pobierz aktualnie wybraną kamerę z GUI
+                    current_camera = self.camera_combo.currentData()
+                    if not isinstance(current_camera, int) or current_camera < 0:
+                        current_camera = 0  # fallback na domyślną
+                        logger.warning("[PJM] Nieprawidłowa kamera, używam 0")
+
+                    logger.info(
+                        "[PJM] Uruchamianie nagrywania z kamerą: %d", current_camera
+                    )
+
                     cmd = [
                         sys.executable,
                         "-m",
                         "tools.collect_dataset",
+                        "--camera",
+                        str(current_camera),  # Przekaż wybraną kamerę
                         "--labels",
                         labels_str,
                         "--clip-seconds",
@@ -266,13 +284,14 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                     ]
                     subprocess.Popen(cmd, cwd=base_dir)
                     self.status_label.setText(
-                        f"Status: Uruchomiono nagrywanie {len(PJM_LABELS)} liter (osobne okno)"
+                        f"Status: Uruchomiono nagrywanie {len(PJM_LABELS)} liter (kamera {current_camera})"
                     )
                     logger.info(
-                        "[PJM] Uruchomiono nagrywanie: %d liter, %d powtorzen, %.1fs/probka",
+                        "[PJM] Uruchomiono nagrywanie: %d liter, %d powtorzen, %.1fs/probka, kamera=%d",
                         len(PJM_LABELS),
                         RECORDING_REPEATS,
                         RECORDING_CLIP_SECONDS,
+                        current_camera,
                     )
                 except Exception as exc:
                     self.status_label.setText(f"Status: Blad nagrywania: {exc}")
@@ -301,45 +320,84 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                     logger.warning("Folder %s nie istnieje", samples_dir)
 
             def on_train_sign_language(self):
-                # konsoliduje nowe probki i uruchamia trening modelu
-                import os
-                import subprocess
-                import sys
+                # konsoliduje nowe probki i uruchamia trening modelu z progress barem
+                from PySide6.QtCore import Qt
+                from PySide6.QtWidgets import QProgressDialog
 
-                try:
-                    base_dir = os.path.dirname(
-                        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                    )
+                from app.gui.training_thread import TrainingThread
 
-                    # 1. Konsolidacja danych (automatyczna)
-                    self.status_label.setText("Status: Konsolidacja nowych probek...")
-                    logger.info("[PJM] Auto-konsolidacja przed treningiem")
-                    consolidate_cmd = [
-                        sys.executable,
-                        "-m",
-                        "app.sign_language.dataset",
-                    ]
-                    result = subprocess.run(
-                        consolidate_cmd, cwd=base_dir, capture_output=True, text=True
-                    )
+                # Progress dialog
+                self.progress_dialog = QProgressDialog(
+                    "Przygotowanie...", "Anuluj", 0, 100, self
+                )
+                self.progress_dialog.setWindowTitle("Trening modelu PJM")
+                self.progress_dialog.setWindowModality(Qt.WindowModal)
+                self.progress_dialog.setMinimumDuration(0)
 
-                    if result.returncode != 0:
-                        self.status_label.setText("Status: Blad konsolidacji danych")
-                        logger.error("Konsolidacja failed: %s", result.stderr)
-                        return
+                # Training thread
+                self.training_thread = TrainingThread(self)
+                self.training_thread.progress_updated.connect(
+                    self._on_training_progress
+                )
+                self.training_thread.training_finished.connect(
+                    self._on_training_finished
+                )
+                self.training_thread.training_error.connect(self._on_training_error)
 
-                    logger.info("[PJM] Konsolidacja zakonczona")
+                # Anulowanie
+                self.progress_dialog.canceled.connect(self.training_thread.cancel)
 
-                    # 2. Trening modelu
-                    self.status_label.setText(
-                        "Status: Uruchomiono trening modelu (sprawdz terminal)"
-                    )
-                    train_cmd = [sys.executable, "-m", "app.sign_language.trainer"]
-                    subprocess.Popen(train_cmd, cwd=base_dir)
-                    logger.info("[PJM] Uruchomiono trening")
-                except Exception as exc:
-                    self.status_label.setText(f"Status: Blad treningu: {exc}")
-                    logger.error("on_train_sign_language error: %s", exc)
+                # Start
+                self.training_thread.start()
+                self.progress_dialog.show()
+
+                self.status_label.setText("Status: Trening w toku...")
+                logger.info("[PJM] Uruchomiono trening z progress barem")
+
+            def _on_training_progress(self, current: int, total: int, message: str):
+                """Callback postępu treningu."""
+                self.progress_dialog.setValue(current)
+                self.progress_dialog.setLabelText(message)
+
+            def _on_training_finished(self, results: dict):
+                """Callback zakończenia treningu - pokazuje wyniki."""
+                from PySide6.QtWidgets import QMessageBox
+
+                from app.gui.training_results_dialog import TrainingResultsDialog
+
+                self.progress_dialog.close()
+                self.status_label.setText("Status: Trening zakończony!")
+                logger.info("[PJM] Trening zakończony pomyślnie")
+
+                # Dialog z wynikami
+                dialog = TrainingResultsDialog(results, self)
+                dialog.exec()
+
+                # Zaproponuj przeładowanie modelu
+                reply = QMessageBox.question(
+                    self,
+                    "Przeładować model?",
+                    "Trening zakończony. Czy chcesz przeładować wytrenowany model?",
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.Yes,
+                )
+
+                if reply == QMessageBox.Yes:
+                    self.on_pjm_reload_model()
+
+            def _on_training_error(self, error_msg: str):
+                """Callback błędu treningu."""
+                from PySide6.QtWidgets import QMessageBox
+
+                self.progress_dialog.close()
+                self.status_label.setText("Status: Błąd treningu")
+                logger.error("[PJM] Błąd treningu: %s", error_msg)
+
+                QMessageBox.critical(
+                    self,
+                    "Błąd treningu",
+                    f"Wystąpił błąd podczas treningu:\n\n{error_msg}",
+                )
 
             def on_pjm_copy_history(self):
                 # kopiuje historie liter do schowka
@@ -701,8 +759,12 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                 self.worker.start()
                 self.start_btn.setEnabled(False)
                 self.stop_btn.setEnabled(True)
-                self.camera_combo.setEnabled(False)
-                self.refresh_cams_btn.setEnabled(False)
+                # Pozwól na zmianę kamery podczas działania
+                self.camera_combo.setEnabled(True)
+                self.refresh_cams_btn.setEnabled(True)
+                logger.info(
+                    "[Camera] _restart_with_camera: Camera controls remain ENABLED during operation"
+                )
 
             def _auto_start_if_possible(self) -> None:
                 # jesli nie ma uruchomionego workera i jest jakakolwiek kamera - startuje automatycznie
@@ -729,25 +791,71 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                 current_data = self.camera_combo.currentData()
                 current_text = self.camera_combo.currentText()
 
+                logger.info(
+                    "[Camera] populate_cameras: START - current_data=%s, current_text=%s",
+                    current_data,
+                    current_text,
+                )
+
                 self.camera_combo.blockSignals(True)
                 self.camera_combo.clear()
                 sources = discover_camera_sources(max_index=int(CAMERA_MAX_INDEX_SCAN))
-                for source, name in sources:
+
+                logger.info(
+                    "[Camera] populate_cameras: Discovered %d cameras", len(sources)
+                )
+                for i, (source, name) in enumerate(sources):
+                    logger.info("[Camera]   [%d] source=%s, name=%s", i, source, name)
                     self.camera_combo.addItem(name, source)
+
                 if self.camera_combo.count() == 0:
                     self.camera_combo.addItem("Brak kamer", -1)
+                    logger.warning("[Camera] populate_cameras: No cameras found!")
                 else:
                     # proba przywrocenia poprzedniego wyboru (po data, a nastepnie po tekscie)
                     if current_data is not None:
                         idx = self.camera_combo.findData(current_data)
+                        logger.info(
+                            "[Camera] populate_cameras: Trying to restore by data=%s -> idx=%d",
+                            current_data,
+                            idx,
+                        )
                         if idx >= 0:
                             self.camera_combo.setCurrentIndex(idx)
+                            logger.info(
+                                "[Camera] populate_cameras: Restored camera by data at index %d",
+                                idx,
+                            )
                         else:
                             # fallback po tekscie
                             if current_text:
                                 idx2 = self.camera_combo.findText(current_text)
+                                logger.info(
+                                    "[Camera] populate_cameras: Fallback to text=%s -> idx=%d",
+                                    current_text,
+                                    idx2,
+                                )
                                 if idx2 >= 0:
                                     self.camera_combo.setCurrentIndex(idx2)
+                                    logger.info(
+                                        "[Camera] populate_cameras: Restored camera by text at index %d",
+                                        idx2,
+                                    )
+                    else:
+                        logger.info(
+                            "[Camera] populate_cameras: No previous selection to restore"
+                        )
+
+                final_index = self.camera_combo.currentIndex()
+                final_data = self.camera_combo.currentData()
+                final_text = self.camera_combo.currentText()
+                logger.info(
+                    "[Camera] populate_cameras: FINAL - index=%d, data=%s, text=%s",
+                    final_index,
+                    final_data,
+                    final_text,
+                )
+
                 self.camera_combo.blockSignals(False)
 
                 cams_text = (
@@ -840,8 +948,12 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                 self.worker.start()
                 self.start_btn.setEnabled(False)
                 self.stop_btn.setEnabled(True)
-                self.camera_combo.setEnabled(False)
-                self.refresh_cams_btn.setEnabled(False)
+                # Pozwól na zmianę kamery podczas działania
+                self.camera_combo.setEnabled(True)
+                self.refresh_cams_btn.setEnabled(True)
+                logger.info(
+                    "[Camera] on_start: Camera controls remain ENABLED during operation"
+                )
 
             def on_stop(self):
                 if self.worker is not None:
@@ -856,27 +968,60 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
 
             def on_camera_changed(self, _index):
                 # jesli przetwarzanie trwa, bezpiecznie restartuje watek z nowym zrodlem
+                logger.info("[Camera] on_camera_changed: TRIGGERED - index=%d", _index)
+
                 if self.worker is None or not self.worker.isRunning():
+                    logger.info(
+                        "[Camera] on_camera_changed: Worker not running, ignoring change"
+                    )
                     return
+
                 cd_any: Any = self.camera_combo.currentData()
+                cam_text = self.camera_combo.currentText()
+                logger.info(
+                    "[Camera] on_camera_changed: New selection - data=%s, text=%s",
+                    cd_any,
+                    cam_text,
+                )
+
                 if not isinstance(cd_any, (int, str)):
+                    logger.warning(
+                        "[Camera] on_camera_changed: Invalid camera data type: %s",
+                        type(cd_any),
+                    )
                     return
+
                 cam_data = cast(Union[int, str], cd_any)
+                logger.info(
+                    "[Camera] on_camera_changed: Starting camera switch to: %s (%s)",
+                    cam_data,
+                    cam_text,
+                )
+
                 self.status_label.setText(
                     "Status: Zmiana kamery - restart przetwarzania..."
                 )
                 try:
+                    logger.info("[Camera] on_camera_changed: Stopping worker...")
                     self.worker.stop()
                     self.worker.wait(2000)
+                    logger.info("[Camera] on_camera_changed: Worker stopped")
                 except Exception as e:
                     logger.debug("on_camera_changed: stop/wait error: %s", e)
                 try:
                     self._disconnect_worker_signals(self.worker)
                 except Exception as e:
                     logger.debug("on_camera_changed: disconnect error: %s", e)
+
                 actions_enabled = self.exec_actions_chk.isChecked()
                 preview_enabled = self.preview_chk.isChecked()
                 mode = "translator" if self.mode_switch.isChecked() else "gestures"
+
+                logger.info(
+                    "[Camera] on_camera_changed: Creating new worker with cam=%s, mode=%s",
+                    cam_data,
+                    mode,
+                )
                 self.worker = self._create_worker()
                 self.worker.configure(
                     cam_data,
@@ -894,9 +1039,17 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                     )
                 except Exception as e:
                     logger.debug("on_camera_changed: sync pre-start error: %s", e)
+
+                logger.info(
+                    "[Camera] on_camera_changed: Starting worker with new camera..."
+                )
                 self.worker.start()
                 self.status_label.setText(
                     "Status: Przetwarzanie uruchomione (nowa kamera)"
+                )
+                logger.info(
+                    "[Camera] on_camera_changed: COMPLETE - switched to camera %s",
+                    cam_text,
                 )
 
             def on_actions_toggle(self, _state: int):
