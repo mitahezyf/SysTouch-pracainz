@@ -68,7 +68,13 @@ def test_no_hand_detected(monkeypatch):
     class Result:
         multi_hand_landmarks = None
 
-    monkeypatch.setattr(mw.hand_tracker, "process", lambda _fr: Result())
+    # patch _get_hand_tracker aby zwracal mocka z naszym process
+    class MockTracker:
+        @staticmethod
+        def process(_fr):
+            return Result()
+
+    monkeypatch.setattr(mw, "_get_hand_tracker", lambda: MockTracker())
 
     assert mw.get_hand_landmarks() is None
 
@@ -103,7 +109,13 @@ def test_hand_detected(monkeypatch):
         def __init__(self):
             self.multi_hand_landmarks = [Hand()]
 
-    monkeypatch.setattr(mw.hand_tracker, "process", lambda _fr: Result())
+    # patch _get_hand_tracker aby zwracal mocka z naszym process
+    class MockTracker:
+        @staticmethod
+        def process(_fr):
+            return Result()
+
+    monkeypatch.setattr(mw, "_get_hand_tracker", lambda: MockTracker())
 
     lms = mw.get_hand_landmarks()
     assert isinstance(lms, list) and len(lms) == 21

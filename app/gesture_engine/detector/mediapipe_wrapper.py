@@ -32,7 +32,16 @@ except Exception:  # pragma: no cover
 
     cv2 = _CV2Stub()
 
-hand_tracker = HandTracker(max_num_hands=1)
+# Lazy initialization - tworzy tracker dopiero przy pierwszym uzyciu
+_hand_tracker: HandTracker | None = None
+
+
+def _get_hand_tracker() -> HandTracker:
+    """Lazy initialization hand trackera - tworzy go dopiero gdy potrzebny."""
+    global _hand_tracker
+    if _hand_tracker is None:
+        _hand_tracker = HandTracker(max_num_hands=1)
+    return _hand_tracker
 
 
 def get_hand_landmarks():
@@ -60,6 +69,7 @@ def get_hand_landmarks():
         return None
 
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    hand_tracker = _get_hand_tracker()  # lazy init
     result = hand_tracker.process(frame_rgb)
 
     if result.multi_hand_landmarks:
