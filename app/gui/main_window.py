@@ -378,11 +378,11 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                     self,
                     "Przeładować model?",
                     "Trening zakończony. Czy chcesz przeładować wytrenowany model?",
-                    QMessageBox.Yes | QMessageBox.No,
-                    QMessageBox.Yes,
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.Yes,
                 )
 
-                if reply == QMessageBox.Yes:
+                if reply == QMessageBox.StandardButton.Yes:
                     self.on_pjm_reload_model()
 
             def _on_training_error(self, error_msg: str):

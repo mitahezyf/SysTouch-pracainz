@@ -59,7 +59,7 @@ if app_issues:
         print(f"\n!!! UWAGA: {len(high_in_app)} HIGH severity w app/ !!!")
         for issue in high_in_app[:5]:
             print(f"\n  - {issue['test_id']}: {issue['issue_text']}")
-            print(f"    Plik: {issue['filename'].split('inzynierka')[-1]}")
+            print(f"    Plik: {issue['filename'].split('SysTouch')[-1]}")
             print(f"    Linia: {issue['line_number']}")
 
     # Pokaz MEDIUM issues z app/

@@ -17,7 +17,7 @@ logging.basicConfig(
     format="[%(asctime)s] [%(levelname)s] %(message)s",
 )
 
-logger = logging.getLogger("inzynierka")
+logger = logging.getLogger("SysTouch")
 logger.setLevel(_level)
 
 

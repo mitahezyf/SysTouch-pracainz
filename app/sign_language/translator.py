@@ -10,6 +10,7 @@ import torch
 from app.gesture_engine.config import DEBUG_MODE
 from app.gesture_engine.logger import logger
 from app.sign_language.features import FeatureExtractor
+from app.sign_language.gesture_logic import GestureManager
 from app.sign_language.model import SignLanguageMLP
 
 # sciezki absolutne bazujace na lokalizacji tego pliku
@@ -211,10 +212,24 @@ class SignTranslator:
         self.max_history: int = max_history
 
         # inicjalizacja GestureManager (warstwa 2 - logika dynamiczna)
-        # UWAGA: modul gesture_logic.py zostal usuniety - funkcjonalnosc wylaczona
-        self.gesture_manager: Optional[object] = None
-        # kod wylaczony - GestureManager nie istnieje
-        logger.info("GestureManager wylaczony (modul nie istnieje)")
+        if self.enable_dynamic_gestures:
+            self.gesture_manager: Optional[GestureManager] = GestureManager(
+                gesture_types=gesture_types,
+                dynamic_entry=0.75,
+                dynamic_exit=0.55,
+                dynamic_hold_ms=600,
+                stable_frames=3,
+                buffer_size=buffer_size,
+                motion_gate=False,
+                motion_threshold=0.0,
+            )
+            logger.info(
+                "GestureManager zainicjalizowany (gesty dynamiczne: ON, %d typow)",
+                len([t for t in gesture_types.values() if t == "dynamic"]),
+            )
+        else:
+            self.gesture_manager = None
+            logger.info("GestureManager wylaczony (enable_dynamic_gestures=False)")
 
         logger.info(
             "SignTranslator zainicjalizowany: buffer=%d, min_hold=%dms, conf_entry=%.2f, conf_exit=%.2f, max_history=%d, input_size=%d",
@@ -248,7 +263,7 @@ class SignTranslator:
 
         # resetuj GestureManager
         if self.gesture_manager:
-            self.gesture_manager.reset()  # type: ignore[attr-defined]
+            self.gesture_manager.reset()
 
         logger.debug("SignTranslator zresetowany (keep_stats=%s)", keep_stats)
 
@@ -302,25 +317,31 @@ class SignTranslator:
 
             # warstwa 2: logika dynamiczna (GestureManager)
             if self.gesture_manager and static_result:
-                # przekaz do menedzera gestow
-                gesture_result = self.gesture_manager.process(  # type: ignore[attr-defined]
-                    static_letter=static_result,
-                    confidence=self.current_confidence,
-                    landmarks=landmarks,
+                # przekaz do menedzera gestow z timestampem
+                now_ms = int(time.time() * 1000)
+                gesture_result = self.gesture_manager.process(
+                    pred_label=static_result,
+                    pred_conf=self.current_confidence,
+                    landmarks21=landmarks,
+                    now_ms=now_ms,
                 )
 
                 if gesture_result:
-                    # jesli menedzer zwrocil inny wynik (np. sekwencje), uzyj go
+                    # jesli menedzer zwrocil wynik dynamiczny, uzyj go
                     if gesture_result.name != static_result:
                         logger.debug(
-                            "GestureManager nadpisal: %s -> %s (type=%s)",
+                            "GestureManager nadpisal: %s -> %s (type=%s, conf=%.2f)",
                             static_result,
                             gesture_result.name,
                             gesture_result.gesture_type,
+                            gesture_result.confidence,
                         )
-                        # aktualizuj statystyki dla nowej litery
-                        self._register_detection(gesture_result.name)
-                        return str(gesture_result.name)
+                    # zaktualizuj current_letter i confidence z wyniku dynamicznego
+                    self.current_letter = gesture_result.name
+                    self.current_confidence = gesture_result.confidence
+                    # aktualizuj statystyki
+                    self._register_detection(gesture_result.name)
+                    return gesture_result.name
 
             return static_result
 
