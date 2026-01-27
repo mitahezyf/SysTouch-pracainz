@@ -16,7 +16,12 @@ class _ProcessResultProtocol(Protocol):
 # obsluguje brak mediapipe przez tworzenie lekkiego stuba kompatybilnego z API
 try:  # pragma: no cover
     import mediapipe as mp
-except Exception:  # pragma: no cover
+
+    # sprawdz czy mediapipe ma poprawne API (solutions)
+    if not hasattr(mp, "solutions"):
+        raise AttributeError("MediaPipe zainstalowany ale brak mp.solutions")
+except Exception as e:  # pragma: no cover
+    logger.warning(f"mediapipe niedostepne lub uszkodzony ({e}) - uzywam no-op stuba")
 
     class _HandsStub:
         def __init__(self, *_, **__):
@@ -34,7 +39,6 @@ except Exception:  # pragma: no cover
     setattr(solutions, "drawing_utils", object())
     setattr(solutions, "drawing_styles", object())
     mp = type("mp_stub", (), {"solutions": solutions})()
-    logger.warning("mediapipe niedostepne - uzywam no-op stuba (hand_tracker)")
 
 
 class HandTracker:
