@@ -282,7 +282,7 @@ class MainWindow:  # faktyczna klasa QMainWindow tworzona dynamicznie
                         "--interactive",
                         "--show-landmarks",  # pokazuj landmarki dloni
                     ]
-                    subprocess.Popen(cmd, cwd=base_dir)
+                    subprocess.Popen(cmd, cwd=base_dir, shell=False)  # nosec B603
                     self.status_label.setText(
                         f"Status: Uruchomiono nagrywanie {len(PJM_LABELS)} liter (kamera {current_camera})"
                     )

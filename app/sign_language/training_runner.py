@@ -48,7 +48,12 @@ def run_training_pipeline(
         # Uruchom konsolidację
         consolidate_cmd = [sys.executable, "-m", "app.sign_language.dataset"]
         result = subprocess.run(
-            consolidate_cmd, cwd=base_dir, capture_output=True, text=True
+            consolidate_cmd,
+            cwd=base_dir,
+            capture_output=True,
+            text=True,
+            shell=False,  # nosec B603
+            check=False,
         )
 
         if result.returncode != 0:
